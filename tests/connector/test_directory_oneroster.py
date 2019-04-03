@@ -10,23 +10,68 @@ def test_parse_yml_groups():
     assert OneRosterConnector.parse_yml_groups(OneRosterConnector, {'classes::yyy::students'})\
         == {'classes': {'yyy': {'classes::yyy::students': 'students'}}}
 
-    assert OneRosterConnector.parse_yml_groups(OneRosterConnector, {'classes::y    y    y::students'})\
-        == {'classes': {'y    y    y': {'classes::y    y    y::students': 'students'}}}
+    assert OneRosterConnector.parse_yml_groups(OneRosterConnector, {'courses::y    y    y::teachers'})\
+        == {'courses': {'y    y    y': {'courses::y    y    y::teachers': 'teachers'}}}
 
-# Splitting this to show which part of function fails if it happens to fail
+
 def test_parse_yml_groups_failure():
-    
+
+    # false value for group_filter, viable options [courses, classes, schools]
     with pytest.raises(ValueError):
         OneRosterConnector.parse_yml_groups(OneRosterConnector, {'course::Alg-102::xxx'})
 
+    # false value for user_filter, viable options [students, teachers, users]
     with pytest.raises(ValueError):
-        OneRosterConnector.parse_yml_groups(OneRosterConnector, {'xxx::Alg-102::students'})
+        OneRosterConnector.parse_yml_groups(OneRosterConnector, {'courses::Alg-102::stud'})
 
+    # syntax error, values must be separated by double colons '::'
     with pytest.raises(ValueError):
         OneRosterConnector.parse_yml_groups(OneRosterConnector, {'classes:Alg-102::students'})
 
+    # missing third required value
     with pytest.raises(ValueError):
         OneRosterConnector.parse_yml_groups(OneRosterConnector, {'classes::students'})
+
+
+def test_parse_yml_groups_complex():
+    group_list = {'courses::Alg-102::students',
+                  'classes::Geography I - Spring::students',
+                  'classes::Art I - Fall::students',
+                  'classes::Art I - Fall::teachers',
+                  'classes::Art        I - Fall::teachers',
+                  'classes::Algebra I - Fall::students',
+                  'schools::Spring Valley::students'}
+
+    expected_dict_format = {
+        "classes": {
+            "algebra i - fall": {
+                "classes::Algebra I - Fall::students": "students"
+            },
+            "geography i - spring": {
+                "classes::Geography I - Spring::students": "students"
+            },
+            "art i - fall": {
+                "classes::Art I - Fall::students": "students",
+                "classes::Art I - Fall::teachers": "teachers"
+            },
+            "art        i - fall": {
+                "classes::Art        I - Fall::teachers": "teachers"
+            }
+        },
+        "courses": {
+            "alg-102": {
+                "courses::Alg-102::students": "students"
+            }
+        },
+        "schools": {
+            "spring valley": {
+                "schools::Spring Valley::students": "students"
+            }
+        }
+    }
+
+    return_dict_format = OneRosterConnector.parse_yml_groups(OneRosterConnector, group_list)
+    assert expected_dict_format == return_dict_format
 
 
 # @mock.patch('user_sync.connector.directory_oneroster.Connection.get_key_identifier')
@@ -58,60 +103,7 @@ def test_parse_yml_groups_failure():
 #
 #     connector = OneRosterConnector(caller_options)
 #
-# def test_parse_yml_groups_simple():
-#     mock_adobe_user_group = {'courses::Alg-102::students'}
-#     return_dict_format = connector.parse_yml_groups(mock_adobe_user_group)
-#     expected_dict_format = {
-#         'courses': {
-#             'alg-102': {
-#                 'courses::Alg-102::students': 'students'}}}
-#     assert expected_dict_format == return_dict_format
-#
-# def test_parse_yml_groups_complex():
-#     group_list = {'courses::Alg-102::students',
-#                   'classes::Geography I - Spring::students',
-#                   'classes::Art I - Fall::students',
-#                   'classes::Art I - Fall::teachers',
-#                   'classes::Art        I - Fall::teachers',
-#                   'classes::Algebra I - Fall::students',
-#                   'schools::Spring Valley::students', }
-#
-#     expected_dict_format = {
-#         "classes": {
-#             "algebra i - fall": {
-#                 "classes::Algebra I - Fall::students": "students"
-#             },
-#             "geography i - spring": {
-#                 "classes::Geography I - Spring::students": "students"
-#             },
-#             "art i - fall": {
-#                 "classes::Art I - Fall::students": "students",
-#                 "classes::Art I - Fall::teachers": "teachers"
-#             },
-#             "art        i - fall": {
-#                 "classes::Art        I - Fall::teachers": "teachers"
-#             }
-#         },
-#         "courses": {
-#             "alg-102": {
-#                 "courses::Alg-102::students": "students"
-#             }
-#         },
-#         "schools": {
-#             "spring valley": {
-#                 "schools::Spring Valley::students": "students"
-#             }
-#         }
-#     }
-#
-#     return_dict_format = connector.parse_yml_groups(group_list)
-#     assert expected_dict_format == return_dict_format
-#
-# def test_parse_yml_groups_failure():
-#     pytest.raises(ValueError, connector.parse_yml_groups({'xxx::Alg-102::students'}))
-#     pytest.raises(ValueError, connector.parse_yml_groups({'course::Alg-102::xxx'}))
-#     pytest.raises(ValueError, connector.parse_yml_groups({'xxx::yyy'}))
-#     pytest.raises(ValueError, connector.parse_yml_groups({'class::someclass::students'}))
+
 #
 #
 # def test_parse_results():
