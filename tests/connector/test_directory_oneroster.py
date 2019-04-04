@@ -73,6 +73,9 @@ def test_parse_yml_groups_complex():
     return_dict_format = OneRosterConnector.parse_yml_groups(OneRosterConnector, group_list)
     assert expected_dict_format == return_dict_format
 
+def test():
+    pass
+
 
 # @mock.patch('user_sync.connector.directory_oneroster.Connection.get_key_identifier')
 # def test_retrieve_api_token(self, MockCall):
