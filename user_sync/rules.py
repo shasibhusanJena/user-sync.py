@@ -22,12 +22,13 @@
 import logging
 import six
 import re
+from itertools import chain
 
 import user_sync.connector.umapi
 import user_sync.error
 import user_sync.identity_type
 from collections import defaultdict
-from user_sync.helper import normalize_string, CSVAdapter, JobStats
+from user_sync.helper import normalize_string, normal_group, CSVAdapter, JobStats
 
 GROUP_NAME_DELIMITER = '::'
 PRIMARY_UMAPI_NAME = None
@@ -37,6 +38,7 @@ class RuleProcessor(object):
     # rule processing option defaults
     # these are in alphabetical order!  Always add new ones that way!
     default_options = {
+        'adobe_group_filter': None,
         'after_mapping_hook': None,
         'default_country_code': None,
         'delete_strays': False,
@@ -850,13 +852,20 @@ class RuleProcessor(object):
         if self.will_process_strays:
             self.add_stray(umapi_info.get_name(), None)
 
+        if self.options['adobe_group_filter'] is not None:
+            umapi_users = self.get_umapi_user_in_groups(umapi_info, umapi_connector, self.options['adobe_group_filter'])
+        else:
+            umapi_users = umapi_connector.iter_users()
         # Walk all the adobe users, getting their group data, matching them with directory users,
         # and adjusting their attribute and group data accordingly.
-        for umapi_user in umapi_connector.iter_users():
+        for umapi_user in umapi_users:
             # get the basic data about this user; initialize change markers to "no change"
             user_key = self.get_umapi_user_key(umapi_user)
             if not user_key:
                 self.logger.warning("Ignoring umapi user with empty user key: %s", umapi_user)
+                continue
+            if umapi_info.get_umapi_user(user_key) is not None:
+                self.logger.debug("Ignoring umapi user. This user has already been processed: %s", umapi_user)
                 continue
             umapi_info.add_umapi_user(user_key, umapi_user)
             attribute_differences = {}
@@ -920,6 +929,14 @@ class RuleProcessor(object):
         if '@' in username and username != email:
             self.email_override[username] = email
 
+    @staticmethod
+    def get_umapi_user_in_groups(umapi_info, umapi_connector, groups):
+        umapi_users_iters = []
+        for group in groups:
+            if group.get_umapi_name() == umapi_info.get_name():
+                umapi_users_iters.append(umapi_connector.iter_users(in_group=group.get_group_name()))
+        return chain.from_iterable(umapi_users_iters)
+
     def is_umapi_user_excluded(self, in_primary_org, user_key, current_groups):
         if in_primary_org:
             self.primary_user_count += 1
@@ -954,7 +971,7 @@ class RuleProcessor(object):
         result = set()
         if group_names is not None:
             for group_name in group_names:
-                normalized_group_name = normalize_string(group_name)
+                normalized_group_name = normalize_string(group_name) if normal_group(group_name) else group_name.strip()
                 result.add(normalized_group_name)
         return result
 
@@ -1288,7 +1305,7 @@ class UmapiTargetInfo(object):
         """
         :type group: str
         """
-        normalized_group_name = normalize_string(group)
+        normalized_group_name = normalize_string(group) if normal_group(group) else group.strip()
         self.mapped_groups.add(normalized_group_name)
         self.non_normalize_mapped_groups.add(group)
 
@@ -1325,7 +1342,7 @@ class UmapiTargetInfo(object):
         if desired_groups is None:
             self.desired_groups_by_user_key[user_key] = desired_groups = set()
         if group is not None:
-            normalized_group_name = normalize_string(group)
+            normalized_group_name = normalize_string(group) if normal_group(group) else group.strip()
             desired_groups.add(normalized_group_name)
 
     def add_umapi_user(self, user_key, user):
