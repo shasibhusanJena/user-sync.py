@@ -185,7 +185,7 @@ class Connection:
                 return {}
             for ignore, users in json.loads(response.content).items():
                 users_list_from_api_requests.extend(users)
-            if key == 'last' or response.headers._store['x-count'][1] < limit:
+            if key == 'last' or int(response.headers._store['x-count'][1]) < int(limit):
                 break
             key = 'next' if 'next' in response.links else 'last'
         return users_list_from_api_requests
