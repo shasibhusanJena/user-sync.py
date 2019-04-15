@@ -97,3 +97,5 @@ ENV/
 _site
 .sass-cache
 .jekyll-metadata
+
+test_config/
