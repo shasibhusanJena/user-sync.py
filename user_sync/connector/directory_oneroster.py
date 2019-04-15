@@ -185,7 +185,7 @@ class Connection:
                 return {}
             for ignore, users in json.loads(response.content).items():
                 users_list_from_api_requests.extend(users)
-            if key == 'last' or response.headers._store['x-count'][1] < limit:
+            if key == 'last' or int(response.headers._store['x-count'][1]) < int(limit):
                 break
             key = 'next' if 'next' in response.links else 'last'
         return users_list_from_api_requests
@@ -218,7 +218,7 @@ class Connection:
                         return {}
                     for ignore, users in json.loads(response.content).items():
                         users_list_from_api_requests.extend(users)
-                    if key == 'last' or response.headers._store['x-count'][1] < limit:
+                    if key == 'last' or int(response.headers._store['x-count'][1]) < int(limit):
                         break
                     key = 'next' if 'next' in response.links else 'last'
         else:
@@ -236,7 +236,7 @@ class Connection:
                         return {}
                     for ignore, users in json.loads(response.content).items():
                         users_list_from_api_requests.extend(users)
-                    if key == 'last' or response.headers._store['x-count'][1] < limit:
+                    if key == 'last' or int(response.headers._store['x-count'][1]) < int(limit):
                         break
                     key = 'next' if 'next' in response.links else 'last'
             except ValueError as e:
@@ -271,7 +271,7 @@ class Connection:
                         raise ValueError('Key identifier: ' + key_identifier + ' not a valid identifier')
                     keys.append(key_id)
                     return keys[0]
-            if key == 'last' or response.headers._store['x-count'][1] < limit:
+            if key == 'last' or int(response.headers._store['x-count'][1]) < int(limit):
                 break
             key = 'next' if 'next' in response.links else 'last'
         if len(keys) == 0:
@@ -306,7 +306,7 @@ class Connection:
                     class_key_id = each_class[0][key_identifier]
                     class_name = each_class[0]['title']
                     class_list[class_name] = class_key_id
-                if key == 'last' or response.headers._store['x-count'][1] < limit:
+                if key == 'last' or int(response.headers._store['x-count'][1]) < int(limit):
                     break
                 key = 'next' if 'next' in response.links else 'last'
         except ValueError as e:
