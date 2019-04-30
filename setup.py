@@ -25,7 +25,7 @@ with open('user_sync/version.py') as f:
     exec(f.read(), version_namespace)
 
 test_deps = ['mock', 'pytest', 'pytest-cov']
-setup_deps = ['pytest-runner']
+setup_deps = ['pytest-runner', 'configparser']
 
 setup(name='user-sync',
       version=version_namespace['__version__'],
@@ -56,6 +56,7 @@ setup(name='user-sync',
           'umapi-client>=2.12',
           'click',
           'click-default-group',
+          'configparser==3.7.4'
       ],
       extras_require={
           ':sys_platform=="linux" or sys_platform=="linux2"': [
