@@ -102,6 +102,7 @@ test_config/connector-umapi.yml
 test_config/extension-config.yml
 test_config/logs/
 
-# Lockfile
-user_sync/lockfile
-
+user_sync/resources/*
+!user_sync/resources/__init__.py
+!user_sync/resources/README.md
+!user_sync/resources/manual_url
