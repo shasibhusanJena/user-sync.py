@@ -64,7 +64,7 @@ adobe_users:
     # use a relative pathname, it is interpreted relative to the
     # location of this configuration file, not relative to the
     # working directory of your User Sync process.
-    umapi: "connector-umapi.yml"
+    umapi: "..\\test-config\\connector-umapi.yml"
     # An alternate form for referencing the umapi configuration allows for storage
     # of the umapi credentials in a secure way:
     #umapi: $(cat connector-umapi.yml)  # This runs the indicated command and uses
@@ -129,7 +129,7 @@ directory_users:
     # use a relative pathname, it is interpreted relative to the
     # location of this configuration file, not relative to the
     # working directory of your User Sync process.
-    ldap: "connector-ldap.yml"
+    ldap: "..\\test-config\\connector-ldap.yml"
     # An alternate form for referencing the ldap configuration allows for storage
     # of the ldap credentials in a secure way:
     #ldap: $(cat connector-ldap.yml)  # This form runs the indicated command and uses
@@ -179,7 +179,7 @@ directory_users:
 #    - directory_group: "classes::Art ii -Spring::students"
 #      adobe_groups:
 #        - "Classlink"
-##
+#
 #    - directory_group: "courses::English 9::students"
 #      adobe_groups:
 #        - "Classlink"
@@ -195,10 +195,10 @@ directory_users:
 #    - directory_group: "classes::ELA 6 (6A ELA)::teachers"
 #      adobe_groups:
 #        - "Classlink"
-#
-#    - directory_group: "schools::cLasslink Elementary schOOl::students"
-#      adobe_groups:
-#        - "Classlink"
+
+    - directory_group: "schools::cLasslink Elementary schOOl::students"
+      adobe_groups:
+        - "Classlink"
 
 #   Won't work since a class does not have teachers associated to it
 #    - directory_group: "courses::Phy-102::teachers"
@@ -243,9 +243,9 @@ directory_users:
 #      adobe_groups:
 #        - "Classlink"
 
-    - directory_group: "All Sea of Carag"
-      adobe_groups:
-        - "Sea of Carag"
+#    - directory_group: "All Sea of Carag"
+#      adobe_groups:
+#        - "Sea of Carag"
         
 # The limits section provides processing limits which can help ensure that
 # User Sync jobs do not exceed expected guardrails in their operation

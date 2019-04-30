@@ -1,7 +1,7 @@
-# This is a sample configuration file for the okta connector type.
+# This is a sample configuration file for the oneroster connector type.
 #
-# Okta is an identity hosting company that supports being the Identity Provider
-# for Adobe Enterprise Federated ID.
+# OneRoster is the standard specification for securely sharing class rosters and related data,
+# between a student information system (SIS) and any other system.
 #
 # This sample file contains all of the settable options for this protocol.
 # It is recommended that you make a copy of this file and edit it for your needs.
@@ -9,31 +9,96 @@
 # in order to enhance the readability of your file.
 
 # connection settings (required)
-# You must specify both of these settings.  The token should be protected.
-# For more information on getting an Okta API Token, see:
-# http://developer.okta.com/docs/api/getting_started/getting_a_token.html
-host: "sample-817042.oktapreview.com"
-api_token: "00R_KJEaIcgAswrlO_sample_ZdgxC5scYZn8IZ-zi"
+# SHA-256 signing mechanism required
 
-# (required) group_filter_format (default given below)
-# specifies the string format used to construct a group query.
-# {group} is replaced with the name of the group to find.
-group_filter_format: "{group}"
+# Host name for organization's OneRoster implementation
+host: "https://example.oneroster.com/ims/oneroster/v1p1/"
 
-# (required) all_users_filter (default given below)
-# specifies the string filter used to find all users in the directory.
-# Filter Examples:
-#   Filter user based on countryCode attribute in user profile
-#      all_users_filter: 'user.profile.countryCode == "MX"'
-#   Filter user based on status of ACTIVE
-#      all_users_filter: 'user.status == "ACTIVE"'
-all_users_filter: 'user.status == "ACTIVE"'
+# Unique key used throughout One-Roster (sourcedId is commonly used)
+key_identifier: 'sourcedId'
 
-# (optional) default_identity_type (no default)
-# specifies the identity type of the dashboard user to create.
-# the valid values are: enterpriseID, federatedID
-# If not specified, the default identity type from the main config file is used.
-# user_identity_type: federatedID
+# Country Code that will be associated with
+country_code: 'US'
+
+#Authorization framework used to secure OneRoster endpoints
+#authentication_type:
+
+    #auth_type: 'oauth2'
+    #(optional) Change basic_header option to True when using the authorizatoin server requires the HTTP Basic authentication scheme,
+    #when authenticating clients, that were issued a client password
+    #basic_header: 'True'
+
+    #auth_type: 'oauth1'
+    #auth_type: 'oauth2_non_lib'
+
+#User's credentials to access protected API endpoints
+client_id: 'client-id'
+client_secret: 'client-secret'
+
+#Pagination (required according to One Roster final specification)
+#must be supported for ALL endpoints that return a collection
+#Limit, number of results to return during each query, Implementations of One Roster default at 100
+limit: '100'
+
+#All users filter
+all_users_filter: 'users'
+
+#Key name to the response count of the HTTP request, found in Response.headers._store
+#header_store_count_key: 'x-count'
+
+#Official excerpt from One Roster
+#It is expected that Student Information Systems may well contain massive amounts of data,
+#and as such there is a real danger of data overload if entire collections are requested.
+#To avoid this, implementations MUST adopt a pagination mechanism.
+#
+#Pagination is controlled via two parameters that are appended to the request.
+#
+#•         Limit - the number of results to return
+#
+#•         Offset - the index of the first record to return. (zero indexed)
+#
+#The default value for limit MUST be 100.
+#
+#The default value for offset MUST be 0.
+#
+#Example: return the first 10 resources in a collection of students:
+#
+#GET https://imsglobal.org/ims/oneroster/v1p1/students?limit=10
+#
+#Example: return the second 10 resources in a collection of students:
+#
+#GET https://imsglobal.org/ims/oneroster/v1p1/students?limit=10&offset=10
+#
+#It is RECOMMENDED that implementations pass the total resource count in collection back to the requester.
+#This MUST be provided in the custom HTTP header: X-Total-Count.
+#
+#It is RECOMMENDED that implementers pass back next, previous, first and last links in the HTTP Link Header.
+#
+#Example: 503 student resources exist in the collection. Pagination is on the second page, in units of 10.
+#
+#Link:
+#
+#<https://imsglobal.org/ims/oneroster/v1p1/students?limit=10&offset=20>; rel="next",
+#
+#<https://imsglobal.org/ims/oneroster/v1p1/students?limit=3&offset=500>; rel="last",
+#
+#<https://imsglobal.org/ims/oneroster/v1p1/students?limit=10&offset=0>; rel="first",
+#
+#<https://imsglobal.org/ims/oneroster/v1p1/students?limit=10&offset=0>; rel="prev"
+#
+#NOTE: Pagination must be supported for ALL endpoints that return a collection.
+
+
+
+
+
+
+
+
+#(optional) Additional One Roster User information (source_attributes), that can be used to create final user object.
+# attributes will be used and manipulated within the extension-config.yml file
+
+
 
 # (optional) string_encoding (default value given below)
 # string_encoding specifies the Unicode string encoding used by the directory.
@@ -43,18 +108,7 @@ all_users_filter: 'user.status == "ACTIVE"'
 # See https://docs.python.org/2/library/codecs.html#standard-encodings for details.
 #string_encoding: utf8
 
-# (optional) user_identity_type_format (no default)
-# user_identity_type_format specifies how to construct a user's desired identity
-# type on the Adobe side by combining constant strings with attribute values.
-# Any names in curly braces are take as attribute names, and everything including
-# the braces will be replaced on a per-user basis with the values of the attributes.
-# There is no default value for this setting, because most directories don't contain
-# users with different identity types (so setting the default identity type suffices).
-# If your directory contains users of different identity types, you should define
-# this field to look at the value of an appropriate attribute in your okta user profile.
-# For example, if your Okta user profile attribute "idType" had one of the values
-# adobe, enterprise, or federated in it for each user, you could use:
-#user_identity_type_format: "{idType}ID"
+
 
 # (optional) user_email_format (default value given below)
 # user_email_format specifies how to construct a user's email address by
@@ -70,7 +124,7 @@ user_email_format: "{email}"
 # user_domain_format is analogous to user_email_format in syntax, but it
 # is used to discover the domain for a given user.  If not specified, the
 # domain is taken from the domain part of the user's email address.
-#user_domain_format: "{domain}"
+user_domain_format: "{org}"
 
 # (optional) user_username_format (no default value)
 # user_username_format specifies how to construct a user's username on the
@@ -83,7 +137,7 @@ user_email_format: "{email}"
 # will be taken from the user's email.
 # This example supposes that the department and user_id are concatenated to
 # produce a unique username for each user.
-#user_username_format: "{department}_{user_id}"
+#user_username_format: "{username}"
 
 # (optional) user_given_name_format (default value given below)
 # user_given_name_format specifies how to construct a user's given name by
@@ -93,7 +147,7 @@ user_email_format: "{email}"
 # The default value is from "firstName" field in Okta user profile..
 # NOTE: for this and every format setting, the constant strings must be in
 # the encoding specified by the string_encoding setting, above.
-user_given_name_format: "{givenName}"
+#user_given_name_format: "{givenName}"
 
 # (optional) user_surname_format (default value given below)
 # user_surname_format specifies how to construct a user's surname by
@@ -103,7 +157,7 @@ user_given_name_format: "{givenName}"
 # The default value is from "lastName" field in Okta user profile.
 # NOTE: for this and every format setting, the constant strings must be in
 # the encoding specified by the string_encoding setting, above.
-user_surname_format: "{familyName}"
+#user_surname_format: "{familyName}"
 
 # (optional) user_country_code_format (default value given below)
 # user_country_code_format specifies how to construct a user's country code by
@@ -113,6 +167,5 @@ user_surname_format: "{familyName}"
 # The default value is from "countryCode" field in Okta user profile.
 # NOTE: for this and every format setting, the constant strings must be in
 # the encoding specified by the string_encoding setting, above.
-#user_country_code_format: "{countryCode}"
+user_country_code_format: "{countryCode}"
 
-hello: unused

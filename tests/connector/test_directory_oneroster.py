@@ -1,39 +1,49 @@
 import pytest
-from unittest import mock
+import user_sync
+
 from user_sync.connector.directory_oneroster import OneRosterConnector
 from user_sync.connector.directory_oneroster import RecordHandler
-from user_sync.connector.directory_oneroster import Connection
+from user_sync import config
 
 
-def test_parse_yml_groups():
+@pytest.fixture()
+def default_options():
+    config_loader = user_sync.config.ConfigLoader({'config_filename':'..\\fixture\\user-sync-config.yml', 'encoding_name': None})
+    return config_loader.get_dict_from_sources(["..\\fixture\\connector-oneroster.yml"])
 
-    assert OneRosterConnector.parse_yml_groups(OneRosterConnector, {'classes::yyy::students'})\
+@pytest.fixture
+def oneroster_connector(default_options):
+    return OneRosterConnector(default_options)
+
+
+def test_parse_yml_groups_valid(oneroster_connector):
+    assert oneroster_connector.parse_yml_groups({'classes::yyy::students'})\
         == {'classes': {'yyy': {'classes::yyy::students': 'students'}}}
 
-    assert OneRosterConnector.parse_yml_groups(OneRosterConnector, {'courses::y    y    y::teachers'})\
+    assert oneroster_connector.parse_yml_groups({'courses::y    y    y::teachers'})\
         == {'courses': {'y    y    y': {'courses::y    y    y::teachers': 'teachers'}}}
 
 
-def test_parse_yml_groups_failure():
+def test_parse_yml_groups_failure(oneroster_connector):
 
     # false value for group_filter, viable options [courses, classes, schools]
     with pytest.raises(ValueError):
-        OneRosterConnector.parse_yml_groups(OneRosterConnector, {'course::Alg-102::xxx'})
+        oneroster_connector.parse_yml_groups({'course::Alg-102::xxx'})
 
     # false value for user_filter, viable options [students, teachers, users]
     with pytest.raises(ValueError):
-        OneRosterConnector.parse_yml_groups(OneRosterConnector, {'courses::Alg-102::stud'})
+        oneroster_connector.parse_yml_groups({'courses::Alg-102::stud'})
 
     # syntax error, values must be separated by double colons '::'
     with pytest.raises(ValueError):
-        OneRosterConnector.parse_yml_groups(OneRosterConnector, {'classes:Alg-102::students'})
+        oneroster_connector.parse_yml_groups({'classes:Alg-102::students'})
 
     # missing third required value
     with pytest.raises(ValueError):
-        OneRosterConnector.parse_yml_groups(OneRosterConnector, {'classes::students'})
+        oneroster_connector.parse_yml_groups({'classes::students'})
 
 
-def test_parse_yml_groups_complex():
+def test_parse_yml_groups_complex_valid(oneroster_connector):
     group_list = {'courses::Alg-102::students',
                   'classes::Geography I - Spring::students',
                   'classes::Art I - Fall::students',
@@ -70,12 +80,39 @@ def test_parse_yml_groups_complex():
         }
     }
 
-    return_dict_format = OneRosterConnector.parse_yml_groups(OneRosterConnector, group_list)
+    return_dict_format = oneroster_connector.parse_yml_groups(group_list)
     assert expected_dict_format == return_dict_format
 
-def test():
-    pass
+def test_parse_results_valid(oneroster_connector):
 
+    extended_attributes = ['firstname']
+
+    result_set = [{'sourcedId': '22156', 'status': 'active', 'dateLastModified': '2019-03-01T18:14:45.000Z',
+                   'username': 'brandon.landfair', 'userIds': [{'type': 'FED', 'identifier': '22156'}],
+                   'enabledUser': 'true', 'givenName': 'BRANDON', 'familyName': 'LANDFAIR', 'middleName': 'PATRICK',
+                   'role': 'student', 'identifier': '19791', 'email': 'brandon.landfair@classlink.k12.nj.us', 'sms': '',
+                   'phone': '', 'agents': [],
+                   'orgs': [{'href': 'https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/orgs/3', 'sourcedId': '3',
+                             'type': 'org'}], 'grades': ['06'], 'password': ''},
+                  {'sourcedId': '29205', 'status': 'active', 'dateLastModified': '2019-03-01T18:14:45.000Z',
+                   'username': 'mohammed.forster', 'userIds': [{'type': 'FED', 'identifier': '29205'}],
+                   'enabledUser': 'true', 'givenName': 'MOHAMMED', 'familyName': 'FORSTER', 'middleName': 'ELIZABETH',
+                   'role': 'student', 'identifier': '20380', 'email': 'mohammed.forster@classlink.k12.nj.us', 'sms': '',
+                   'phone': '', 'agents': [],
+                   'orgs': [{'href': 'https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/orgs/3', 'sourcedId': '3', 'type': 'org'}], 'grades': ['06'], 'password': ''}, {'sourcedId': '32452', 'status': 'active', 'dateLastModified': '2019-03-01T18:14:45.000Z', 'username': 'dimple.preciado', 'userIds': [{'type': 'FED', 'identifier': '32452'}], 'enabledUser': 'true', 'givenName': 'DIMPLE', 'familyName': 'PRECIADO', 'middleName': 'DAMIAN', 'role': 'student', 'identifier': '21037', 'email': 'dimple.preciado@classlink.k12.nj.us', 'sms': '', 'phone': '', 'agents': [], 'orgs': [{'href': 'https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/orgs/3', 'sourcedId': '3', 'type': 'org'}], 'grades': ['06'], 'password': ''}, {'sourcedId': '22156', 'status': 'active', 'dateLastModified': '2019-03-01T18:14:45.000Z', 'username': 'brandon.landfair', 'userIds': [{'type': 'FED', 'identifier': '22156'}], 'enabledUser': 'true', 'givenName': 'BRANDON', 'familyName': 'LANDFAIR', 'middleName': 'PATRICK', 'role': 'student', 'identifier': '19791', 'email': 'brandon.landfair@classlink.k12.nj.us', 'sms': '', 'phone': '', 'agents': [], 'orgs': [{'href': 'https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/orgs/3', 'sourcedId': '3', 'type': 'org'}], 'grades': ['06'], 'password': ''}, {'sourcedId': '29205', 'status': 'active', 'dateLastModified': '2019-03-01T18:14:45.000Z', 'username': 'mohammed.forster', 'userIds': [{'type': 'FED', 'identifier': '29205'}], 'enabledUser': 'true', 'givenName': 'MOHAMMED', 'familyName': 'FORSTER', 'middleName': 'ELIZABETH', 'role': 'student', 'identifier': '20380', 'email': 'mohammed.forster@classlink.k12.nj.us', 'sms': '', 'phone': '', 'agents': [], 'orgs': [{'href': 'https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/orgs/3', 'sourcedId': '3', 'type': 'org'}], 'grades': ['06'], 'password': ''}, {'sourcedId': '32452', 'status': 'active', 'dateLastModified': '2019-03-01T18:14:45.000Z', 'username': 'dimple.preciado', 'userIds': [{'type': 'FED', 'identifier': '32452'}], 'enabledUser': 'true', 'givenName': 'DIMPLE', 'familyName': 'PRECIADO', 'middleName': 'DAMIAN', 'role': 'student', 'identifier': '21037', 'email': 'dimple.preciado@classlink.k12.nj.us', 'sms': '', 'phone': '', 'agents': [], 'orgs': [{'href': 'https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/orgs/3', 'sourcedId': '3', 'type': 'org'}], 'grades': ['06'], 'password': ''}]
+
+    expected_dict = {'22156': {'identity_type': 'federatedID', 'username': 'brandon.landfair@classlink.k12.nj.us', 'domain': 'classlink.k12.nj.us', 'firstname': 'BRANDON', 'lastname': 'LANDFAIR', 'email': 'brandon.landfair@classlink.k12.nj.us', 'groups': set(), 'country': 'US', 'source_attributes': {'email': 'brandon.landfair@classlink.k12.nj.us', 'identity_type': None, 'username': None, 'domain': None, 'givenName': 'BRANDON', 'familyName': 'LANDFAIR', 'country': None}}, '29205': {'identity_type': 'federatedID', 'username': 'mohammed.forster@classlink.k12.nj.us', 'domain': 'classlink.k12.nj.us', 'firstname': 'MOHAMMED', 'lastname': 'FORSTER', 'email': 'mohammed.forster@classlink.k12.nj.us', 'groups': set(), 'country': 'US', 'source_attributes': {'email': 'mohammed.forster@classlink.k12.nj.us', 'identity_type': None, 'username': None, 'domain': None, 'givenName': 'MOHAMMED', 'familyName': 'FORSTER', 'country': None}}, '32452': {'identity_type': 'federatedID', 'username': 'dimple.preciado@classlink.k12.nj.us', 'domain': 'classlink.k12.nj.us', 'firstname': 'DIMPLE', 'lastname': 'PRECIADO', 'email': 'dimple.preciado@classlink.k12.nj.us', 'groups': set(), 'country': 'US', 'source_attributes': {'email': 'dimple.preciado@classlink.k12.nj.us', 'identity_type': None, 'username': None, 'domain': None, 'givenName': 'DIMPLE', 'familyName': 'PRECIADO', 'country': None}}}
+
+    returned_dict = RecordHandler(oneroster_connector.options, None)\
+        .parse_results(result_set, 'sourcedId', extended_attributes)
+
+    assert returned_dict == expected_dict
+
+# OneRosterValueFormatter Class:
+
+# Connection Class:
+
+# RecordHandler Class:
 
 # @mock.patch('user_sync.connector.directory_oneroster.Connection.get_key_identifier')
 # def test_retrieve_api_token(self, MockCall):

@@ -95,12 +95,7 @@ ENV/
 _site
 .sass-cache
 .jekyll-metadata
-test_config/private.key
-test_config/certificate_pub.crt
-test_config/connector-ldap.yml
-test_config/connector-umapi.yml
-test_config/extension-config.yml
-test_config/logs/
+test-config/*
 
 user_sync/resources/*
 !user_sync/resources/__init__.py
