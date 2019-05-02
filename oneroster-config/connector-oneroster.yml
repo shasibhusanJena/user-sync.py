@@ -9,111 +9,26 @@
 # in order to enhance the readability of your file.
 
 # connection settings (required)
-# SHA-256 signing mechanism required
-
-# Host name for organization's OneRoster implementation, eg: https://mockroster.io
+# Host name for organization's OneRoster implementation, eg: "https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/"
 host: "https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/"
-
-#api_token_endpoint: "https://mockroster.io/oauth/token"
 
 # Unique key used throughout One-Roster (sourcedId is commonly used)
 key_identifier: 'sourcedId'
 
-# Country Code that will be associated with
+# Country Code that will be associated with all users
 country_code: 'US'
 
-#Authorization framework used to secure OneRoster endpoints
-#authentication_type:
-
-    #auth_type: 'oauth2'
-    #(optional) Change basic_header option to True when using the authorizatoin server requires the HTTP Basic authentication scheme,
-    #when authenticating clients, that were issued a client password
-    #basic_header: 'True'
-
-    #auth_type: 'oauth1'
-
-    #auth_type: 'oauth2_non_lib'
-
-    #User's credentials to access protected API endpoints
+# API credentials
 client_id: '0fc7e35773c1fffd32579507'
 client_secret: '10332e330b2e364020179021'
 
+#All users filter
+all_users_filter: 'users'
 
 #Pagination (required according to One Roster final specification)
 #must be supported for ALL endpoints that return a collection
 #Limit, number of results to return during each query, Implementations of One Roster default at 100
 limit: '100'
-
-#All users filter
-all_users_filter: 'users'
-
-#Key name to the response count of the HTTP request, found in Response.headers._store
-#header_store_count_key: 'x-count'
-
-
-#Official excerpt from One Roster
-#It is expected that Student Information Systems may well contain massive amounts of data,
-#and as such there is a real danger of data overload if entire collections are requested.
-#To avoid this, implementations MUST adopt a pagination mechanism.
-#
-#Pagination is controlled via two parameters that are appended to the request.
-#
-#•         Limit - the number of results to return
-#
-#•         Offset - the index of the first record to return. (zero indexed)
-#
-#The default value for limit MUST be 100.
-#
-#The default value for offset MUST be 0.
-#
-#Example: return the first 10 resources in a collection of students:
-#
-#GET https://imsglobal.org/ims/oneroster/v1p1/students?limit=10
-#
-#Example: return the second 10 resources in a collection of students:
-#
-#GET https://imsglobal.org/ims/oneroster/v1p1/students?limit=10&offset=10
-#
-#It is RECOMMENDED that implementations pass the total resource count in collection back to the requester.
-#This MUST be provided in the custom HTTP header: X-Total-Count.
-#
-#It is RECOMMENDED that implementers pass back next, previous, first and last links in the HTTP Link Header.
-#
-#Example: 503 student resources exist in the collection. Pagination is on the second page, in units of 10.
-#
-#Link:
-#
-#<https://imsglobal.org/ims/oneroster/v1p1/students?limit=10&offset=20>; rel="next",
-#
-#<https://imsglobal.org/ims/oneroster/v1p1/students?limit=3&offset=500>; rel="last",
-#
-#<https://imsglobal.org/ims/oneroster/v1p1/students?limit=10&offset=0>; rel="first",
-#
-#<https://imsglobal.org/ims/oneroster/v1p1/students?limit=10&offset=0>; rel="prev"
-#
-#NOTE: Pagination must be supported for ALL endpoints that return a collection.
-
-
-
-
-
-
-
-
-#(optional) Additional One Roster User information (source_attributes), that can be used to create final user object.
-# attributes will be used and manipulated within the extension-config.yml file
-
-
-
-# (optional) string_encoding (default value given below)
-# string_encoding specifies the Unicode string encoding used by the directory.
-# All values retrieved from the directory are converted to Unicode before being
-# sent to or compared with values on the Adobe side, to avoid encoding issues.
-# The value must be a Python codec name or alias, such as 'latin1' or 'big5'.
-# See https://docs.python.org/2/library/codecs.html#standard-encodings for details.
-#string_encoding: utf8
-
-
 
 # (optional) user_email_format (default value given below)
 # user_email_format specifies how to construct a user's email address by
@@ -129,7 +44,7 @@ user_email_format: "{email}"
 # user_domain_format is analogous to user_email_format in syntax, but it
 # is used to discover the domain for a given user.  If not specified, the
 # domain is taken from the domain part of the user's email address.
-user_domain_format: "{orgxxx}"
+user_domain_format: "{org}"
 
 # (optional) user_username_format (no default value)
 # user_username_format specifies how to construct a user's username on the
@@ -174,3 +89,47 @@ user_domain_format: "{orgxxx}"
 # the encoding specified by the string_encoding setting, above.
 user_country_code_format: "{countryCode}"
 
+
+
+# Not needed for now
+#Key name to the response count of the HTTP request, found in Response.headers._store
+#header_store_count_key: 'x-count'
+
+#Official excerpt from One Roster
+#It is expected that Student Information Systems may well contain massive amounts of data,
+#and as such there is a real danger of data overload if entire collections are requested.
+#To avoid this, implementations MUST adopt a pagination mechanism.
+#
+#Pagination is controlled via two parameters that are appended to the request.
+#
+#•         Limit - the number of results to return
+#
+#•         Offset - the index of the first record to return. (zero indexed)
+#
+#The default value for limit MUST be 100.
+#
+#The default value for offset MUST be 0.
+#
+#Example: return the first 10 resources in a collection of students:
+#
+#GET https://imsglobal.org/ims/oneroster/v1p1/students?limit=10
+#
+#Example: return the second 10 resources in a collection of students:
+#GET https://imsglobal.org/ims/oneroster/v1p1/students?limit=10&offset=10
+#
+#It is RECOMMENDED that implementations pass the total resource count in collection back to the requester.
+#This MUST be provided in the custom HTTP header: X-Total-Count.
+#It is RECOMMENDED that implementers pass back next, previous, first and last links in the HTTP Link Header.
+#Example: 503 student resources exist in the collection. Pagination is on the second page, in units of 10.
+#
+#Link:
+#
+#<https://imsglobal.org/ims/oneroster/v1p1/students?limit=10&offset=20>; rel="next",
+#
+#<https://imsglobal.org/ims/oneroster/v1p1/students?limit=3&offset=500>; rel="last",
+#
+#<https://imsglobal.org/ims/oneroster/v1p1/students?limit=10&offset=0>; rel="first",
+#
+#<https://imsglobal.org/ims/oneroster/v1p1/students?limit=10&offset=0>; rel="prev"
+#
+#NOTE: Pagination must be supported for ALL endpoints that return a collection.

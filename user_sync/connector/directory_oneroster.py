@@ -72,7 +72,6 @@ class OneRosterConnector(object):
         builder.set_string_value('key_identifier', 'sourcedId')
         builder.set_string_value('logger_name', self.name)
         builder.set_string_value('country_code', None)
-        builder.set_string_value('string_encoding', 'utf8')
         builder.set_string_value('user_email_format', six.text_type('{email}'))
         builder.set_string_value('user_given_name_format', six.text_type('{givenName}'))
         builder.set_string_value('user_surname_format', six.text_type('{familyName}'))
