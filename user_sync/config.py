@@ -23,6 +23,7 @@ import logging
 import os
 import re
 import subprocess
+from copy import deepcopy
 
 import six
 import yaml
@@ -31,13 +32,9 @@ import user_sync.helper
 import user_sync.identity_type
 import user_sync.port
 import user_sync.rules
+from user_sync import flags
 from user_sync.error import AssertionException
 
-import keyring
-from importlib import import_module
-from keyring.backends import fail
-from keyring.backend import KeyringBackend
-from keyring.util import suppress_exceptions
 
 class ConfigLoader(object):
     # default values for reading configuration files
@@ -101,7 +98,7 @@ class ConfigLoader(object):
 
         # copy instead of direct assignment to preserve original invocation_defaults object
         # otherwise, setting options also sets invocation_defaults (same memory ref)
-        options = self.invocation_defaults.copy()
+        options = deepcopy(self.invocation_defaults)
 
         # get overrides from the main config
         invocation_config = self.main_config.get_dict_config('invocation_defaults', True)
@@ -445,7 +442,7 @@ class ConfigLoader(object):
         """
         Return a dict representing options for RuleProcessor.
         """
-        options = user_sync.rules.RuleProcessor.default_options
+        options = deepcopy(user_sync.rules.RuleProcessor.default_options)
         options.update(self.invocation_options)
 
         # process directory configuration options
@@ -535,9 +532,12 @@ class ConfigLoader(object):
 
         # now get the directory extension, if any
         extension_config = self.get_directory_extension_options()
-        if extension_config:
-            options['extension_enabled'] = True
-            options['after_mapping_hook'] = None
+        options['extension_enabled'] = flags.get_flag('UST_EXTENSION')
+        if extension_config and not options['extension_enabled']:
+            self.logger.warning('Extension config functionality is disabled - skipping after-map hook')
+        elif extension_config:
+            after_mapping_hook_text = extension_config.get_string('after_mapping_hook')
+            options['after_mapping_hook'] = compile(after_mapping_hook_text, '<per-user after-mapping-hook>', 'exec')
             options['extended_attributes'] = extension_config.get_list('extended_attributes')
             # declaration of extended adobe groups: this is needed for two reasons:
             # 1. it allows validation of group names, and matching them to adobe groups
@@ -830,27 +830,36 @@ class DictConfig(ObjectConfig):
                 '%s: No value in secure storage for user "%s", key "%s"' % (scope, user_name, secure_value_key))
         return value
 
-    def get_value_from_keyring(self, secure_value_key, user_name):
-        logger = logging.getLogger("keyring")
-        backend_list = {
-            'KWallet': 'keyring.backends.kwallet',
-            'SecretService': 'keyring.backends.SecretService',
-            'Windows': 'keyring.backends.Windows',
-            'chainer': 'keyring.backends.chainer',
-            'macOS': 'keyring.backends.OS_X',
-        }
+    @staticmethod
+    def get_value_from_keyring(secure_value_key, user_name):
+        import keyring
+        if flags.get_flag('UST_BUILD_EXE'):
+            from importlib import import_module
+            from keyring.backends import fail
+            from keyring.backend import KeyringBackend
+            from keyring.util import suppress_exceptions
 
-        for k, v in six.iteritems(backend_list):
-            logger.debug('Loading backend: ' + k)
-            suppress_exceptions(import_module(v))
+            logger = logging.getLogger("keyring")
+            backend_list = {
+                'KWallet': 'keyring.backends.kwallet',
+                'SecretService': 'keyring.backends.SecretService',
+                'Windows': 'keyring.backends.Windows',
+                'chainer': 'keyring.backends.chainer',
+                'macOS': 'keyring.backends.OS_X',
+            }
 
-        viable_classes = KeyringBackend.get_viable_backends()
-        rings = list(suppress_exceptions(viable_classes, exceptions=TypeError))
-        selected = max(rings, default=fail.Keyring(), key=lambda p: p.priority)
-        keyring.set_keyring(selected)
+            for k, v in six.iteritems(backend_list):
+                logger.debug('Loading backend: ' + k)
+                suppress_exceptions(import_module(v))
 
-        logger.info("Using keyring '" + selected.name +  "' to retrieve: " + secure_value_key)
+            viable_classes = KeyringBackend.get_viable_backends()
+            rings = list(suppress_exceptions(viable_classes, exceptions=TypeError))
+            selected = max(rings, default=fail.Keyring(), key=lambda p: p.priority)
+            keyring.set_keyring(selected)
+
+            logger.info("Using keyring '" + selected.name + "' to retrieve: " + secure_value_key)
         return keyring.get_password(service_name=secure_value_key, username=user_name)
+
 
 class ConfigFileLoader:
     """
@@ -924,29 +933,49 @@ class ConfigFileLoader:
                           the dictionary if there is not already a value found.
         """
         if filename.startswith('$(') and filename.endswith(')'):
-            raise AssertionException("Shell execution is disabled in this build")
-
-        # it's a pathname to a configuration file to read
-        cls.filepath = os.path.abspath(filename)
-        if not os.path.isfile(cls.filepath):
-            raise AssertionException('No such configuration file: %s' % (cls.filepath,))
-        cls.filename = os.path.split(cls.filepath)[1]
-        cls.dirpath = os.path.dirname(cls.filepath)
-        try:
-            with open(filename, 'rb', 1) as input_file:
-                byte_string = input_file.read()
+            if not flags.get_flag('UST_SHELL_EXEC'):
+                raise AssertionException("Shell execution is disabled in this build")
+            # it's a command line to execute and read standard output
+            dir_end = filename.index(']')
+            if filename.startswith('$([') and dir_end > 0:
+                dir_name = filename[3:dir_end]
+                cmd_name = filename[dir_end + 1:-1]
+            else:
+                dir_name = os.path.abspath(".")
+                cmd_name = filename[3:-1]
+            cls.filepath = cmd_name
+            try:
+                byte_string = subprocess.check_output(cmd_name, cwd=dir_name, shell=True)
                 yml = yaml.safe_load(byte_string.decode(cls.config_encoding, 'strict'))
-        except IOError as e:
-            # if a file operation error occurred while loading the
-            # configuration file, swallow up the exception and re-raise it
-            # as an configuration loader exception.
-            raise AssertionException("Error reading configuration file '%s': %s" % (cls.filepath, e))
-        except UnicodeDecodeError as e:
-            # as above, but in case of encoding errors
-            raise AssertionException("Encoding error in configuration file '%s: %s" % (cls.filepath, e))
-        except yaml.error.MarkedYAMLError as e:
-            # as above, but in case of parse errors
-            raise AssertionException("Error parsing configuration file '%s': %s" % (cls.filepath, e))
+            except subprocess.CalledProcessError as e:
+                raise AssertionException("Error executing process '%s' in dir '%s': %s" % (cmd_name, dir_name, e))
+            except UnicodeDecodeError as e:
+                raise AssertionException('Encoding error in process output: %s' % e)
+            except yaml.error.MarkedYAMLError as e:
+                raise AssertionException('Error parsing process YAML data: %s' % e)
+
+        else:
+            # it's a pathname to a configuration file to read
+            cls.filepath = os.path.abspath(filename)
+            if not os.path.isfile(cls.filepath):
+                raise AssertionException('No such configuration file: %s' % (cls.filepath,))
+            cls.filename = os.path.split(cls.filepath)[1]
+            cls.dirpath = os.path.dirname(cls.filepath)
+            try:
+                with open(filename, 'rb', 1) as input_file:
+                    byte_string = input_file.read()
+                    yml = yaml.safe_load(byte_string.decode(cls.config_encoding, 'strict'))
+            except IOError as e:
+                # if a file operation error occurred while loading the
+                # configuration file, swallow up the exception and re-raise it
+                # as an configuration loader exception.
+                raise AssertionException("Error reading configuration file '%s': %s" % (cls.filepath, e))
+            except UnicodeDecodeError as e:
+                # as above, but in case of encoding errors
+                raise AssertionException("Encoding error in configuration file '%s: %s" % (cls.filepath, e))
+            except yaml.error.MarkedYAMLError as e:
+                # as above, but in case of parse errors
+                raise AssertionException("Error parsing configuration file '%s': %s" % (cls.filepath, e))
 
         # process the content of the dict
         if yml is None:
@@ -954,7 +983,7 @@ class ConfigFileLoader:
             yml = {}
         elif not isinstance(yml, dict):
             # malformed YML files produce a non-dictionary
-            raise AssertionException("Configuration file '%s' does not contain settings" % cls.filepath)
+            raise AssertionException("Configuration file or command '%s' does not contain settings" % cls.filepath)
         for path_key, options in six.iteritems(path_keys):
             cls.key_path = path_key
             keys = path_key.split('/')
