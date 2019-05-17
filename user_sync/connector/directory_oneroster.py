@@ -171,23 +171,8 @@ class Connection:
                 'Error -- Incorrect selection made for all_users_filter flag: ' + all_users_filter +
                 ' .... must be either: users, teachers, or students.... skipping all_users_filter')
             return {}
-        users_list_from_api_requests = []
-        key = 'first'
-        while key is not None:
-            call = self.host_name + '/' + all_users_filter + '?limit=' + limit \
-                   + '&offset=0' if key == 'first' else response.links[key]['url']
-            response = self.oneroster.make_roster_request(call)
-            if response.ok is False:
-                self.logger.warning(
-                    'Error fetching all users found for: ' + all_users_filter
-                    + "\nError Response Message:" + " " + response.text)
-                return {}
-            for ignore, users in json.loads(response.content).items():
-                users_list_from_api_requests.extend(users)
-            if key == 'last' or int(response.headers._store['x-count'][1]) < int(limit):
-                break
-            key = 'next' if 'next' in response.links else 'last'
-        return users_list_from_api_requests
+
+        return self.api_response_handler(self, None, all_users_filter, None, limit, True)
 
     def get_mapped_users(self, group_filter, group_name, user_filter, key_identifier, limit):
         """
@@ -203,41 +188,11 @@ class Connection:
         if group_filter == 'courses':
             class_list = self.get_classlist_for_course(group_name, key_identifier, limit)
             for each_class in class_list:
-                key_id_classes = class_list[each_class]
-                key = 'first'
-                while key is not None:
-                    response = self.oneroster.make_roster_request(
-                        self.host_name + 'classes/' + key_id_classes + '/' + user_filter + '?limit=' + limit
-                        + '&offset=0') if key == 'first' \
-                        else self.oneroster.make_roster_request(response.links[key]['url'])
-                    if response.ok is False:
-                        self.logger.warning(
-                            'Error fetching ' + user_filter + ' Found for: ' + group_name
-                            + "\nError Response Message:" + " " + response.text)
-                        return {}
-                    for ignore, users in json.loads(response.content).items():
-                        users_list_from_api_requests.extend(users)
-                    if key == 'last' or int(response.headers._store['x-count'][1]) < int(limit):
-                        break
-                    key = 'next' if 'next' in response.links else 'last'
+                users_list_from_api_requests.extend(self.api_response_handler(group_filter, user_filter, class_list[each_class], limit, False))
         else:
             try:
                 key_id = self.get_key_identifier(group_filter, group_name, key_identifier, limit)
-                key = 'first'
-                while key is not None:
-                    call = self.host_name + group_filter + '/' + key_id + '/' + user_filter + '?limit=' + limit\
-                           + '&offset=0' if key == 'first' else response.links[key]['url']
-                    response = self.oneroster.make_roster_request(call)
-                    if response.ok is False:
-                        self.logger.warning(
-                            'Error fetching ' + user_filter + ' Found for: ' + group_name
-                            + "\nError Response Message:" + " " + response.text)
-                        return {}
-                    for ignore, users in json.loads(response.content).items():
-                        users_list_from_api_requests.extend(users)
-                    if key == 'last' or int(response.headers._store['x-count'][1]) < int(limit):
-                        break
-                    key = 'next' if 'next' in response.links else 'last'
+                users_list_from_api_requests.extend(self.api_response_handler(group_filter, user_filter, key_id, limit, False))
             except ValueError as e:
                 self.logger.warning(e)
                 return {}
@@ -311,6 +266,36 @@ class Connection:
         except ValueError as e:
             self.logger.warning(e)
         return class_list
+
+    def api_response_handler(self, group_filter, user_filter, key_id, limit, all_users_option):
+        list_api_results = []
+
+        all_users_url_request = self.host_name + user_filter + '/' + '?limit=' + limit + '&offset=0'
+
+        base_filter = group_filter if group_filter == 'schools' else 'classes'
+
+        mapped_users_url_request = self.host_name + base_filter + '/' + key_id + '/' + user_filter \
+                      + '?limit=' + limit + '&offset=0'
+
+        url_request = all_users_url_request if all_users_option is True else mapped_users_url_request
+
+        key = 'first'
+        while key is not None:
+            response = self.oneroster.make_roster_request(url_request) \
+                if key == 'first' \
+                else self.oneroster.make_roster_request(response.links[key]['url'])
+            if response.ok is not True:
+                status = response.status_code
+                message = response.reason
+                raise ValueError('Non Successful Response'
+                                 + '  ' + 'status:' + str(status) + '  ' + 'message:' + str(message))
+            for ignore, each_user in json.loads(response.content).items():
+                list_api_results.extend(each_user)
+            if key == 'last' or int(response.headers._store['x-count'][1]) < int(limit):
+                break
+            key = 'next' if 'next' in response.links else 'last'
+
+        return list_api_results
 
     def encode_str(self, text):
         return re.sub(r'(\s)', '', text).lower()
