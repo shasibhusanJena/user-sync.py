@@ -102,8 +102,10 @@ class OneRosterConnector(object):
             for group_name in inner_dict:
                 for user_group in inner_dict[group_name]:
                     user_filter = inner_dict[group_name][user_group]
-                    response = conn.get_mapped_users(
-                        group_filter, group_name, user_filter, self.options['key_identifier'], self.options['limit'])
+                    # response = conn.get_mapped_users(
+                    #     group_filter, group_name, user_filter, self.options['key_identifier'], self.options['limit'])
+                    response = conn.api_response_handler(
+                        group_filter, group_name, user_filter, self.options['key_identifier'], self.options['limit'], 'mapped_users')
                     new_users_by_key = rh.parse_results(response, self.options['key_identifier'], extended_attributes)
                     for key, value in six.iteritems(new_users_by_key):
                         if key not in users_by_key:
@@ -158,6 +160,7 @@ class Connection:
         self.client_id = options['client_id']
         self.client_secret = options['client_secret']
         self.oneroster = OneRoster(self.client_id, self.client_secret)
+        self.key_identifier = options['key_identifier']
 
     def get_all_users(self, all_users_filter, limit):
         """
@@ -172,7 +175,7 @@ class Connection:
                 ' .... must be either: users, teachers, or students.... skipping all_users_filter')
             return {}
 
-        return self.api_response_handler(self, None, all_users_filter, None, limit, True)
+        return self.api_response_handler(self, None, all_users_filter, None, limit, "all_users")
 
     def get_mapped_users(self, group_filter, group_name, user_filter, key_identifier, limit):
         """
@@ -188,11 +191,11 @@ class Connection:
         if group_filter == 'courses':
             class_list = self.get_classlist_for_course(group_name, key_identifier, limit)
             for each_class in class_list:
-                users_list_from_api_requests.extend(self.api_response_handler(group_filter, user_filter, class_list[each_class], limit, False))
+                users_list_from_api_requests.extend(self.api_response_handler(group_filter, group_name, user_filter, each_class, limit, 'mapped_users'))
         else:
             try:
                 key_id = self.get_key_identifier(group_filter, group_name, key_identifier, limit)
-                users_list_from_api_requests.extend(self.api_response_handler(group_filter, user_filter, key_id, limit, False))
+                users_list_from_api_requests.extend(self.api_response_handler(group_filter, group_name, user_filter, key_id, limit, 'mapped_users'))
             except ValueError as e:
                 self.logger.warning(e)
                 return {}
@@ -207,32 +210,8 @@ class Connection:
         :type limit: str()
         :rtype key_identifier: str()
         """
-        keys = []
-        name_identifier, revised_key = ('name', 'orgs') if group_filter == 'schools' else ('title', group_filter)
-        key = 'first'
-        while key is not None:
-            response = self.oneroster.make_roster_request(self.host_name + group_filter + '?limit=' + limit
-                                                          + '&offset=0') if key == 'first' \
-                else self.oneroster.make_roster_request(response.links[key]['url'])
-            if response.status_code is not 200:
-                raise ValueError('Non Successful Response'
-                                 + '  ' + 'status:' + str(response.status_code) + "\n" + response.text)
-            for each_class in json.loads(response.content).get(revised_key):
-                if self.encode_str(each_class[name_identifier]) == self.encode_str(group_name):
-                    try:
-                        key_id = each_class[key_identifier]
-                    except ValueError:
-                        raise ValueError('Key identifier: ' + key_identifier + ' not a valid identifier')
-                    keys.append(key_id)
-                    return keys[0]
-            if key == 'last' or int(response.headers._store['x-count'][1]) < int(limit):
-                break
-            key = 'next' if 'next' in response.links else 'last'
-        if len(keys) == 0:
-            raise ValueError('No key ids found for: ' + " " + group_filter + ":" + " " + group_name)
-        elif len(keys) > 1:
-            raise ValueError('Duplicate ID found: ' + " " + group_filter + ":" + " " + group_name)
-        return keys[0]
+
+        return self.api_response_handler(group_filter, group_name, "", "", limit, 'key_identifier')
 
     def get_classlist_for_course(self, group_name, key_identifier, limit):
         """
@@ -242,42 +221,37 @@ class Connection:
         :type limit: str()
         :rtype class_list: list(str)
         """
-        class_list = {}
-        try:
-            key_id = self.get_key_identifier('courses', group_name, key_identifier, limit)
-            key = 'first'
-            while key is not None:
-                response = self.oneroster.make_roster_request(self.host_name + 'courses' + '/' + key_id + '/'
-                                                              + 'classes' + '?limit=' + limit + '&offset=0')\
-                    if key == 'first' \
-                    else self.oneroster.make_roster_request(response.links[key]['url'])
-                if response.ok is not True:
-                    status = response.status_code
-                    message = response.reason
-                    raise ValueError('Non Successful Response'
-                                     + '  ' + 'status:' + str(status) + '  ' + 'message:' + str(message))
-                for ignore, each_class in json.loads(response.content).items():
-                    class_key_id = each_class[0][key_identifier]
-                    class_name = each_class[0]['title']
-                    class_list[class_name] = class_key_id
-                if key == 'last' or int(response.headers._store['x-count'][1]) < int(limit):
-                    break
-                key = 'next' if 'next' in response.links else 'last'
-        except ValueError as e:
-            self.logger.warning(e)
-        return class_list
 
-    def api_response_handler(self, group_filter, user_filter, key_id, limit, all_users_option):
+        return self.api_response_handler('courses', group_name, '', key_identifier, limit, 'course_classlist')
+
+    def api_response_handler(self, group_filter, group_name, user_filter, key_id, limit, finder_option):
         list_api_results = []
 
-        all_users_url_request = self.host_name + user_filter + '/' + '?limit=' + limit + '&offset=0'
+        if finder_option == 'all_users':
+            url_ender = user_filter + '/' + '?limit=' + limit + '&offset=0'
 
-        base_filter = group_filter if group_filter == 'schools' else 'classes'
+        elif finder_option == 'mapped_users':
+            base_filter = group_filter if group_filter == 'schools' else 'classes'
 
-        mapped_users_url_request = self.host_name + base_filter + '/' + key_id + '/' + user_filter \
+            url_ender = base_filter + '/' + key_id + '/' + user_filter \
                       + '?limit=' + limit + '&offset=0'
 
-        url_request = all_users_url_request if all_users_option is True else mapped_users_url_request
+        elif finder_option == 'key_identifier':
+            url_ender = group_filter + '?limit=' + limit + '&offset=0'
+            name_identifier, revised_key = ('name', 'orgs') if group_filter == 'schools' else ('title', group_filter)
+
+        elif finder_option == 'course_classlist':
+            key_id = self.api_response_handler('courses', group_name, '', self.key_identifier, limit, 'key_identifier')
+            #key_id = self.get_key_identifier('courses', group_name, self.key_identifier, limit)
+
+            try:
+                key_id[0]
+            except:
+                self.logger.warning('key_identifier' + " not found for " + group_filter + " " + group_name)
+                return list_api_results
+            url_ender = 'courses' + '/' + key_id + '/' + 'classes' + '?limit=' + limit + '&offset=0'
+
+        url_request = self.host_name + url_ender
 
         key = 'first'
         while key is not None:
@@ -289,8 +263,22 @@ class Connection:
                 message = response.reason
                 raise ValueError('Non Successful Response'
                                  + '  ' + 'status:' + str(status) + '  ' + 'message:' + str(message))
-            for ignore, each_user in json.loads(response.content).items():
-                list_api_results.extend(each_user)
+            if finder_option == 'key_identifier':
+                for each_class in json.loads(response.content).get(revised_key):
+                    if self.encode_str(each_class[name_identifier]) == self.encode_str(group_name):
+                        try:
+                            key_id = each_class[self.key_identifier]
+                        except ValueError:
+                            raise ValueError('Key identifier: ' + self.key_identifier + ' not a valid identifier')
+                        list_api_results.append(key_id)
+                        return list_api_results[0]
+            elif finder_option == 'course_classlist':
+                for ignore, each_class in json.loads(response.content).items():
+                        class_key_id = each_class[0][self.key_identifier]
+                        list_api_results.append(class_key_id)
+            else:
+                for ignore, users in json.loads(response.content).items():
+                    list_api_results.extend(users)
             if key == 'last' or int(response.headers._store['x-count'][1]) < int(limit):
                 break
             key = 'next' if 'next' in response.links else 'last'
