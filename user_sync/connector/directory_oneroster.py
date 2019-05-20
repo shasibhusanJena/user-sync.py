@@ -189,7 +189,8 @@ class Connection:
         """
         users_list_from_api_requests = []
         if group_filter == 'courses':
-            class_list = self.get_classlist_for_course(group_name, key_identifier, limit)
+            # class_list = self.get_classlist_for_course(group_name, key_identifier, limit)
+            class_list = self.list_api_response_handler('courses', group_name, '', key_identifier, limit, 'course_classlist')
             for each_class in class_list:
                 users_list_from_api_requests.extend(self.list_api_response_handler(group_filter, group_name, user_filter, each_class, limit, 'mapped_users'))
         else:
@@ -200,17 +201,6 @@ class Connection:
                 self.logger.warning(e)
                 return {}
         return users_list_from_api_requests
-
-    def get_classlist_for_course(self, group_name, key_identifier, limit):
-        """
-        description: returns list of key_identifiers for the classes of a course (group_name)
-        :type group_name: str()
-        :type key_identifier: str()
-        :type limit: str()
-        :rtype class_list: list(str)
-        """
-
-        return self.list_api_response_handler('courses', group_name, '', key_identifier, limit, 'course_classlist')
 
     def list_api_response_handler(self, group_filter, group_name, user_filter, key_id, limit, finder_option):
         list_api_results = []
@@ -230,8 +220,6 @@ class Connection:
 
         elif finder_option == 'course_classlist':
             key_id = self.list_api_response_handler('courses', group_name, '', self.key_identifier, limit, 'key_identifier')
-            #key_id = self.get_key_identifier('courses', group_name, self.key_identifier, limit)
-
             try:
                 key_id[0]
             except:
