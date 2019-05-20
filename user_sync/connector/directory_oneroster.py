@@ -102,10 +102,10 @@ class OneRosterConnector(object):
             for group_name in inner_dict:
                 for user_group in inner_dict[group_name]:
                     user_filter = inner_dict[group_name][user_group]
-                    # response = conn.get_mapped_users(
-                    #     group_filter, group_name, user_filter, self.options['key_identifier'], self.options['limit'])
-                    response = conn.api_response_handler(
-                        group_filter, group_name, user_filter, self.options['key_identifier'], self.options['limit'], 'mapped_users')
+                    response = conn.get_mapped_users(
+                        group_filter, group_name, user_filter, self.options['key_identifier'], self.options['limit'])
+                    # response = conn.list_api_response_handler(
+                    #     group_filter, group_name, user_filter, self.options['key_identifier'], self.options['limit'], 'mapped_users')
                     new_users_by_key = rh.parse_results(response, self.options['key_identifier'], extended_attributes)
                     for key, value in six.iteritems(new_users_by_key):
                         if key not in users_by_key:
@@ -175,7 +175,7 @@ class Connection:
                 ' .... must be either: users, teachers, or students.... skipping all_users_filter')
             return {}
 
-        return self.api_response_handler(self, None, all_users_filter, None, limit, "all_users")
+        return self.list_api_response_handler(self, None, all_users_filter, None, limit, "all_users")
 
     def get_mapped_users(self, group_filter, group_name, user_filter, key_identifier, limit):
         """
@@ -191,27 +191,15 @@ class Connection:
         if group_filter == 'courses':
             class_list = self.get_classlist_for_course(group_name, key_identifier, limit)
             for each_class in class_list:
-                users_list_from_api_requests.extend(self.api_response_handler(group_filter, group_name, user_filter, each_class, limit, 'mapped_users'))
+                users_list_from_api_requests.extend(self.list_api_response_handler(group_filter, group_name, user_filter, each_class, limit, 'mapped_users'))
         else:
             try:
-                key_id = self.get_key_identifier(group_filter, group_name, key_identifier, limit)
-                users_list_from_api_requests.extend(self.api_response_handler(group_filter, group_name, user_filter, key_id, limit, 'mapped_users'))
+                key_id = self.list_api_response_handler(group_filter, group_name, "", key_identifier, limit, 'key_identifier')
+                users_list_from_api_requests.extend(self.list_api_response_handler(group_filter, group_name, user_filter, key_id, limit, 'mapped_users'))
             except ValueError as e:
                 self.logger.warning(e)
                 return {}
         return users_list_from_api_requests
-
-    def get_key_identifier(self, group_filter, group_name, key_identifier, limit):
-        """
-        description: Returns key_identifier (eg: sourcedID) for targeted group_name from One-Roster
-        :type group_filter: str()
-        :type group_name: str()
-        :type key_identifier: str()
-        :type limit: str()
-        :rtype key_identifier: str()
-        """
-
-        return self.api_response_handler(group_filter, group_name, "", "", limit, 'key_identifier')
 
     def get_classlist_for_course(self, group_name, key_identifier, limit):
         """
@@ -222,9 +210,9 @@ class Connection:
         :rtype class_list: list(str)
         """
 
-        return self.api_response_handler('courses', group_name, '', key_identifier, limit, 'course_classlist')
+        return self.list_api_response_handler('courses', group_name, '', key_identifier, limit, 'course_classlist')
 
-    def api_response_handler(self, group_filter, group_name, user_filter, key_id, limit, finder_option):
+    def list_api_response_handler(self, group_filter, group_name, user_filter, key_id, limit, finder_option):
         list_api_results = []
 
         if finder_option == 'all_users':
@@ -241,7 +229,7 @@ class Connection:
             name_identifier, revised_key = ('name', 'orgs') if group_filter == 'schools' else ('title', group_filter)
 
         elif finder_option == 'course_classlist':
-            key_id = self.api_response_handler('courses', group_name, '', self.key_identifier, limit, 'key_identifier')
+            key_id = self.list_api_response_handler('courses', group_name, '', self.key_identifier, limit, 'key_identifier')
             #key_id = self.get_key_identifier('courses', group_name, self.key_identifier, limit)
 
             try:
@@ -274,8 +262,7 @@ class Connection:
                         return list_api_results[0]
             elif finder_option == 'course_classlist':
                 for ignore, each_class in json.loads(response.content).items():
-                        class_key_id = each_class[0][self.key_identifier]
-                        list_api_results.append(class_key_id)
+                        list_api_results.append(each_class[0][self.key_identifier])
             else:
                 for ignore, users in json.loads(response.content).items():
                     list_api_results.extend(users)
