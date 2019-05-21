@@ -1,0 +1,23 @@
+# This is a sample configuration file for a user extension.
+
+extended_attributes:
+  - proxyAddresses
+
+extended_adobe_groups:
+  - BGSU All Users
+  - BGSU Named Users
+
+after_mapping_hook: |
+  import re
+
+  p = '(?<![a-zA-Z0-9])((FPTTRM)|(FACTRM)|(ALUMNI))(?![a-zA-Z0-9])'
+  attr = str(source_attributes.get('proxyAddresses'))
+  if re.search(p, attr, flags=re.IGNORECASE):
+    target_groups.add('BGSU Named Users')
+
+    # Temporary printout
+    import logging
+    logger = logging.getLogger("extension")
+    logger.info("Adding: " + source_attributes.get('email') + " to BGSU Named Users")
+
+  target_groups.add('BGSU All Users')
