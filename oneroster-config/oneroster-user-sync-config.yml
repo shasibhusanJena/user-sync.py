@@ -180,10 +180,11 @@ directory_users:
 #      adobe_groups:
 #        - "Classlink"
 #
+    # Courses are working!!
     - directory_group: "courses::English 9::students"
       adobe_groups:
         - "Classlink"
-#
+
     - directory_group: "courses::English 9::teachers"
       adobe_groups:
         - "Classlink"
@@ -199,8 +200,8 @@ directory_users:
     - directory_group: "schools::cLasslink Elementary schOOl::students"
       adobe_groups:
         - "Classlink"
-
-#   Won't work since a class does not have teachers associated to it
+#
+#   #Won't work since a class does not have teachers associated to it
     - directory_group: "courses::Phy-102::teachers"
       adobe_groups:
         - "Classlink"

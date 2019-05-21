@@ -102,17 +102,15 @@ class OneRosterConnector(object):
             for group_name in inner_dict:
                 for user_group in inner_dict[group_name]:
                     user_filter = inner_dict[group_name][user_group]
-                    response = conn.get_mapped_users(
-                        group_filter, group_name, user_filter, self.options['key_identifier'], self.options['limit'])
-                    # response = conn.list_api_response_handler(
-                    #     group_filter, group_name, user_filter, self.options['key_identifier'], self.options['limit'], 'mapped_users')
+                    response = conn.list_api_response_handler(
+                        group_filter, group_name, user_filter, self.options['key_identifier'], self.options['limit'], 'mapped_users')
                     new_users_by_key = rh.parse_results(response, self.options['key_identifier'], extended_attributes)
                     for key, value in six.iteritems(new_users_by_key):
                         if key not in users_by_key:
                             users_by_key[key] = value
                         users_by_key[key]['groups'].add(user_group)
         if all_users:
-            response = conn.get_all_users(self.options['all_users_filter'], self.options['limit'])
+            response = conn.list_api_response_handler("", "", self.options['all_users_filter'], self.options['key_identifier'], self.options['limit'], 'all_users')
             new_all_users = rh.parse_results(response, self.options['key_identifier'], extended_attributes)
             for key, value in six.iteritems(new_all_users):
                 if key not in users_by_key:
@@ -162,46 +160,6 @@ class Connection:
         self.oneroster = OneRoster(self.client_id, self.client_secret)
         self.key_identifier = options['key_identifier']
 
-    def get_all_users(self, all_users_filter, limit):
-        """
-        :description: returns list of all_users specified from all_users flag
-        :param all_users_filter: str(), will either be users, students, or teachers
-        :param limit: str()
-        :rtype: users_list_from_api_requests: list(str)
-        """
-        if all_users_filter not in {'users', 'teachers', 'students'}:
-            self.logger.warning(
-                'Error -- Incorrect selection made for all_users_filter flag: ' + all_users_filter +
-                ' .... must be either: users, teachers, or students.... skipping all_users_filter')
-            return {}
-
-        return self.list_api_response_handler(self, None, all_users_filter, None, limit, "all_users")
-
-    def get_mapped_users(self, group_filter, group_name, user_filter, key_identifier, limit):
-        """
-        description: returns list of users according to mapping rules specified on user-sync-config.yml
-        :type group_filter: str()
-        :type group_name: str()
-        :type user_filter: str()
-        :type key_identifier: str()
-        :type limit: str()
-        :rtype users_list_from_api_requests: list(str)
-        """
-        users_list_from_api_requests = []
-        if group_filter == 'courses':
-            # class_list = self.get_classlist_for_course(group_name, key_identifier, limit)
-            class_list = self.list_api_response_handler('courses', group_name, '', key_identifier, limit, 'course_classlist')
-            for each_class in class_list:
-                users_list_from_api_requests.extend(self.list_api_response_handler(group_filter, group_name, user_filter, each_class, limit, 'mapped_users'))
-        else:
-            try:
-                key_id = self.list_api_response_handler(group_filter, group_name, "", key_identifier, limit, 'key_identifier')
-                users_list_from_api_requests.extend(self.list_api_response_handler(group_filter, group_name, user_filter, key_id, limit, 'mapped_users'))
-            except ValueError as e:
-                self.logger.warning(e)
-                return {}
-        return users_list_from_api_requests
-
     def list_api_response_handler(self, group_filter, group_name, user_filter, key_id, limit, finder_option):
         list_api_results = []
 
@@ -210,9 +168,21 @@ class Connection:
 
         elif finder_option == 'mapped_users':
             base_filter = group_filter if group_filter == 'schools' else 'classes'
-
-            url_ender = base_filter + '/' + key_id + '/' + user_filter \
-                      + '?limit=' + limit + '&offset=0'
+            if group_filter == 'courses':
+                class_list = self.list_api_response_handler('courses', group_name, '', self.key_identifier, limit, 'course_classlist')
+                try:
+                    class_list[0]
+                except:
+                    self.logger.warning('key_identifier' + " not found for " + group_filter + " " + group_name)
+                    return list_api_results
+                for each_class in class_list:
+                    list_api_results.extend(self.list_api_response_handler('classes', group_name, user_filter, each_class, limit, 'mapped_users'))
+                    return list_api_results
+            else:
+                if key_id is None or key_id == 'sourcedId':
+                    key_id = self.list_api_response_handler(group_filter, group_name, user_filter, self.key_identifier, limit, 'key_identifier')
+                url_ender = base_filter + '/' + key_id + '/' + user_filter \
+                          + '?limit=' + limit + '&offset=0'
 
         elif finder_option == 'key_identifier':
             url_ender = group_filter + '?limit=' + limit + '&offset=0'
@@ -251,6 +221,7 @@ class Connection:
             elif finder_option == 'course_classlist':
                 for ignore, each_class in json.loads(response.content).items():
                         list_api_results.append(each_class[0][self.key_identifier])
+
             else:
                 for ignore, users in json.loads(response.content).items():
                     list_api_results.extend(users)
