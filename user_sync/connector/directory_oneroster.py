@@ -160,11 +160,44 @@ class Connection:
         self.oneroster = OneRoster(self.client_id, self.client_secret)
         self.key_identifier = options['key_identifier']
 
-    def list_api_response_handler(self, group_filter, group_name, user_filter, key_id, limit, finder_option):
+    def list_api_response_handler(self, group_filter, group_name, user_filter, finder_option):
         list_api_results = []
 
+        if group_filter == 'courses':
+            list_classes = self.list_item_retriever(group_filter, group_name, user_filter, None,'course_classlist')
+            for each_class in list_classes:
+                list_api_results.extend(self.list_item_retriever('classes', user_filter, each_class, 'mapped_users'))
+        elif finder_option = 'all_users':
+            list_api_results.extend(self.list_item_retriever(None, user_filter, None, 'all_users'))
+
+        else:
+            list_api_results.extend(self.list_item_retriever(group_filter, user_filter, group_filter, 'mapped_users'))
+
+
+
+        return list_api_results
+
+    def string_first_url_builder(self, base_string_seeking, id_specified, finder_option):
+        if finder_option == 'course_classlist':
+            url_ender = 'courses/?limit=' + self.limit + '&offset=0'
+
+        elif finder_option == 'users_from_course':
+            url_ender = 'courses/' + id_specified + '/classes?limit=' + self.limit + '&offset=0'
+
+        else:
+            url_ender = base_string_seeking + '?limit=' + self.limit + '&offset=0'
+
+        return self.host_name + url_ender
+
+
+    def list_item_retriever(self, group_filter, user_filter, identifier, finder_option):
+
+        url_request = self.string_first_url_builder()
+
         if finder_option == 'all_users':
-            url_ender = user_filter + '/' + '?limit=' + limit + '&offset=0'
+            url_request = self.string_first_url_builder(user_filter, None)
+        elif finder_option == 'key_identifier':
+            url_request = group_filter + '?limit=' + limit + '&offset=0'
 
         elif finder_option == 'mapped_users':
             base_filter = group_filter if group_filter == 'schools' else 'classes'
@@ -184,10 +217,6 @@ class Connection:
                 url_ender = base_filter + '/' + key_id + '/' + user_filter \
                           + '?limit=' + limit + '&offset=0'
 
-        elif finder_option == 'key_identifier':
-            url_ender = group_filter + '?limit=' + limit + '&offset=0'
-            name_identifier, revised_key = ('name', 'orgs') if group_filter == 'schools' else ('title', group_filter)
-
         elif finder_option == 'course_classlist':
             key_id = self.list_api_response_handler('courses', group_name, '', self.key_identifier, limit, 'key_identifier')
             try:
@@ -197,8 +226,7 @@ class Connection:
                 return list_api_results
             url_ender = 'courses' + '/' + key_id + '/' + 'classes' + '?limit=' + limit + '&offset=0'
 
-        url_request = self.host_name + url_ender
-
+    def start_call(url_request, finder_option):
         key = 'first'
         while key is not None:
             response = self.oneroster.make_roster_request(url_request) \
@@ -210,6 +238,7 @@ class Connection:
                 raise ValueError('Non Successful Response'
                                  + '  ' + 'status:' + str(status) + '  ' + 'message:' + str(message))
             if finder_option == 'key_identifier':
+                name_identifier, revised_key = ('name', 'orgs') if group_filter == 'schools' else ('title', group_filter)
                 for each_class in json.loads(response.content).get(revised_key):
                     if self.encode_str(each_class[name_identifier]) == self.encode_str(group_name):
                         try:
