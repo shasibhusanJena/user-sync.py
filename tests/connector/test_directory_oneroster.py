@@ -1,3 +1,4 @@
+import os
 import pytest
 import user_sync
 
@@ -9,9 +10,9 @@ from user_sync import config
 @pytest.fixture()
 def default_options():
     config_loader = user_sync.config.ConfigLoader({
-                                                      'config_filename': 'tests\\fixture\\user-sync-config.yml',
+                                                      'config_filename': os.path.join('tests','fixture','user-sync-config.yml'),
                                                       'encoding_name': None})
-    return config_loader.get_dict_from_sources(["tests\\fixture\\connector-oneroster.yml"])
+    return config_loader.get_dict_from_sources([os.path.join('tests','fixture','connector-oneroster.yml')])
 
 
 @pytest.fixture
