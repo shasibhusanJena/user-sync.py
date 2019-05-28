@@ -63,6 +63,13 @@ class OneRosterConnector(object):
 
     def __init__(self, caller_options):
         caller_config = user_sync.config.DictConfig('%s configuration' % self.name, caller_options)
+        self.options = self.get_options(caller_config)
+        self.logger = user_sync.connector.helper.create_logger(self.options)
+        caller_config.report_unused_values(self.logger)
+        self.logger.debug('%s initialized with options: %s', self.name, self.options)
+
+    @staticmethod
+    def get_options(caller_config):
         builder = user_sync.config.OptionsBuilder(caller_config)
         builder.require_string_value('client_id')
         builder.require_string_value('client_secret')
@@ -70,7 +77,7 @@ class OneRosterConnector(object):
         builder.set_string_value('all_users_filter', 'users')
         builder.set_string_value('limit', 1000)
         builder.set_string_value('key_identifier', 'sourcedId')
-        builder.set_string_value('logger_name', self.name)
+        builder.set_string_value('logger_name', 'oneroster')
         builder.set_string_value('country_code', None)
         builder.set_string_value('user_email_format', six.text_type('{email}'))
         builder.set_string_value('user_given_name_format', six.text_type('{givenName}'))
@@ -80,10 +87,8 @@ class OneRosterConnector(object):
         builder.set_string_value('user_domain_format', None)
         builder.set_string_value('user_identity_type', None)
         builder.set_string_value('user_identity_type_format', None)
-        self.options = builder.get_options()
-        self.logger = user_sync.connector.helper.create_logger(self.options)
-        caller_config.report_unused_values(self.logger)
-        self.logger.debug('%s initialized with options: %s', self.name, self.options)
+
+        return builder.get_options()
 
     def load_users_and_groups(self, groups, extended_attributes, all_users):
         """
@@ -103,14 +108,14 @@ class OneRosterConnector(object):
                 for user_group in inner_dict[group_name]:
                     user_filter = inner_dict[group_name][user_group]
                     response = conn.list_api_response_handler(
-                        group_filter, group_name, user_filter, self.options['key_identifier'], self.options['limit'], 'mapped_users')
+                        group_filter, group_name, user_filter, 'mapped_users')
                     new_users_by_key = rh.parse_results(response, self.options['key_identifier'], extended_attributes)
                     for key, value in six.iteritems(new_users_by_key):
                         if key not in users_by_key:
                             users_by_key[key] = value
                         users_by_key[key]['groups'].add(user_group)
         if all_users:
-            response = conn.list_api_response_handler("", "", self.options['all_users_filter'], self.options['key_identifier'], self.options['limit'], 'all_users')
+            response = conn.list_api_response_handler("", "", self.options['all_users_filter'], 'all_users')
             new_all_users = rh.parse_results(response, self.options['key_identifier'], extended_attributes)
             for key, value in six.iteritems(new_all_users):
                 if key not in users_by_key:
@@ -160,45 +165,69 @@ class Connection:
         self.oneroster = OneRoster(self.client_id, self.client_secret)
         self.key_identifier = options['key_identifier']
 
-    def list_api_response_handler(self, group_filter, group_name, user_filter, key_id, limit, finder_option):
+    def list_api_response_handler(self, group_filter, group_name, user_filter, finder_option):
+        list_api_results = []
+        if group_filter == 'courses':
+            key_id = self.list_item_retriever('courses', group_name, self.key_identifier, 'key_identifier')
+            if key_id.__len__() == 0:
+                return list_api_results
+            list_classes = self.list_item_retriever(group_filter, user_filter, key_id,'course_classlist')
+            for each_class in list_classes:
+                list_api_results.extend(self.list_item_retriever('classes', user_filter, each_class, 'mapped_users'))
+
+        elif finder_option == 'all_users':
+            list_api_results.extend(self.list_item_retriever(None, user_filter, None, 'all_users'))
+
+        else:
+            key_id = self.list_item_retriever(group_filter, None, group_name, 'key_identifier')
+            if key_id.__len__() == 0:
+                return list_api_results
+            list_api_results.extend(self.list_item_retriever(group_filter, user_filter, key_id, 'mapped_users'))
+        return list_api_results
+
+    def string_first_url_builder(self, base_string_seeking, id_specified, finder_option, users_filter):
+        if finder_option == 'course_classlist':
+            url_ender = 'courses/?limit=' + self.limit + '&offset=0'
+
+        elif finder_option == 'users_from_course':
+            url_ender = 'courses/' + id_specified + '/classes?limit=' + self.limit + '&offset=0'
+
+        elif users_filter is not None:
+            url_ender = base_string_seeking + '/' + id_specified + '/' + users_filter + '?limit=' + self.limit + '&offset=0'
+
+        else:
+            url_ender = base_string_seeking + '?limit=' + self.limit + '&offset=0'
+
+        return self.host_name + url_ender
+
+    def list_item_retriever(self, group_filter, user_filter, identifier, finder_option):
         list_api_results = []
 
         if finder_option == 'all_users':
-            url_ender = user_filter + '/' + '?limit=' + limit + '&offset=0'
+            url_request = self.string_first_url_builder(user_filter, None, '', None)
+            list_api_results = self.start_call(url_request, 'all_users', None)
+
+        elif finder_option == 'key_identifier':
+            if group_filter == 'courses':
+                url_request = self.string_first_url_builder(user_filter, identifier, 'course_classlist', None)
+                list_api_results = self.start_call(url_request, 'key_identifier', group_filter, user_filter)
+            else:
+                url_request = self.string_first_url_builder(group_filter, identifier, 'key_identifier', None)
+                list_api_results = self.start_call(url_request, 'key_identifier', group_filter, identifier)
 
         elif finder_option == 'mapped_users':
             base_filter = group_filter if group_filter == 'schools' else 'classes'
-            if group_filter == 'courses':
-                class_list = self.list_api_response_handler('courses', group_name, '', self.key_identifier, limit, 'course_classlist')
-                try:
-                    class_list[0]
-                except:
-                    self.logger.warning('key_identifier' + " not found for " + group_filter + " " + group_name)
-                    return list_api_results
-                for each_class in class_list:
-                    list_api_results.extend(self.list_api_response_handler('classes', group_name, user_filter, each_class, limit, 'mapped_users'))
-                    return list_api_results
-            else:
-                if key_id is None or key_id == 'sourcedId':
-                    key_id = self.list_api_response_handler(group_filter, group_name, user_filter, self.key_identifier, limit, 'key_identifier')
-                url_ender = base_filter + '/' + key_id + '/' + user_filter \
-                          + '?limit=' + limit + '&offset=0'
-
-        elif finder_option == 'key_identifier':
-            url_ender = group_filter + '?limit=' + limit + '&offset=0'
-            name_identifier, revised_key = ('name', 'orgs') if group_filter == 'schools' else ('title', group_filter)
+            url_request = self.string_first_url_builder(base_filter, identifier, finder_option, user_filter)
+            list_api_results = self.start_call(url_request, 'mapped_users', group_filter, group_filter)
 
         elif finder_option == 'course_classlist':
-            key_id = self.list_api_response_handler('courses', group_name, '', self.key_identifier, limit, 'key_identifier')
-            try:
-                key_id[0]
-            except:
-                self.logger.warning('key_identifier' + " not found for " + group_filter + " " + group_name)
-                return list_api_results
-            url_ender = 'courses' + '/' + key_id + '/' + 'classes' + '?limit=' + limit + '&offset=0'
+            url_request = self.string_first_url_builder("", identifier, 'users_from_course', None)
+            list_api_results = self.start_call(url_request, finder_option, group_filter)
 
-        url_request = self.host_name + url_ender
+        return list_api_results
 
+    def start_call(self, url_request, finder_option, group_filter, group_name=None):
+        list_api_results = []
         key = 'first'
         while key is not None:
             response = self.oneroster.make_roster_request(url_request) \
@@ -210,6 +239,8 @@ class Connection:
                 raise ValueError('Non Successful Response'
                                  + '  ' + 'status:' + str(status) + '  ' + 'message:' + str(message))
             if finder_option == 'key_identifier':
+                other = 'course' if group_filter == 'courses' else 'classes'
+                name_identifier, revised_key = ('name', 'orgs') if group_filter == 'schools' else ('title', other)
                 for each_class in json.loads(response.content).get(revised_key):
                     if self.encode_str(each_class[name_identifier]) == self.encode_str(group_name):
                         try:
@@ -218,6 +249,7 @@ class Connection:
                             raise ValueError('Key identifier: ' + self.key_identifier + ' not a valid identifier')
                         list_api_results.append(key_id)
                         return list_api_results[0]
+
             elif finder_option == 'course_classlist':
                 for ignore, each_class in json.loads(response.content).items():
                         list_api_results.append(each_class[0][self.key_identifier])
@@ -225,9 +257,12 @@ class Connection:
             else:
                 for ignore, users in json.loads(response.content).items():
                     list_api_results.extend(users)
-            if key == 'last' or int(response.headers._store['x-count'][1]) < int(limit):
+            if key == 'last' or int(response.headers._store['x-count'][1]) < int(self.limit):
                 break
             key = 'next' if 'next' in response.links else 'last'
+
+        if list_api_results.__len__() == 0:
+            self.logger.warning("No " + finder_option + " for " + group_filter + "  " + group_name)
 
         return list_api_results
 
