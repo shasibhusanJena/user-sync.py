@@ -192,14 +192,13 @@ class Connection:
         elif finder_option == 'users_from_course':
             url_ender = 'courses/' + id_specified + '/classes?limit=' + self.limit + '&offset=0'
 
+        elif users_filter is not None:
+            url_ender = base_string_seeking + '/' + id_specified + '/' + users_filter + '?limit=' + self.limit + '&offset=0'
+
         else:
             url_ender = base_string_seeking + '?limit=' + self.limit + '&offset=0'
 
-        if users_filter is not None:
-            url_ender = base_string_seeking + '/' + id_specified + '/' + users_filter + '?limit=' + self.limit + '&offset=0'
-
         return self.host_name + url_ender
-
 
     def list_item_retriever(self, group_filter, user_filter, identifier, finder_option):
         list_api_results = []
@@ -226,6 +225,7 @@ class Connection:
             list_api_results = self.start_call(url_request, finder_option, group_filter)
 
         return list_api_results
+
     def start_call(self, url_request, finder_option, group_filter, group_name=None):
         list_api_results = []
         key = 'first'
