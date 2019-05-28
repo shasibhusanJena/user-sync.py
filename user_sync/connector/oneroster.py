@@ -1,7 +1,7 @@
 import collections
 import time
 from random import randint
-import urllib.parse
+from six.moves import urllib
 import hmac
 import base64
 import hashlib
