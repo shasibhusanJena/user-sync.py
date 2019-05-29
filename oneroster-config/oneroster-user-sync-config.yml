@@ -189,7 +189,11 @@ directory_users:
       adobe_groups:
         - "Classlink_dont_fill"
 ##
-    - directory_group: "classes::ELA 6 (6A ELA)::students"
+#    - directory_group: "classes::ELA 6 (6A ELA)::students"
+#      adobe_groups:
+#        - "Classlink_dont_fill"
+
+    - directory_group: "ELA 6 (6A ELA)"
       adobe_groups:
         - "Classlink_dont_fill"
 #

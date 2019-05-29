@@ -87,6 +87,8 @@ class OneRosterConnector(object):
         builder.set_string_value('user_domain_format', None)
         builder.set_string_value('user_identity_type', None)
         builder.set_string_value('user_identity_type_format', None)
+        builder.set_string_value('default_group_filter', None)
+        builder.set_string_value('default_user_filter', None)
 
         return builder.get_options()
 
@@ -132,24 +134,28 @@ class OneRosterConnector(object):
         :rtype: iterable(dict)
         """
         full_dict = {}
+        user_group_pattern = '.*(\:\:).*(\:\:).*'
         for text in groups_list:
-            try:
+            if re.search(user_group_pattern, text):
                 group_filter, group_name, user_filter = text.lower().split("::")
-            except ValueError:
-                raise ValueError("Incorrect MockRoster Group Syntax: " + text +
-                                 " \nRequires values for group_filter, group_name, user_filter."
-                                 " With '::' separating each value")
-            if group_filter not in {'classes', 'courses', 'schools'}:
-                raise ValueError("Incorrect group_filter: " + group_filter +
-                                 " .... must be either: classes, courses, or schools")
-            if user_filter not in {'students', 'teachers', 'users'}:
-                raise ValueError("Incorrect user_filter: " + user_filter +
-                                 " .... must be either: students, teachers, or users")
-            if group_filter not in full_dict:
-                full_dict[group_filter] = {group_name: {}}
-            elif group_name not in full_dict[group_filter]:
-                full_dict[group_filter][group_name] = {}
-            full_dict[group_filter][group_name].update({text: user_filter})
+
+                if group_filter not in {'classes', 'courses', 'schools'}:
+                    self.logger.warning("Incorrect group_filter: " + group_filter + " for " + text +
+                                      " .... must be either: classes, courses, or schools")
+                    continue
+                if user_filter not in {'students', 'teachers', 'users'}:
+                    self.logger.warning("Incorrect user_filter: " + user_filter + " for " + text +
+                                      " .... must be either: students, teachers, or users")
+                    continue
+                if group_filter not in full_dict:
+                    full_dict[group_filter] = {group_name: {}}
+                elif group_name not in full_dict[group_filter]:
+                    full_dict[group_filter][group_name] = {}
+                full_dict[group_filter][group_name].update({text: user_filter})
+            else:
+                group_filter = self.options['default_group_filter']
+                user_filter = self.options['default_user_filter']
+                full_dict[group_filter][text] = {text: user_filter}
         return full_dict
 
 
