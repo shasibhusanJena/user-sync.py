@@ -87,6 +87,8 @@ class OneRosterConnector(object):
         builder.set_string_value('user_domain_format', None)
         builder.set_string_value('user_identity_type', None)
         builder.set_string_value('user_identity_type_format', None)
+        builder.set_string_value('default_group_filter', None)
+        builder.set_string_value('default_user_filter', None)
 
         return builder.get_options()
 
@@ -133,12 +135,20 @@ class OneRosterConnector(object):
         """
         full_dict = {}
         for text in groups_list:
-            try:
-                group_filter, group_name, user_filter = text.lower().split("::")
-            except ValueError:
-                raise ValueError("Incorrect MockRoster Group Syntax: " + text +
-                                 " \nRequires values for group_filter, group_name, user_filter."
-                                 " With '::' separating each value")
+            if ':' not in text:
+                group_filter = self.options['default_group_filter'].lower()
+                user_filter = self.options['default_user_filter'].lower()
+                if user_filter not in {'students', 'teachers'}:
+                    raise ValueError("Incorrect default_user_filter " + user_filter +
+                                     " ...... must be either: students or teachers")
+                group_name = text.lower()
+            else:
+                try:
+                    group_filter, group_name, user_filter = text.lower().split("::")
+                except ValueError:
+                    raise ValueError("Incorrect MockRoster Group Syntax: " + text +
+                                     " \nRequires values for group_filter, group_name, user_filter."
+                                     " With '::' separating each value")
             if group_filter not in {'classes', 'courses', 'schools'}:
                 raise ValueError("Incorrect group_filter: " + group_filter +
                                  " .... must be either: classes, courses, or schools")

@@ -25,6 +25,14 @@ client_secret: '10332e330b2e364020179021'
 #All users filter
 all_users_filter: 'users'
 
+
+# When simplifying user group mappings, you may choose the default values that are appended to your group_name
+# ie: a English class is specified with the group mappings, after default values below are applied,
+# "English" will turn into {default_group_filter}::English::{default_user_filter}
+default_group_filter: 'classes'
+
+default_user_filter: 'students'
+
 #Pagination (required according to One Roster final specification)
 #must be supported for ALL endpoints that return a collection
 #Limit, number of results to return during each query, Implementations of One Roster default at 100
