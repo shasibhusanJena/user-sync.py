@@ -134,9 +134,8 @@ class OneRosterConnector(object):
         :rtype: iterable(dict)
         """
         full_dict = {}
-        user_group_pattern = '.*(\:\:).*(\:\:).*'
         for text in groups_list:
-            if re.search(user_group_pattern, text):
+            if re.search('.*(\:\:).*(\:\:).*', text):
                 group_filter, group_name, user_filter = text.lower().split("::")
 
                 if group_filter not in {'classes', 'courses', 'schools'}:
