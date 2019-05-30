@@ -63,6 +63,13 @@ class OneRosterConnector(object):
 
     def __init__(self, caller_options):
         caller_config = user_sync.config.DictConfig('%s configuration' % self.name, caller_options)
+        self.options = self.get_options(caller_config)
+        self.logger = user_sync.connector.helper.create_logger(self.options)
+        caller_config.report_unused_values(self.logger)
+        self.logger.debug('%s initialized with options: %s', self.name, self.options)
+
+    @staticmethod
+    def get_options(caller_config):
         builder = user_sync.config.OptionsBuilder(caller_config)
         builder.require_string_value('client_id')
         builder.require_string_value('client_secret')
@@ -70,7 +77,7 @@ class OneRosterConnector(object):
         builder.set_string_value('all_users_filter', 'users')
         builder.set_string_value('limit', 1000)
         builder.set_string_value('key_identifier', 'sourcedId')
-        builder.set_string_value('logger_name', self.name)
+        builder.set_string_value('logger_name', 'oneroster')
         builder.set_string_value('country_code', None)
         builder.set_string_value('user_email_format', six.text_type('{email}'))
         builder.set_string_value('user_given_name_format', six.text_type('{givenName}'))
@@ -80,10 +87,10 @@ class OneRosterConnector(object):
         builder.set_string_value('user_domain_format', None)
         builder.set_string_value('user_identity_type', None)
         builder.set_string_value('user_identity_type_format', None)
-        self.options = builder.get_options()
-        self.logger = user_sync.connector.helper.create_logger(self.options)
-        caller_config.report_unused_values(self.logger)
-        self.logger.debug('%s initialized with options: %s', self.name, self.options)
+        builder.set_string_value('default_group_filter', None)
+        builder.set_string_value('default_user_filter', None)
+
+        return builder.get_options()
 
     def load_users_and_groups(self, groups, extended_attributes, all_users):
         """
@@ -102,15 +109,15 @@ class OneRosterConnector(object):
             for group_name in inner_dict:
                 for user_group in inner_dict[group_name]:
                     user_filter = inner_dict[group_name][user_group]
-                    response = conn.get_mapped_users(
-                        group_filter, group_name, user_filter, self.options['key_identifier'], self.options['limit'])
+                    response = conn.list_api_response_handler(
+                        group_filter, group_name, user_filter, 'mapped_users')
                     new_users_by_key = rh.parse_results(response, self.options['key_identifier'], extended_attributes)
                     for key, value in six.iteritems(new_users_by_key):
                         if key not in users_by_key:
                             users_by_key[key] = value
                         users_by_key[key]['groups'].add(user_group)
         if all_users:
-            response = conn.get_all_users(self.options['all_users_filter'], self.options['limit'])
+            response = conn.list_api_response_handler("", "", self.options['all_users_filter'], 'all_users')
             new_all_users = rh.parse_results(response, self.options['key_identifier'], extended_attributes)
             for key, value in six.iteritems(new_all_users):
                 if key not in users_by_key:
@@ -128,23 +135,26 @@ class OneRosterConnector(object):
         """
         full_dict = {}
         for text in groups_list:
-            try:
+            if re.search('.*(\:\:).*(\:\:).*', text):
                 group_filter, group_name, user_filter = text.lower().split("::")
-            except ValueError:
-                raise ValueError("Incorrect MockRoster Group Syntax: " + text +
-                                 " \nRequires values for group_filter, group_name, user_filter."
-                                 " With '::' separating each value")
-            if group_filter not in {'classes', 'courses', 'schools'}:
-                raise ValueError("Incorrect group_filter: " + group_filter +
-                                 " .... must be either: classes, courses, or schools")
-            if user_filter not in {'students', 'teachers', 'users'}:
-                raise ValueError("Incorrect user_filter: " + user_filter +
-                                 " .... must be either: students, teachers, or users")
-            if group_filter not in full_dict:
-                full_dict[group_filter] = {group_name: {}}
-            elif group_name not in full_dict[group_filter]:
-                full_dict[group_filter][group_name] = {}
-            full_dict[group_filter][group_name].update({text: user_filter})
+
+                if group_filter not in {'classes', 'courses', 'schools'}:
+                    self.logger.warning("Incorrect group_filter: " + group_filter + " for " + text +
+                                      " .... must be either: classes, courses, or schools")
+                    continue
+                if user_filter not in {'students', 'teachers', 'users'}:
+                    self.logger.warning("Incorrect user_filter: " + user_filter + " for " + text +
+                                      " .... must be either: students, teachers, or users")
+                    continue
+                if group_filter not in full_dict:
+                    full_dict[group_filter] = {group_name: {}}
+                elif group_name not in full_dict[group_filter]:
+                    full_dict[group_filter][group_name] = {}
+                full_dict[group_filter][group_name].update({text: user_filter})
+            else:
+                group_filter = self.options['default_group_filter']
+                user_filter = self.options['default_user_filter']
+                full_dict[group_filter][text] = {text: user_filter}
         return full_dict
 
 
@@ -158,159 +168,108 @@ class Connection:
         self.client_id = options['client_id']
         self.client_secret = options['client_secret']
         self.oneroster = OneRoster(self.client_id, self.client_secret)
+        self.key_identifier = options['key_identifier']
 
-    def get_all_users(self, all_users_filter, limit):
-        """
-        :description: returns list of all_users specified from all_users flag
-        :param all_users_filter: str(), will either be users, students, or teachers
-        :param limit: str()
-        :rtype: users_list_from_api_requests: list(str)
-        """
-        if all_users_filter not in {'users', 'teachers', 'students'}:
-            self.logger.warning(
-                'Error -- Incorrect selection made for all_users_filter flag: ' + all_users_filter +
-                ' .... must be either: users, teachers, or students.... skipping all_users_filter')
-            return {}
-        users_list_from_api_requests = []
-        key = 'first'
-        while key is not None:
-            call = self.host_name + '/' + all_users_filter + '?limit=' + limit \
-                   + '&offset=0' if key == 'first' else response.links[key]['url']
-            response = self.oneroster.make_roster_request(call)
-            if response.ok is False:
-                self.logger.warning(
-                    'Error fetching all users found for: ' + all_users_filter
-                    + "\nError Response Message:" + " " + response.text)
-                return {}
-            for ignore, users in json.loads(response.content).items():
-                users_list_from_api_requests.extend(users)
-            if key == 'last' or int(response.headers._store['x-count'][1]) < int(limit):
-                break
-            key = 'next' if 'next' in response.links else 'last'
-        return users_list_from_api_requests
-
-    def get_mapped_users(self, group_filter, group_name, user_filter, key_identifier, limit):
-        """
-        description: returns list of users according to mapping rules specified on user-sync-config.yml
-        :type group_filter: str()
-        :type group_name: str()
-        :type user_filter: str()
-        :type key_identifier: str()
-        :type limit: str()
-        :rtype users_list_from_api_requests: list(str)
-        """
-        users_list_from_api_requests = []
+    def list_api_response_handler(self, group_filter, group_name, user_filter, finder_option):
+        list_api_results = []
         if group_filter == 'courses':
-            class_list = self.get_classlist_for_course(group_name, key_identifier, limit)
-            for each_class in class_list:
-                key_id_classes = class_list[each_class]
-                key = 'first'
-                while key is not None:
-                    response = self.oneroster.make_roster_request(
-                        self.host_name + 'classes/' + key_id_classes + '/' + user_filter + '?limit=' + limit
-                        + '&offset=0') if key == 'first' \
-                        else self.oneroster.make_roster_request(response.links[key]['url'])
-                    if response.ok is False:
-                        self.logger.warning(
-                            'Error fetching ' + user_filter + ' Found for: ' + group_name
-                            + "\nError Response Message:" + " " + response.text)
-                        return {}
-                    for ignore, users in json.loads(response.content).items():
-                        users_list_from_api_requests.extend(users)
-                    if key == 'last' or int(response.headers._store['x-count'][1]) < int(limit):
-                        break
-                    key = 'next' if 'next' in response.links else 'last'
-        else:
-            try:
-                key_id = self.get_key_identifier(group_filter, group_name, key_identifier, limit)
-                key = 'first'
-                while key is not None:
-                    call = self.host_name + group_filter + '/' + key_id + '/' + user_filter + '?limit=' + limit\
-                           + '&offset=0' if key == 'first' else response.links[key]['url']
-                    response = self.oneroster.make_roster_request(call)
-                    if response.ok is False:
-                        self.logger.warning(
-                            'Error fetching ' + user_filter + ' Found for: ' + group_name
-                            + "\nError Response Message:" + " " + response.text)
-                        return {}
-                    for ignore, users in json.loads(response.content).items():
-                        users_list_from_api_requests.extend(users)
-                    if key == 'last' or int(response.headers._store['x-count'][1]) < int(limit):
-                        break
-                    key = 'next' if 'next' in response.links else 'last'
-            except ValueError as e:
-                self.logger.warning(e)
-                return {}
-        return users_list_from_api_requests
+            key_id = self.list_item_retriever('courses', group_name, self.key_identifier, 'key_identifier')
+            if key_id.__len__() == 0:
+                return list_api_results
+            list_classes = self.list_item_retriever(group_filter, user_filter, key_id,'course_classlist')
+            for each_class in list_classes:
+                list_api_results.extend(self.list_item_retriever('classes', user_filter, each_class, 'mapped_users'))
 
-    def get_key_identifier(self, group_filter, group_name, key_identifier, limit):
-        """
-        description: Returns key_identifier (eg: sourcedID) for targeted group_name from One-Roster
-        :type group_filter: str()
-        :type group_name: str()
-        :type key_identifier: str()
-        :type limit: str()
-        :rtype key_identifier: str()
-        """
-        keys = []
-        name_identifier, revised_key = ('name', 'orgs') if group_filter == 'schools' else ('title', group_filter)
+        elif finder_option == 'all_users':
+            list_api_results.extend(self.list_item_retriever(None, user_filter, None, 'all_users'))
+
+        else:
+            key_id = self.list_item_retriever(group_filter, None, group_name, 'key_identifier')
+            if key_id.__len__() == 0:
+                return list_api_results
+            list_api_results.extend(self.list_item_retriever(group_filter, user_filter, key_id, 'mapped_users'))
+        return list_api_results
+
+    def string_first_url_builder(self, base_string_seeking, id_specified, finder_option, users_filter):
+        if finder_option == 'course_classlist':
+            url_ender = 'courses/?limit=' + self.limit + '&offset=0'
+
+        elif finder_option == 'users_from_course':
+            url_ender = 'courses/' + id_specified + '/classes?limit=' + self.limit + '&offset=0'
+
+        elif users_filter is not None:
+            url_ender = base_string_seeking + '/' + id_specified + '/' + users_filter + '?limit=' + self.limit + '&offset=0'
+
+        else:
+            url_ender = base_string_seeking + '?limit=' + self.limit + '&offset=0'
+
+        return self.host_name + url_ender
+
+    def list_item_retriever(self, group_filter, user_filter, identifier, finder_option):
+        list_api_results = []
+
+        if finder_option == 'all_users':
+            url_request = self.string_first_url_builder(user_filter, None, '', None)
+            list_api_results = self.start_call(url_request, 'all_users', None)
+
+        elif finder_option == 'key_identifier':
+            if group_filter == 'courses':
+                url_request = self.string_first_url_builder(user_filter, identifier, 'course_classlist', None)
+                list_api_results = self.start_call(url_request, 'key_identifier', group_filter, user_filter)
+            else:
+                url_request = self.string_first_url_builder(group_filter, identifier, 'key_identifier', None)
+                list_api_results = self.start_call(url_request, 'key_identifier', group_filter, identifier)
+
+        elif finder_option == 'mapped_users':
+            base_filter = group_filter if group_filter == 'schools' else 'classes'
+            url_request = self.string_first_url_builder(base_filter, identifier, finder_option, user_filter)
+            list_api_results = self.start_call(url_request, 'mapped_users', group_filter, group_filter)
+
+        elif finder_option == 'course_classlist':
+            url_request = self.string_first_url_builder("", identifier, 'users_from_course', None)
+            list_api_results = self.start_call(url_request, finder_option, group_filter)
+
+        return list_api_results
+
+    def start_call(self, url_request, finder_option, group_filter, group_name=None):
+        list_api_results = []
         key = 'first'
         while key is not None:
-            response = self.oneroster.make_roster_request(self.host_name + group_filter + '?limit=' + limit
-                                                          + '&offset=0') if key == 'first' \
+            response = self.oneroster.make_roster_request(url_request) \
+                if key == 'first' \
                 else self.oneroster.make_roster_request(response.links[key]['url'])
-            if response.status_code is not 200:
+            if response.ok is not True:
+                status = response.status_code
+                message = response.reason
                 raise ValueError('Non Successful Response'
-                                 + '  ' + 'status:' + str(response.status_code) + "\n" + response.text)
-            for each_class in json.loads(response.content).get(revised_key):
-                if self.encode_str(each_class[name_identifier]) == self.encode_str(group_name):
-                    try:
-                        key_id = each_class[key_identifier]
-                    except ValueError:
-                        raise ValueError('Key identifier: ' + key_identifier + ' not a valid identifier')
-                    keys.append(key_id)
-                    return keys[0]
-            if key == 'last' or int(response.headers._store['x-count'][1]) < int(limit):
+                                 + '  ' + 'status:' + str(status) + '  ' + 'message:' + str(message))
+            if finder_option == 'key_identifier':
+                other = 'course' if group_filter == 'courses' else 'classes'
+                name_identifier, revised_key = ('name', 'orgs') if group_filter == 'schools' else ('title', other)
+                for each_class in json.loads(response.content).get(revised_key):
+                    if self.encode_str(each_class[name_identifier]) == self.encode_str(group_name):
+                        try:
+                            key_id = each_class[self.key_identifier]
+                        except ValueError:
+                            raise ValueError('Key identifier: ' + self.key_identifier + ' not a valid identifier')
+                        list_api_results.append(key_id)
+                        return list_api_results[0]
+
+            elif finder_option == 'course_classlist':
+                for ignore, each_class in json.loads(response.content).items():
+                        list_api_results.append(each_class[0][self.key_identifier])
+
+            else:
+                for ignore, users in json.loads(response.content).items():
+                    list_api_results.extend(users)
+            if key == 'last' or int(response.headers._store['x-count'][1]) < int(self.limit):
                 break
             key = 'next' if 'next' in response.links else 'last'
-        if len(keys) == 0:
-            raise ValueError('No key ids found for: ' + " " + group_filter + ":" + " " + group_name)
-        elif len(keys) > 1:
-            raise ValueError('Duplicate ID found: ' + " " + group_filter + ":" + " " + group_name)
-        return keys[0]
 
-    def get_classlist_for_course(self, group_name, key_identifier, limit):
-        """
-        description: returns list of key_identifiers for the classes of a course (group_name)
-        :type group_name: str()
-        :type key_identifier: str()
-        :type limit: str()
-        :rtype class_list: list(str)
-        """
-        class_list = {}
-        try:
-            key_id = self.get_key_identifier('courses', group_name, key_identifier, limit)
-            key = 'first'
-            while key is not None:
-                response = self.oneroster.make_roster_request(self.host_name + 'courses' + '/' + key_id + '/'
-                                                              + 'classes' + '?limit=' + limit + '&offset=0')\
-                    if key == 'first' \
-                    else self.oneroster.make_roster_request(response.links[key]['url'])
-                if response.ok is not True:
-                    status = response.status_code
-                    message = response.reason
-                    raise ValueError('Non Successful Response'
-                                     + '  ' + 'status:' + str(status) + '  ' + 'message:' + str(message))
-                for ignore, each_class in json.loads(response.content).items():
-                    class_key_id = each_class[0][key_identifier]
-                    class_name = each_class[0]['title']
-                    class_list[class_name] = class_key_id
-                if key == 'last' or int(response.headers._store['x-count'][1]) < int(limit):
-                    break
-                key = 'next' if 'next' in response.links else 'last'
-        except ValueError as e:
-            self.logger.warning(e)
-        return class_list
+        if list_api_results.__len__() == 0:
+            self.logger.warning("No " + finder_option + " for " + group_filter + "  " + group_name)
+
+        return list_api_results
 
     def encode_str(self, text):
         return re.sub(r'(\s)', '', text).lower()
