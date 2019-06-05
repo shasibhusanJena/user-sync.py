@@ -154,7 +154,12 @@ class OneRosterConnector(object):
             else:
                 group_filter = self.options['default_group_filter']
                 user_filter = self.options['default_user_filter']
-                full_dict[group_filter][text] = {text: user_filter}
+                if group_filter not in full_dict:
+                    full_dict[group_filter] = {text: {}}
+                elif text not in full_dict[group_filter]:
+                    full_dict[group_filter][text] = {}
+                full_dict[group_filter][text].update({text: user_filter})
+
         return full_dict
 
 
