@@ -7,6 +7,7 @@ from user_sync.connector.directory_oneroster import RecordHandler
 from user_sync import config
 
 
+
 @pytest.fixture()
 def default_options():
     config_loader = user_sync.config.ConfigLoader({
@@ -33,12 +34,7 @@ def test_parse_yml_groups_valid(oneroster_connector):
                    'y    y    y': {
                        'courses::y    y    y::teachers': 'teachers'}}}
 
-def test_parse_yml_groups_simple_group_mapping(oneroster_connector):
-
-    x = oneroster_connector.parse_yml_groups({'xxx'})
-    y = oneroster_connector.logger
-    z = 5
-
+def test_parse_yml_groups_simple_group_mapping_valid(oneroster_connector):
     assert oneroster_connector.parse_yml_groups({'xxx'}) \
            == {
                 'classes': {
@@ -47,20 +43,22 @@ def test_parse_yml_groups_simple_group_mapping(oneroster_connector):
 
 
 
-def test_parse_yml_groups_failure(oneroster_connector):
+def test_parse_yml_groups_failure(oneroster_connector, log_stream):
+    stream, logger = log_stream
+    oneroster_connector.logger = logger
+
     # false value for group_filter, viable options [courses, classes, schools]
     oneroster_connector.parse_yml_groups({'course::Alg-102::students'})
-    assert 'course' in oneroster_connector.logger.parent.handlers[0].records[0].msg
 
     # false value for user_filter, viable options [students, teachers, users]
     oneroster_connector.parse_yml_groups({'courses::Alg-102::stud'})
-    assert 'stud' in oneroster_connector.logger.parent.handlers[0].records[0].msg
-    # syntax error, values must be separated by double colons '::'
-    oneroster_connector.parse_yml_groups({'classes:Alg-102::students'})
-    x = 6
-    # missing third required value
-    oneroster_connector.parse_yml_groups({'classes::students'})
-    x = 5
+
+    stream.flush()
+    error_logger_message = stream.getvalue()
+    assert 'stud' in error_logger_message
+    assert 'course' in error_logger_message
+
+
 
 
 def test_parse_yml_groups_complex_valid(oneroster_connector):
@@ -70,7 +68,8 @@ def test_parse_yml_groups_complex_valid(oneroster_connector):
                   'classes::Art I - Fall::teachers',
                   'classes::Art        I - Fall::teachers',
                   'classes::Algebra I - Fall::students',
-                  'schools::Spring Valley::students'}
+                  'schools::Spring Valley::students',
+                  'xxx'}
 
     expected_dict_format = {
         "classes": {
@@ -86,7 +85,9 @@ def test_parse_yml_groups_complex_valid(oneroster_connector):
             },
             "art        i - fall": {
                 "classes::Art        I - Fall::teachers": "teachers"
-            }
+            },
+            'xxx': {
+                'xxx': 'students'}
         },
         "courses": {
             "alg-102": {
