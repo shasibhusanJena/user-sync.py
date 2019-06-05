@@ -33,23 +33,34 @@ def test_parse_yml_groups_valid(oneroster_connector):
                    'y    y    y': {
                        'courses::y    y    y::teachers': 'teachers'}}}
 
+def test_parse_yml_groups_simple_group_mapping(oneroster_connector):
+
+    x = oneroster_connector.parse_yml_groups({'xxx'})
+    y = oneroster_connector.logger
+    z = 5
+
+    assert oneroster_connector.parse_yml_groups({'xxx'}) \
+           == {
+                'classes': {
+                    'xxx': {
+                        'xxx': 'students'}}}
+
+
 
 def test_parse_yml_groups_failure(oneroster_connector):
     # false value for group_filter, viable options [courses, classes, schools]
-    with pytest.raises(ValueError):
-        oneroster_connector.parse_yml_groups({'course::Alg-102::xxx'})
+    oneroster_connector.parse_yml_groups({'course::Alg-102::students'})
+    assert 'course' in oneroster_connector.logger.parent.handlers[0].records[0].msg
 
     # false value for user_filter, viable options [students, teachers, users]
-    with pytest.raises(ValueError):
-        oneroster_connector.parse_yml_groups({'courses::Alg-102::stud'})
-
+    oneroster_connector.parse_yml_groups({'courses::Alg-102::stud'})
+    assert 'stud' in oneroster_connector.logger.parent.handlers[0].records[0].msg
     # syntax error, values must be separated by double colons '::'
-    with pytest.raises(ValueError):
-        oneroster_connector.parse_yml_groups({'classes:Alg-102::students'})
-
+    oneroster_connector.parse_yml_groups({'classes:Alg-102::students'})
+    x = 6
     # missing third required value
-    with pytest.raises(ValueError):
-        oneroster_connector.parse_yml_groups({'classes::students'})
+    oneroster_connector.parse_yml_groups({'classes::students'})
+    x = 5
 
 
 def test_parse_yml_groups_complex_valid(oneroster_connector):

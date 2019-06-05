@@ -35,6 +35,14 @@ country_code: 'US'
 client_id: 'client-id'
 client_secret: 'client-secret'
 
+#Simple Group Mapping
+# When simplifying user group mappings, you may choose the default values that are appended to your group_name
+# ie: When an English class is specified within the group mappings, after default values below are applied,
+# "English" will be {default_group_filter}::English::{default_user_filter}
+default_group_filter: 'classes'
+
+default_user_filter: 'students'
+
 #Pagination (required according to One Roster final specification)
 #must be supported for ALL endpoints that return a collection
 #Limit, number of results to return during each query, Implementations of One Roster default at 100
@@ -168,4 +176,3 @@ user_domain_format: "{org}"
 # NOTE: for this and every format setting, the constant strings must be in
 # the encoding specified by the string_encoding setting, above.
 user_country_code_format: "{countryCode}"
-
