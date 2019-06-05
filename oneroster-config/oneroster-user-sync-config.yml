@@ -176,29 +176,42 @@ directory_users:
     # the "Copy Editors" user group has been assigned access to appropriate
     # Adobe products, such as InDesign and InCopy.)
     # [You will need to edit or remove these examples.]
+
+    - directory_group: "Algebra 2 (MAT315)"
+      adobe_groups:
+        - "Caves and Embers"
+
+    # - directory_group: "courses:: SS12 Participation in Gov't/Econ::students"
+    #   adobe_groups:
+    #     - "Caves and Embers"
+
+    - directory_group: "schools::ClassLink HS::students"
+      adobe_groups:
+        - "All students"
+
 #    - directory_group: "classes::Art ii -Spring::students"
 #      adobe_groups:
 #        - "Classlink"
 #
-    - directory_group: "xxx"
-      adobe_groups:
-        - "Classlink_dont_fill"
+#    - directory_group: "xxx"
+#      adobe_groups:
+#        - "Classlink_dont_fill"
     # Courses are working!!
-    - directory_group: "courses::English 9::students"
-      adobe_groups:
-        - "Classlink_dont_fill"
-
-    - directory_group: "courses::English 9::teachers"
-      adobe_groups:
-        - "Classlink_dont_fill"
+#    - directory_group: "courses::English 9::students"
+#      adobe_groups:
+#        - "Classlink_dont_fill"
 #
-    - directory_group: "classes::ELA 6 (6A ELA)::students"
-      adobe_groups:
-        - "Classlink_dont_fill"
-
-    - directory_group: "ELA 6 (6A ELA)"
-      adobe_groups:
-        - "Classlink_dont_fill"
+#    - directory_group: "courses::English 9::teachers"
+#      adobe_groups:
+#        - "Classlink_dont_fill"
+###
+##    - directory_group: "classes::ELA 6 (6A ELA)::students"
+##      adobe_groups:
+##        - "Classlink_dont_fill"
+#
+#    - directory_group: "ELA 6 (6A ELA)"
+#      adobe_groups:
+#        - "Classlink_dont_fill"
 ##
 #    - directory_group: "classes::ELA 6 (6A ELA)::teachers"
 #      adobe_groups:
@@ -222,11 +235,11 @@ directory_users:
 #    - directory_group: "classes::Geography I - Spring::students"
 #      adobe_groups:
 #        - "Classlink"
-#
+
 #    - directory_group: "classes::Art I - Fall::students"
 #      adobe_groups:
 #        - "Classlink"
-#
+
 #    - directory_group: "classes::Art I - Fall::teachers"
 #      adobe_groups:
 #        - "Classlink"
@@ -352,7 +365,7 @@ invocation_defaults:
   # For argument --process-groups, the default is False (don't process).
   # If you set this default to True, you can supply the argument
   # --no-process-groups to override the default.
-  process_groups: No
+  process_groups: Yes
   # For argument --strategy, the default is 'sync'.
   strategy: sync
   # For argument --test-mode (or -t), the default is False (live run).
@@ -368,4 +381,4 @@ invocation_defaults:
   # any default you set should almost certainly be single-quoted.
   user_filter:
   # For argument --users, the default is 'all'.
-  users: all
+  users: mapped
