@@ -7,13 +7,12 @@ from user_sync.connector.directory_oneroster import RecordHandler
 from user_sync import config
 
 
-
 @pytest.fixture()
 def default_options():
     config_loader = user_sync.config.ConfigLoader({
-                                                      'config_filename': os.path.join('tests','fixture','user-sync-config.yml'),
-                                                      'encoding_name': None})
-    return config_loader.get_dict_from_sources([os.path.join('tests','fixture','connector-oneroster.yml')])
+        'config_filename': os.path.join('tests', 'fixture', 'user-sync-config.yml'),
+        'encoding_name': None})
+    return config_loader.get_dict_from_sources([os.path.join('tests', 'fixture', 'connector-oneroster.yml')])
 
 
 @pytest.fixture
@@ -34,13 +33,13 @@ def test_parse_yml_groups_valid(oneroster_connector):
                    'y    y    y': {
                        'courses::y    y    y::teachers': 'teachers'}}}
 
+
 def test_parse_yml_groups_simple_group_mapping_valid(oneroster_connector):
     assert oneroster_connector.parse_yml_groups({'xxx'}) \
            == {
-                'classes': {
-                    'xxx': {
-                        'xxx': 'students'}}}
-
+               'classes': {
+                   'xxx': {
+                       'xxx': 'students'}}}
 
 
 def test_parse_yml_groups_failure(oneroster_connector, log_stream):
@@ -57,8 +56,6 @@ def test_parse_yml_groups_failure(oneroster_connector, log_stream):
     error_logger_message = stream.getvalue()
     assert 'stud' in error_logger_message
     assert 'course' in error_logger_message
-
-
 
 
 def test_parse_yml_groups_complex_valid(oneroster_connector):
@@ -109,145 +106,145 @@ def test_parse_results_valid(oneroster_connector):
     extended_attributes = ['firstname']
 
     result_set = [{
-                      'sourcedId': '22156',
-                      'status': 'active',
-                      'dateLastModified': '2019-03-01T18:14:45.000Z',
-                      'username': 'brandon.landfair',
-                      'userIds': [{
-                                      'type': 'FED',
-                                      'identifier': '22156'}],
-                      'enabledUser': 'true',
-                      'givenName': 'BRANDON',
-                      'familyName': 'LANDFAIR',
-                      'middleName': 'PATRICK',
-                      'role': 'student',
-                      'identifier': '19791',
-                      'email': 'brandon.landfair@classlink.k12.nj.us',
-                      'sms': '',
-                      'phone': '',
-                      'agents': [],
-                      'orgs': [{
-                                   'href': 'https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/orgs/3',
-                                   'sourcedId': '3',
-                                   'type': 'org'}],
-                      'grades': ['06'],
-                      'password': ''},
-                  {
-                      'sourcedId': '29205',
-                      'status': 'active',
-                      'dateLastModified': '2019-03-01T18:14:45.000Z',
-                      'username': 'mohammed.forster',
-                      'userIds': [{
-                                      'type': 'FED',
-                                      'identifier': '29205'}],
-                      'enabledUser': 'true',
-                      'givenName': 'MOHAMMED',
-                      'familyName': 'FORSTER',
-                      'middleName': 'ELIZABETH',
-                      'role': 'student',
-                      'identifier': '20380',
-                      'email': 'mohammed.forster@classlink.k12.nj.us',
-                      'sms': '',
-                      'phone': '',
-                      'agents': [],
-                      'orgs': [{
-                                   'href': 'https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/orgs/3',
-                                   'sourcedId': '3',
-                                   'type': 'org'}],
-                      'grades': ['06'],
-                      'password': ''}, {
-                      'sourcedId': '32452',
-                      'status': 'active',
-                      'dateLastModified': '2019-03-01T18:14:45.000Z',
-                      'username': 'dimple.preciado',
-                      'userIds': [{
-                                      'type': 'FED',
-                                      'identifier': '32452'}],
-                      'enabledUser': 'true',
-                      'givenName': 'DIMPLE',
-                      'familyName': 'PRECIADO',
-                      'middleName': 'DAMIAN',
-                      'role': 'student',
-                      'identifier': '21037',
-                      'email': 'dimple.preciado@classlink.k12.nj.us',
-                      'sms': '',
-                      'phone': '',
-                      'agents': [],
-                      'orgs': [{
-                                   'href': 'https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/orgs/3',
-                                   'sourcedId': '3',
-                                   'type': 'org'}],
-                      'grades': ['06'],
-                      'password': ''}, {
-                      'sourcedId': '22156',
-                      'status': 'active',
-                      'dateLastModified': '2019-03-01T18:14:45.000Z',
-                      'username': 'brandon.landfair',
-                      'userIds': [{
-                                      'type': 'FED',
-                                      'identifier': '22156'}],
-                      'enabledUser': 'true',
-                      'givenName': 'BRANDON',
-                      'familyName': 'LANDFAIR',
-                      'middleName': 'PATRICK',
-                      'role': 'student',
-                      'identifier': '19791',
-                      'email': 'brandon.landfair@classlink.k12.nj.us',
-                      'sms': '',
-                      'phone': '',
-                      'agents': [],
-                      'orgs': [{
-                                   'href': 'https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/orgs/3',
-                                   'sourcedId': '3',
-                                   'type': 'org'}],
-                      'grades': ['06'],
-                      'password': ''}, {
-                      'sourcedId': '29205',
-                      'status': 'active',
-                      'dateLastModified': '2019-03-01T18:14:45.000Z',
-                      'username': 'mohammed.forster',
-                      'userIds': [{
-                                      'type': 'FED',
-                                      'identifier': '29205'}],
-                      'enabledUser': 'true',
-                      'givenName': 'MOHAMMED',
-                      'familyName': 'FORSTER',
-                      'middleName': 'ELIZABETH',
-                      'role': 'student',
-                      'identifier': '20380',
-                      'email': 'mohammed.forster@classlink.k12.nj.us',
-                      'sms': '',
-                      'phone': '',
-                      'agents': [],
-                      'orgs': [{
-                                   'href': 'https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/orgs/3',
-                                   'sourcedId': '3',
-                                   'type': 'org'}],
-                      'grades': ['06'],
-                      'password': ''}, {
-                      'sourcedId': '32452',
-                      'status': 'active',
-                      'dateLastModified': '2019-03-01T18:14:45.000Z',
-                      'username': 'dimple.preciado',
-                      'userIds': [{
-                                      'type': 'FED',
-                                      'identifier': '32452'}],
-                      'enabledUser': 'true',
-                      'givenName': 'DIMPLE',
-                      'familyName': 'PRECIADO',
-                      'middleName': 'DAMIAN',
-                      'role': 'student',
-                      'identifier': '21037',
-                      'email': 'dimple.preciado@classlink.k12.nj.us',
-                      'sms': '',
-                      'phone': '',
-                      'agents': [],
-                      'orgs': [{
-                                   'href': 'https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/orgs/3',
-                                   'sourcedId': '3',
-                                   'type': 'org'}],
-                      'grades': ['06'],
-                      'password': ''}]
+        'sourcedId': '22156',
+        'status': 'active',
+        'dateLastModified': '2019-03-01T18:14:45.000Z',
+        'username': 'brandon.landfair',
+        'userIds': [{
+            'type': 'FED',
+            'identifier': '22156'}],
+        'enabledUser': 'true',
+        'givenName': 'BRANDON',
+        'familyName': 'LANDFAIR',
+        'middleName': 'PATRICK',
+        'role': 'student',
+        'identifier': '19791',
+        'email': 'brandon.landfair@classlink.k12.nj.us',
+        'sms': '',
+        'phone': '',
+        'agents': [],
+        'orgs': [{
+            'href': 'https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/orgs/3',
+            'sourcedId': '3',
+            'type': 'org'}],
+        'grades': ['06'],
+        'password': ''},
+        {
+            'sourcedId': '29205',
+            'status': 'active',
+            'dateLastModified': '2019-03-01T18:14:45.000Z',
+            'username': 'mohammed.forster',
+            'userIds': [{
+                'type': 'FED',
+                'identifier': '29205'}],
+            'enabledUser': 'true',
+            'givenName': 'MOHAMMED',
+            'familyName': 'FORSTER',
+            'middleName': 'ELIZABETH',
+            'role': 'student',
+            'identifier': '20380',
+            'email': 'mohammed.forster@classlink.k12.nj.us',
+            'sms': '',
+            'phone': '',
+            'agents': [],
+            'orgs': [{
+                'href': 'https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/orgs/3',
+                'sourcedId': '3',
+                'type': 'org'}],
+            'grades': ['06'],
+            'password': ''}, {
+            'sourcedId': '32452',
+            'status': 'active',
+            'dateLastModified': '2019-03-01T18:14:45.000Z',
+            'username': 'dimple.preciado',
+            'userIds': [{
+                'type': 'FED',
+                'identifier': '32452'}],
+            'enabledUser': 'true',
+            'givenName': 'DIMPLE',
+            'familyName': 'PRECIADO',
+            'middleName': 'DAMIAN',
+            'role': 'student',
+            'identifier': '21037',
+            'email': 'dimple.preciado@classlink.k12.nj.us',
+            'sms': '',
+            'phone': '',
+            'agents': [],
+            'orgs': [{
+                'href': 'https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/orgs/3',
+                'sourcedId': '3',
+                'type': 'org'}],
+            'grades': ['06'],
+            'password': ''}, {
+            'sourcedId': '22156',
+            'status': 'active',
+            'dateLastModified': '2019-03-01T18:14:45.000Z',
+            'username': 'brandon.landfair',
+            'userIds': [{
+                'type': 'FED',
+                'identifier': '22156'}],
+            'enabledUser': 'true',
+            'givenName': 'BRANDON',
+            'familyName': 'LANDFAIR',
+            'middleName': 'PATRICK',
+            'role': 'student',
+            'identifier': '19791',
+            'email': 'brandon.landfair@classlink.k12.nj.us',
+            'sms': '',
+            'phone': '',
+            'agents': [],
+            'orgs': [{
+                'href': 'https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/orgs/3',
+                'sourcedId': '3',
+                'type': 'org'}],
+            'grades': ['06'],
+            'password': ''}, {
+            'sourcedId': '29205',
+            'status': 'active',
+            'dateLastModified': '2019-03-01T18:14:45.000Z',
+            'username': 'mohammed.forster',
+            'userIds': [{
+                'type': 'FED',
+                'identifier': '29205'}],
+            'enabledUser': 'true',
+            'givenName': 'MOHAMMED',
+            'familyName': 'FORSTER',
+            'middleName': 'ELIZABETH',
+            'role': 'student',
+            'identifier': '20380',
+            'email': 'mohammed.forster@classlink.k12.nj.us',
+            'sms': '',
+            'phone': '',
+            'agents': [],
+            'orgs': [{
+                'href': 'https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/orgs/3',
+                'sourcedId': '3',
+                'type': 'org'}],
+            'grades': ['06'],
+            'password': ''}, {
+            'sourcedId': '32452',
+            'status': 'active',
+            'dateLastModified': '2019-03-01T18:14:45.000Z',
+            'username': 'dimple.preciado',
+            'userIds': [{
+                'type': 'FED',
+                'identifier': '32452'}],
+            'enabledUser': 'true',
+            'givenName': 'DIMPLE',
+            'familyName': 'PRECIADO',
+            'middleName': 'DAMIAN',
+            'role': 'student',
+            'identifier': '21037',
+            'email': 'dimple.preciado@classlink.k12.nj.us',
+            'sms': '',
+            'phone': '',
+            'agents': [],
+            'orgs': [{
+                'href': 'https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/orgs/3',
+                'sourcedId': '3',
+                'type': 'org'}],
+            'grades': ['06'],
+            'password': ''}]
 
     expected_dict = {
         '22156': {
@@ -306,6 +303,63 @@ def test_parse_results_valid(oneroster_connector):
         .parse_results(result_set, 'sourcedId', extended_attributes)
 
     # assert returned_dict == expected_dict
+
+
+def test_OneRosterValueFormatter():
+
+    attributes = {
+        'sourcedId': '18125',
+        'status': 'active',
+        'dateLastModified': '2019-03-01T18:14:45.000Z',
+        'username': 'billy.flores',
+        'userIds': [{
+            'type': 'FED',
+            'identifier': '18125'}],
+        'enabledUser': 'true',
+        'givenName': 'BILLY',
+        'familyName': 'FLORES',
+        'middleName': 'DASEAN',
+        'role': 'student',
+        'identifier': '17580',
+        'email': 'billy.flores@classlink.k12.nj.us',
+        'sms': None,
+        'phone': {'home': '111-111-1111',  'work': '222-222-2222'},
+        'agents': ['1','2'],
+        'orgs': [{
+            'href': 'https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/orgs/2',
+            'sourcedId': '2',
+            'type': 'org'}],
+        'grades': ['15',['11','12','13'],'14'],
+        'byte': b'byteencoded',
+        'password': ''}
+
+    formatter = user_sync.connector.directory_oneroster.OneRosterValueFormatter(None)
+
+    # Get a simple string
+    assert formatter.get_attribute_value(attributes, "username") == "billy.flores"
+    assert formatter.get_attribute_value(attributes, "dateLastModified") == "2019-03-01T18:14:45.000Z"
+
+    # Get a list
+    assert formatter.get_attribute_value(attributes, "agents") == ['1','2']
+
+    # Get a dictionary
+    assert formatter.get_attribute_value(attributes, "phone") == {'home': '111-111-1111',  'work': '222-222-2222'}
+    assert formatter.get_attribute_value(attributes, "orgs") == {
+        'href': 'https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/orgs/2',
+        'sourcedId': '2',
+        'type': 'org'
+    }
+
+    # Get None
+    assert formatter.get_attribute_value(attributes, "sms") == None
+
+    # Get a nested object
+    assert formatter.get_attribute_value(attributes, "grades") ==  ['15',['11','12','13'],'14']
+
+    # Decode a string
+    assert formatter.get_attribute_value(attributes, "byte") == "byteencoded"
+
+
 
 # OneRosterValueFormatter Class:
 

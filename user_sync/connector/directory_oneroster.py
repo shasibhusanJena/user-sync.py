@@ -140,25 +140,29 @@ class OneRosterConnector(object):
 
                 if group_filter not in {'classes', 'courses', 'schools'}:
                     self.logger.warning("Incorrect group_filter: " + group_filter + " for " + text +
-                                      " .... must be either: classes, courses, or schools")
+                                        " .... must be either: classes, courses, or schools")
                     continue
                 if user_filter not in {'students', 'teachers', 'users'}:
                     self.logger.warning("Incorrect user_filter: " + user_filter + " for " + text +
-                                      " .... must be either: students, teachers, or users")
+                                        " .... must be either: students, teachers, or users")
                     continue
                 if group_filter not in full_dict:
-                    full_dict[group_filter] = {group_name: {}}
+                    full_dict[group_filter] = {
+                        group_name: {}}
                 elif group_name not in full_dict[group_filter]:
                     full_dict[group_filter][group_name] = {}
-                full_dict[group_filter][group_name].update({text: user_filter})
+                full_dict[group_filter][group_name].update({
+                                                               text: user_filter})
             else:
                 group_filter = self.options['default_group_filter']
                 user_filter = self.options['default_user_filter']
                 if group_filter not in full_dict:
-                    full_dict[group_filter] = {text: {}}
+                    full_dict[group_filter] = {
+                        text: {}}
                 elif text not in full_dict[group_filter]:
                     full_dict[group_filter][text] = {}
-                full_dict[group_filter][text].update({text: user_filter})
+                full_dict[group_filter][text].update({
+                                                         text: user_filter})
 
         return full_dict
 
@@ -181,7 +185,7 @@ class Connection:
             key_id = self.list_item_retriever('courses', group_name, self.key_identifier, 'key_identifier')
             if key_id.__len__() == 0:
                 return list_api_results
-            list_classes = self.list_item_retriever(group_filter, user_filter, key_id,'course_classlist')
+            list_classes = self.list_item_retriever(group_filter, user_filter, key_id, 'course_classlist')
             for each_class in list_classes:
                 list_api_results.extend(self.list_item_retriever('classes', user_filter, each_class, 'mapped_users'))
 
@@ -262,7 +266,7 @@ class Connection:
 
             elif finder_option == 'course_classlist':
                 for ignore, each_class in json.loads(response.content).items():
-                        list_api_results.append(each_class[0][self.key_identifier])
+                    list_api_results.append(each_class[0][self.key_identifier])
 
             else:
                 for ignore, users in json.loads(response.content).items():
@@ -325,7 +329,7 @@ class RecordHandler:
         email = email.strip() if email else None
         if not email:
             if last_attribute_name is not None:
-                self.logger.warning('Skipping user with id %s: empty email attribute (%s)',  key, last_attribute_name)
+                self.logger.warning('Skipping user with id %s: empty email attribute (%s)', key, last_attribute_name)
         user = user_sync.connector.helper.create_blank_user()
         source_attributes['email'] = email
         user['email'] = email
@@ -397,7 +401,7 @@ class OneRosterValueFormatter(object):
         if string_format is None:
             attribute_names = []
         else:
-            string_format = six.text_type(string_format)    # force unicode so attribute values are unicode
+            string_format = six.text_type(string_format)  # force unicode so attribute values are unicode
             formatter = string.Formatter()
             attribute_names = [six.text_type(item[1]) for item in formatter.parse(string_format) if item[1]]
         self.string_format = string_format
@@ -437,14 +441,18 @@ class OneRosterValueFormatter(object):
         :type first_only: bool
         """
         attribute_values = attributes.get(attribute_name)
-        if attribute_values:
-            try:
-                if first_only or len(attribute_values) == 1:
-                    attr = attribute_values if isinstance(attribute_values, six.string_types) else attribute_values[0]
-                    return attr if isinstance(attr, six.string_types) else attr.decode(cls.encoding)
-                else:
-                    return [(val if isinstance(val, six.string_types)
-                             else val.decode(cls.encoding)) for val in attribute_values]
-            except UnicodeError as e:
-                raise AssertionException("Encoding error in value of attribute '%s': %s" % (attribute_name, e))
+        if isinstance(attribute_values, list):
+            attribute_values = [cls.decode_attribute(val, attribute_name) for val in attribute_values]
+            return attribute_values[0] if first_only or len(attribute_values) == 1 else attribute_values
+        elif attribute_values:
+            return cls.decode_attribute(attribute_values, attribute_name)
         return None
+
+    @classmethod
+    def decode_attribute(cls, attr, attr_name):
+        try:
+            return attr.decode(cls.encoding)
+        except UnicodeError as e:
+            raise AssertionException("Encoding error in value of attribute '%s': %s" % (attr_name, e))
+        except:
+            return attr
