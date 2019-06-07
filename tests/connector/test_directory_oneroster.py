@@ -5,6 +5,7 @@ import user_sync.connector.directory
 
 from user_sync.connector.directory_oneroster import OneRosterConnector
 from user_sync.connector.directory_oneroster import RecordHandler
+from user_sync.connector.directory_oneroster import Connection
 from user_sync import config
 
 
@@ -34,6 +35,47 @@ def record_handler(log_stream):
                'user_identity_type_format': None, 'default_group_filter': 'classes', 'default_user_filter': 'students'}
 
     return RecordHandler(options, log_stream)
+
+
+@pytest.fixture
+def connection(log_stream):
+    options = {'client_id': '0fc7e35773c1fffd32579507', 'client_secret': '10332e330b2e364020179021',
+               'host': 'https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/', 'all_users_filter': 'users',
+               'limit': '100', 'key_identifier': 'sourcedId', 'logger_name': 'oneroster', 'country_code': 'US',
+               'user_email_format': '{email}', 'user_given_name_format': '{givenName}',
+               'user_surname_format': '{familyName}', 'user_country_code_format': '{countryCode}',
+               'user_username_format': None, 'user_domain_format': None, 'user_identity_type': 'federatedID',
+               'user_identity_type_format': None, 'default_group_filter': 'classes', 'default_user_filter': 'students'}
+
+    return Connection(log_stream, options)
+
+
+def test_list_api_response_handler(connection):
+
+    assert "" == ""
+
+
+def test_string_first_url_builder_valid(connection):
+
+    actual_result = connection.string_first_url_builder('', 'ysys', 'xxx', 'users')
+
+    expected_result = ''
+    assert actual_result == expected_result
+
+
+def test_list_item_retriever(connection):
+
+    assert "" == ""
+
+
+def test_start_call(connection):
+
+    assert "" == ""
+
+
+def test_encode_str(connection):
+
+    assert "" == ""
 
 
 def test_parse_results_valid(record_handler):
