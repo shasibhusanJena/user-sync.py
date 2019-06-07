@@ -3,9 +3,7 @@ import pytest
 import user_sync
 import user_sync.connector.directory
 
-from user_sync.connector.directory_oneroster import OneRosterConnector
-from user_sync.connector.directory_oneroster import RecordHandler
-from user_sync.connector.directory_oneroster import Connection
+from user_sync.connector.directory_oneroster import *
 from user_sync import config
 
 
