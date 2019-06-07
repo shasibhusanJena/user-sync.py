@@ -1,6 +1,7 @@
 import os
 import pytest
 import user_sync
+import user_sync.connector.directory
 
 from user_sync.connector.directory_oneroster import OneRosterConnector
 from user_sync.connector.directory_oneroster import RecordHandler
@@ -14,10 +15,86 @@ def default_options():
         'encoding_name': None})
     return config_loader.get_dict_from_sources([os.path.join('tests', 'fixture', 'connector-oneroster.yml')])
 
+    config_loader.main_config.value['directory_users']['connectors']['oneroster'] = os.path.join('tests','fixture','connector-oneroster.yml')
+    config_loader.invocation_options['connector'][0] = 'oneroster'
+
+    directory_connector_module = __import__('user_sync.connector.directory_oneroster', fromlist=[''])
+    directory_connector = user_sync.connector.directory.DirectoryConnector(directory_connector_module)
+    directory_connector_options = config_loader.get_directory_connector_options(directory_connector.name)
+    directory_connector_options['user_identity_type'] = 'federatedID'
+    directory_connector_options['user_domain_format'] = '{org}'
+    directory_connector_options['user_identity_type_format'] = ''
+    directory_connector_options['user_username_format'] = '{username}'
+    directory_connector_options['user_country_code_format'] = '{countryCode}'
+    directory_connector_options['user_surname_format'] = '{familyName}'
+    directory_connector_options['logger_name'] = 'oneroster'
+    directory_connector_options['user_given_name_format'] = '{givenName}'
+
+    return directory_connector_options
 
 @pytest.fixture
 def oneroster_connector(default_options):
     return OneRosterConnector(default_options)
+
+
+
+# @pytest.fixture
+# def oneroster_logger(default_options):
+#     return OneRosterConnector(default_options).logger
+
+
+@pytest.fixture
+def record_handler(default_options, log_stream):
+    return RecordHandler(default_options, log_stream)
+
+
+
+def test_parse_results_valid(record_handler, api_result_set):
+    extended_attributes = ['firstname']
+
+    x = record_handler.parse_results(api_result_set, 'sourcedId', extended_attributes)
+
+    y = api_result_set
+
+    k = 5
+
+    assert record_handler.parse_results(api_result_set, 'sourcedId', extended_attributes) \
+           == {'18125':
+                   {'identity_type': 'federatedID', 'username': 'billy.flores@classlink.k12.nj.us',
+                    'domain': 'classlink.k12.nj.us', 'firstname': 'BILLY', 'lastname': 'FLORES',
+                    'email': 'billy.flores@classlink.k12.nj.us', 'groups': set(), 'country': 'US',
+                    'source_attributes': {'email': 'billy.flores@classlink.k12.nj.us', 'identity_type': None, 'username': None, 'domain': None, 'givenName': 'BILLY', 'familyName': 'FLORES', 'country': None}}, '18317': {'identity_type': 'federatedID', 'username': 'giselle.houston@classlink.k12.nj.us', 'domain': 'classlink.k12.nj.us', 'firstname': 'GISELLE', 'lastname': 'HOUSTON', 'email': 'giselle.houston@classlink.k12.nj.us', 'groups': set(), 'country': 'US', 'source_attributes': {'email': 'giselle.houston@classlink.k12.nj.us', 'identity_type': None, 'username': None, 'domain': None, 'givenName': 'GISELLE', 'familyName': 'HOUSTON', 'country': None}}, '19529': {'identity_type': 'federatedID', 'username': 'lari.reyesgarcia@classlink.k12.nj.us', 'domain': 'classlink.k12.nj.us', 'firstname': 'LARI', 'lastname': 'REYES GARCIA', 'email': 'lari.reyesgarcia@classlink.k12.nj.us', 'groups': set(), 'country': 'US', 'source_attributes': {'email': 'lari.reyesgarcia@classlink.k12.nj.us', 'identity_type': None, 'username': None, 'domain': None, 'givenName': 'LARI', 'familyName': 'REYES GARCIA', 'country': None}}}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 def test_parse_yml_groups_valid(oneroster_connector):
@@ -68,42 +145,39 @@ def test_parse_yml_groups_complex_valid(oneroster_connector):
                   'schools::Spring Valley::students',
                   'xxx'}
 
-    expected_dict_format = {
-        "classes": {
-            "algebra i - fall": {
-                "classes::Algebra I - Fall::students": "students"
-            },
-            "geography i - spring": {
-                "classes::Geography I - Spring::students": "students"
-            },
-            "art i - fall": {
-                "classes::Art I - Fall::students": "students",
-                "classes::Art I - Fall::teachers": "teachers"
-            },
-            "art        i - fall": {
-                "classes::Art        I - Fall::teachers": "teachers"
-            },
-            'xxx': {
-                'xxx': 'students'}
-        },
-        "courses": {
-            "alg-102": {
-                "courses::Alg-102::students": "students"
+    assert oneroster_connector.parse_yml_groups(group_list) \
+           == {
+                "classes": {
+                    "algebra i - fall": {
+                        "classes::Algebra I - Fall::students": "students"
+                    },
+                    "geography i - spring": {
+                        "classes::Geography I - Spring::students": "students"
+                    },
+                    "art i - fall": {
+                        "classes::Art I - Fall::students": "students",
+                        "classes::Art I - Fall::teachers": "teachers"
+                    },
+                    "art        i - fall": {
+                        "classes::Art        I - Fall::teachers": "teachers"
+                    },
+                    'xxx': {
+                        'xxx': 'students'}
+                },
+                "courses": {
+                    "alg-102": {
+                        "courses::Alg-102::students": "students"
+                    }
+                },
+                "schools": {
+                    "spring valley": {
+                        "schools::Spring Valley::students": "students"
+                    }
+                }
             }
-        },
-        "schools": {
-            "spring valley": {
-                "schools::Spring Valley::students": "students"
-            }
-        }
-    }
-
-    return_dict_format = oneroster_connector.parse_yml_groups(group_list)
-    assert expected_dict_format == return_dict_format
 
 
-def test_parse_results_valid(oneroster_connector):
-    extended_attributes = ['firstname']
+
 
     result_set = [{
         'sourcedId': '22156',
