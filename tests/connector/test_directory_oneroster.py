@@ -51,30 +51,26 @@ def connection(log_stream):
 
 
 def test_list_api_response_handler(connection):
-
     assert "" == ""
 
 
 def test_string_first_url_builder_valid(connection):
-
-    actual_result = connection.string_first_url_builder('', 'ysys', 'xxx', 'users')
-
-    expected_result = ''
-    assert actual_result == expected_result
+    # actual_result = connection.string_first_url_builder('', 'ysys', 'xxx', 'users')
+    #
+    # expected_result = ''
+    # assert actual_result == expected_result
+    assert "" == ""
 
 
 def test_list_item_retriever(connection):
-
     assert "" == ""
 
 
 def test_start_call(connection):
-
     assert "" == ""
 
 
 def test_encode_str(connection):
-
     assert "" == ""
 
 
@@ -128,6 +124,36 @@ def test_parse_results_valid(record_handler):
 
     actual_result = record_handler.parse_results(api_result_set, 'sourcedId', [])
     assert expected_result == actual_result
+
+    # def test_parse_results_with_extended_attributes(record_handler):
+    # asserts extended attributes are added to source_attributes dict(),
+    # sms and identifier attributes have been extended
+
+    assert record_handler.parse_results(api_result_set, 'sourcedId', ['sms', 'identifier']) == \
+           {'18125': {'identity_type': 'federatedID', 'username': 'billy.flores@classlink.k12.nj.us',
+                      'domain': 'classlink.k12.nj.us', 'firstname': 'BILLY', 'lastname': 'FLORES',
+                      'email': 'billy.flores@classlink.k12.nj.us', 'groups': set(), 'country': 'US',
+                      'source_attributes': {'email': 'billy.flores@classlink.k12.nj.us',
+                                            'identity_type': None,
+                                            'username': None, 'domain': None, 'givenName': 'BILLY',
+                                            'familyName': 'FLORES', 'country': None, 'sms': None,
+                                            'identifier': '17580'}},
+            '18317': {'identity_type': 'federatedID', 'username': 'giselle.houston@classlink.k12.nj.us',
+                      'domain': 'classlink.k12.nj.us', 'firstname': 'GISELLE', 'lastname': 'HOUSTON',
+                      'email': 'giselle.houston@classlink.k12.nj.us', 'groups': set(), 'country': 'US',
+                      'source_attributes': {'email': 'giselle.houston@classlink.k12.nj.us',
+                                            'identity_type': None,
+                                            'username': None, 'domain': None, 'givenName': 'GISELLE',
+                                            'familyName': 'HOUSTON', 'country': None, 'sms': None,
+                                            'identifier': '15125'}},
+            '19529': {'identity_type': 'federatedID', 'username': 'lari.reyesgarcia@classlink.k12.nj.us',
+                      'domain': 'classlink.k12.nj.us', 'firstname': 'LARI', 'lastname': 'REYES GARCIA',
+                      'email': 'lari.reyesgarcia@classlink.k12.nj.us', 'groups': set(), 'country': 'US',
+                      'source_attributes': {'email': 'lari.reyesgarcia@classlink.k12.nj.us',
+                                            'identity_type': None,
+                                            'username': None, 'domain': None, 'givenName': 'LARI',
+                                            'familyName': 'REYES GARCIA', 'country': None, 'sms': None,
+                                            'identifier': '19934'}}}
 
 
 def test_parse_yml_groups_valid(oneroster_connector):
@@ -282,160 +308,6 @@ def test_OneRosterValueFormatter():
 #     assert returned_token == 5
 #
 #     assert returned_token == expected_token
-
-# @pytest.fixture()
-# def option_builder():
-#     caller_options = {
-#         'host': 'https://mockroster.io/',
-#         'api_token_endpoint': 'https://mockroster.io/oauth/token',
-#         'key_identifier': 'sourcedId',
-#         'country_code': 'US',
-#         'authentication_type': {
-#             'auth_type': 'oauth2_non_lib',
-#             'client_id': 'oruser',
-#             'client_secret': 'secret'},
-#         'user_identity_type': 'federatedID'}
-#
-#     connector = OneRosterConnector(caller_options)
-#
-
-#
-#
-# def test_parse_results():
-#     extended_attributes = []
-#
-#     result_set = [{
-#         'userId': 'bc16d091-7017-4f2f-9109-250fd590ca6a',
-#         'sourcedId': 'bc16d091-7017-4f2f-9109-250fd590ca6a',
-#         'status': 'active',
-#         'dateLastModified': '2018-04-01 21:05:50',
-#         'metadata': '',
-#         'enabledUser': '1',
-#         'userIds': '',
-#         'identifier': 'GbYh-2CV5-Dz19',
-#         'schoolId': 'f5897384-9488-466f-b049-1992f7a53f15',
-#         'givenName': 'Antonietta',
-#         'familyName': 'Consterdine',
-#         'middleName': 'Feliza',
-#         'email': 'aconsterdine@woodland.perficientads.com',
-#         'username': 'aconsterdine',
-#         'phone': '354-733-0622',
-#         'role': 'student',
-#         'grades': '07',
-#         'type': 'LDAP',
-#         'password': 'secret'},
-#         {
-#         'userId': '18e27d22-49d9-407e-a38e-d5ad35577e53',
-#         'sourcedId': '18e27d22-49d9-407e-a38e-d5ad35577e53',
-#         'status': 'active',
-#         'dateLastModified': '2018-02-13 12:37:53',
-#         'metadata': '',
-#         'enabledUser': '1',
-#         'userIds': '',
-#         'identifier': 'Ur9l-oYH3-VpQ5',
-#         'schoolId': 'f5897384-9488-466f-b049-1992f7a53f15',
-#         'givenName': 'Ariel',
-#         'familyName': 'Rome',
-#         'middleName': 'Edeline',
-#         'email': 'arome@woodland.perficientads.com',
-#         'username': 'arome',
-#         'phone': '926-670-4557',
-#         'role': 'student',
-#         'grades': '07',
-#         'type': 'LDAP',
-#         'password': 'secret'}]
-#
-#     returned_dict = RecordHandler.parse_results(result_set, extended_attributes, connector.key_identifier)
-#
-#     expected_user_dict = {
-#         'bc16d091-7017-4f2f-9109-250fd590ca6a':
-#             {
-#                 'email': 'aconsterdine@woodland.perficientads.com',
-#                 'username': 'aconsterdine@woodland.perficientads.com',
-#                 'firstname': 'Antonietta',
-#                 'lastname': 'Consterdine',
-#                 'domain': 'woodland.perficientads.com',
-#                 'source_attributes':
-#                     {
-#                         'email': 'aconsterdine@woodland.perficientads.com',
-#                         'username': 'aconsterdine',
-#                         'givenName': 'Antonietta',
-#                         'familyName': 'Consterdine',
-#                         'domain': 'woodland.perficientads.com',
-#                         'enabledUser': '1',
-#                         'grades': '07',
-#                         'identifier': 'GbYh-2CV5-Dz19',
-#                         'metadata': '',
-#                         'middleName': 'Feliza',
-#                         'phone': '354-733-0622',
-#                         'role': 'student',
-#                         'schoolId': 'f5897384-9488-466f-b049-1992f7a53f15',
-#                         'sourcedId': 'bc16d091-7017-4f2f-9109-250fd590ca6a',
-#                         'status': 'active',
-#                         'type': 'LDAP',
-#                         'userId': 'bc16d091-7017-4f2f-9109-250fd590ca6a',
-#                         'userIds': ''},
-#                 'groups': set()},
-#         '18e27d22-49d9-407e-a38e-d5ad35577e53':
-#             {
-#                 'email': 'arome@woodland.perficientads.com',
-#                 'username': 'arome@woodland.perficientads.com',
-#                 'firstname': 'Ariel',
-#                 'lastname': 'Rome',
-#                 'domain': 'woodland.perficientads.com',
-#                 'source_attributes':
-#                     {
-#                         'email': 'arome@woodland.perficientads.com',
-#                         'username': 'arome',
-#                         'givenName': 'Ariel',
-#                         'familyName': 'Rome',
-#                         'domain': 'woodland.perficientads.com',
-#                         'enabledUser': '1',
-#                         'grades': '07',
-#                         'identifier': 'Ur9l-oYH3-VpQ5',
-#                         'metadata': '',
-#                         'middleName': 'Edeline',
-#                         'phone': '926-670-4557',
-#                         'role': 'student',
-#                         'schoolId': 'f5897384-9488-466f-b049-1992f7a53f15',
-#                         'sourcedId': '18e27d22-49d9-407e-a38e-d5ad35577e53',
-#                         'status': 'active',
-#                         'type': 'LDAP',
-#                         'userId': '18e27d22-49d9-407e-a38e-d5ad35577e53',
-#                         'userIds': ''},
-#                 'groups': set()}}
-#
-#     assert returned_dict == expected_user_dict
-#
-# def test_create_user_object():
-#
-#     user = {'userId': 'bc16d091-7017-4f2f-9109-250fd590ca6a',
-#                   'sourcedId': 'bc16d091-7017-4f2f-9109-250fd590ca6a',
-#                   'status': 'active', 'dateLastModified': '2018-04-01 21:05:50',
-#                   'metadata': '', 'enabledUser': '1', 'userIds': '',
-#                   'identifier': 'GbYh-2CV5-Dz19', 'schoolId': 'f5897384-9488-466f-b049-1992f7a53f15',
-#                   'givenName': 'Antonietta', 'familyName': 'Consterdine', 'middleName': 'Feliza',
-#                   'email': 'aconsterdine@woodland.perficientads.com', 'username': 'aconsterdine',
-#                   'phone': '354-733-0622', 'role': 'student', 'grades': '07', 'type': 'LDAP', 'password': 'secret'}
-#
-#     original_group = 'courses::Alg-102::students'
-#
-#     created_user = result_parser.create_user_object(user, [], original_group)
-#
-#     expected_user = {'domain': 'woodland.perficientads.com', 'firstname': 'Antonietta',
-#                      'lastname': 'Consterdine', 'email': 'aconsterdine@woodland.perficientads.com',
-#                      'groups': ['courses::Alg-102::students'],
-#                      'source_attributes': {'email': 'aconsterdine@woodland.perficientads.com',
-#                                            'username': 'aconsterdine', 'givenName': 'Antonietta',
-#                                            'familyName': 'Consterdine', 'domain': 'woodland.perficientads.com',
-#                                            'enabledUser': '1', 'grades': '07', 'identifier': 'GbYh-2CV5-Dz19',
-#                                            'metadata': '', 'middleName': 'Feliza', 'phone': '354-733-0622',
-#                                            'role': 'student', 'schoolId': 'f5897384-9488-466f-b049-1992f7a53f15',
-#                                            'sourcedId': 'bc16d091-7017-4f2f-9109-250fd590ca6a', 'status': 'active',
-#                                            'type': 'LDAP', 'userId': 'bc16d091-7017-4f2f-9109-250fd590ca6a', 'userIds': ''},
-#                      'username': 'aconsterdine@woodland.perficientads.com'}
-#
-#     assert created_user == expected_user
 
 # @patch('user_sync.connector.directory_oneroster.Authenticator.retrieve_api_token')
 # def test_retrieve_api_token(, MockCall):
