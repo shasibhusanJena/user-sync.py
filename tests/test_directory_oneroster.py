@@ -46,29 +46,6 @@ def connection(log_stream):
     return Connection(log_stream, options)
 
 
-def test_list_api_response_handler(connection):
-    assert "" == ""
-
-
-def test_string_first_url_builder_valid(connection):
-    # actual_result = connection.string_first_url_builder('', 'ysys', 'xxx', 'users')
-    #
-    # expected_result = ''
-    # assert actual_result == expected_result
-    assert "" == ""
-
-
-def test_list_item_retriever(connection):
-    assert "" == ""
-
-
-def test_start_call(connection):
-    assert "" == ""
-
-
-def test_encode_str(connection):
-    assert "" == ""
-
 
 def test_parse_results_valid(record_handler):
     api_result_set = [{'sourcedId': '18125', 'status': 'active', 'dateLastModified': '2019-03-01T18:14:45.000Z',
@@ -76,8 +53,8 @@ def test_parse_results_valid(record_handler):
                        'enabledUser': 'true', 'givenName': 'BILLY', 'familyName': 'FLORES', 'middleName': 'DASEAN',
                        'role': 'student', 'identifier': '17580', 'email': 'billy.flores@classlink.k12.nj.us', 'sms': '',
                        'phone': '', 'agents': [], 'orgs': [
-            {'href': 'https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/orgs/2', 'sourcedId': '2',
-             'type': 'org'}],
+                            {'href': 'https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/orgs/2', 'sourcedId': '2',
+                             'type': 'org'}],
                        'grades': ['11'], 'password': ''},
                       {'sourcedId': '18317', 'status': 'active', 'dateLastModified': '2019-03-01T18:14:45.000Z',
                        'username': 'giselle.houston', 'userIds': [{'type': 'FED', 'identifier': '18317'}],
@@ -151,22 +128,21 @@ def test_parse_results_valid(record_handler):
                                             'identifier': '19934'}}}
 
 
+
 def test_parse_yml_groups_valid(oneroster_connector):
-    assert oneroster_connector.parse_yml_groups({'classes::yyy::students'}) \
+    assert oneroster_connector.parse_yaml_groups({'classes::yyy::students'}) \
            == {
                'classes': {
                    'yyy': {
                        'classes::yyy::students': 'students'}}}
 
-    assert oneroster_connector.parse_yml_groups({'courses::y    y    y::teachers'}) \
+    assert oneroster_connector.parse_yaml_groups({'courses::y    y    y::teachers'}) \
            == {
                'courses': {
                    'y    y    y': {
                        'courses::y    y    y::teachers': 'teachers'}}}
 
-
-def test_parse_yml_groups_simple_group_mapping_valid(oneroster_connector):
-    assert oneroster_connector.parse_yml_groups({'xxx'}) \
+    assert oneroster_connector.parse_yaml_groups({'xxx'}) \
            == {
                'classes': {
                    'xxx': {
@@ -178,10 +154,10 @@ def test_parse_yml_groups_failure(oneroster_connector, log_stream):
     oneroster_connector.logger = logger
 
     # false value for group_filter, viable options [courses, classes, schools]
-    oneroster_connector.parse_yml_groups({'course::Alg-102::students'})
+    oneroster_connector.parse_yaml_groups({'course::Alg-102::students'})
 
     # false value for user_filter, viable options [students, teachers, users]
-    oneroster_connector.parse_yml_groups({'courses::Alg-102::stud'})
+    oneroster_connector.parse_yaml_groups({'courses::Alg-102::stud'})
 
     stream.flush()
     error_logger_message = stream.getvalue()
@@ -199,7 +175,7 @@ def test_parse_yml_groups_complex_valid(oneroster_connector):
                   'schools::Spring Valley::students',
                   'xxx'}
 
-    assert oneroster_connector.parse_yml_groups(group_list) \
+    assert oneroster_connector.parse_yaml_groups(group_list) \
            == {
                "classes": {
                    "algebra i - fall": {

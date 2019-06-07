@@ -101,7 +101,7 @@ class OneRosterConnector(object):
         """
         rh = RecordHandler(self.options, logger=self.logger)
         conn = Connection(self.logger, self.options)
-        groups_from_yml = self.parse_yml_groups(groups)
+        groups_from_yml = self.parse_yaml_groups(groups)
         users_by_key = {}
         for group_filter in groups_from_yml:
             inner_dict = groups_from_yml[group_filter]
@@ -124,7 +124,7 @@ class OneRosterConnector(object):
 
         return six.itervalues(users_by_key)
 
-    def parse_yml_groups(self, groups_list):
+    def parse_yaml_groups(self, groups_list):
         """
         description: parses group options from user-sync.config file into a nested dict
          with Key: group_filter for the outter dict, Value: being the nested
