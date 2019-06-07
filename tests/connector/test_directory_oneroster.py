@@ -1,10 +1,8 @@
-import os
 import pytest
+
 import user_sync
 import user_sync.connector.directory
-
 from user_sync.connector.directory_oneroster import *
-from user_sync import config
 
 
 @pytest.fixture()
@@ -123,7 +121,6 @@ def test_parse_results_valid(record_handler):
     actual_result = record_handler.parse_results(api_result_set, 'sourcedId', [])
     assert expected_result == actual_result
 
-    # def test_parse_results_with_extended_attributes(record_handler):
     # asserts extended attributes are added to source_attributes dict(),
     # sms and identifier attributes have been extended
 

@@ -39,6 +39,3 @@ def log_stream():
     logger.addHandler(handler)
     yield stream, logger
     handler.close()
-
-
-
