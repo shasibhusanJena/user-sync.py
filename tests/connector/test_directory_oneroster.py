@@ -10,91 +10,82 @@ from user_sync import config
 
 @pytest.fixture()
 def default_options():
-    config_loader = user_sync.config.ConfigLoader({
-        'config_filename': os.path.join('tests', 'fixture', 'user-sync-config.yml'),
-        'encoding_name': None})
-    return config_loader.get_dict_from_sources([os.path.join('tests', 'fixture', 'connector-oneroster.yml')])
+    return {'host': 'https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/',
+            'key_identifier': 'sourcedId', 'country_code': 'US',
+            'client_id': '0fc7e35773c1fffd32579507', 'client_secret': '10332e330b2e364020179021',
+            'all_users_filter': 'users', 'default_group_filter': 'classes',
+            'default_user_filter': 'students', 'limit': '100', 'user_email_format': '{email}',
+            'user_country_code_format': '{countryCode}', 'user_identity_type': 'federatedID'}
 
-    config_loader.main_config.value['directory_users']['connectors']['oneroster'] = os.path.join('tests','fixture','connector-oneroster.yml')
-    config_loader.invocation_options['connector'][0] = 'oneroster'
-
-    directory_connector_module = __import__('user_sync.connector.directory_oneroster', fromlist=[''])
-    directory_connector = user_sync.connector.directory.DirectoryConnector(directory_connector_module)
-    directory_connector_options = config_loader.get_directory_connector_options(directory_connector.name)
-    directory_connector_options['user_identity_type'] = 'federatedID'
-    directory_connector_options['user_domain_format'] = '{org}'
-    directory_connector_options['user_identity_type_format'] = ''
-    directory_connector_options['user_username_format'] = '{username}'
-    directory_connector_options['user_country_code_format'] = '{countryCode}'
-    directory_connector_options['user_surname_format'] = '{familyName}'
-    directory_connector_options['logger_name'] = 'oneroster'
-    directory_connector_options['user_given_name_format'] = '{givenName}'
-
-    return directory_connector_options
 
 @pytest.fixture
 def oneroster_connector(default_options):
     return OneRosterConnector(default_options)
 
 
-
-# @pytest.fixture
-# def oneroster_logger(default_options):
-#     return OneRosterConnector(default_options).logger
-
-
 @pytest.fixture
-def record_handler(default_options, log_stream):
-    return RecordHandler(default_options, log_stream)
+def record_handler(log_stream):
+    options = {'client_id': '0fc7e35773c1fffd32579507', 'client_secret': '10332e330b2e364020179021',
+               'host': 'https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/', 'all_users_filter': 'users',
+               'limit': '100', 'key_identifier': 'sourcedId', 'logger_name': 'oneroster', 'country_code': 'US',
+               'user_email_format': '{email}', 'user_given_name_format': '{givenName}',
+               'user_surname_format': '{familyName}', 'user_country_code_format': '{countryCode}',
+               'user_username_format': None, 'user_domain_format': None, 'user_identity_type': 'federatedID',
+               'user_identity_type_format': None, 'default_group_filter': 'classes', 'default_user_filter': 'students'}
+
+    return RecordHandler(options, log_stream)
 
 
+def test_parse_results_valid(record_handler):
+    api_result_set = [{'sourcedId': '18125', 'status': 'active', 'dateLastModified': '2019-03-01T18:14:45.000Z',
+                       'username': 'billy.flores', 'userIds': [{'type': 'FED', 'identifier': '18125'}],
+                       'enabledUser': 'true', 'givenName': 'BILLY', 'familyName': 'FLORES', 'middleName': 'DASEAN',
+                       'role': 'student', 'identifier': '17580', 'email': 'billy.flores@classlink.k12.nj.us', 'sms': '',
+                       'phone': '', 'agents': [], 'orgs': [
+            {'href': 'https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/orgs/2', 'sourcedId': '2',
+             'type': 'org'}],
+                       'grades': ['11'], 'password': ''},
+                      {'sourcedId': '18317', 'status': 'active', 'dateLastModified': '2019-03-01T18:14:45.000Z',
+                       'username': 'giselle.houston', 'userIds': [{'type': 'FED', 'identifier': '18317'}],
+                       'enabledUser': 'true', 'givenName': 'GISELLE', 'familyName': 'HOUSTON', 'middleName': 'CAMILO',
+                       'role': 'student', 'identifier': '15125', 'email': 'giselle.houston@classlink.k12.nj.us',
+                       'sms': '',
+                       'phone': '', 'agents': [], 'orgs': [
+                          {'href': 'https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/orgs/2', 'sourcedId': '2',
+                           'type': 'org'}], 'grades': ['11'], 'password': ''},
+                      {'sourcedId': '19529', 'status': 'active', 'dateLastModified': '2019-03-01T18:14:45.000Z',
+                       'username': 'lari.reyesgarcia', 'userIds': [{'type': 'FED', 'identifier': '19529'}],
+                       'enabledUser': 'true', 'givenName': 'LARI', 'familyName': 'REYES GARCIA', 'middleName': 'SIMONE',
+                       'role': 'student', 'identifier': '19934', 'email': 'lari.reyesgarcia@classlink.k12.nj.us',
+                       'sms': '',
+                       'phone': '', 'agents': [], 'orgs': [
+                          {'href': 'https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/orgs/2', 'sourcedId': '2',
+                           'type': 'org'}], 'grades': ['11'], 'password': ''}]
 
-def test_parse_results_valid(record_handler, api_result_set):
-    extended_attributes = ['firstname']
+    expected_result = {'18125': {'identity_type': 'federatedID', 'username': 'billy.flores@classlink.k12.nj.us',
+                                 'domain': 'classlink.k12.nj.us', 'firstname': 'BILLY', 'lastname': 'FLORES',
+                                 'email': 'billy.flores@classlink.k12.nj.us', 'groups': set(), 'country': 'US',
+                                 'source_attributes': {'email': 'billy.flores@classlink.k12.nj.us',
+                                                       'identity_type': None,
+                                                       'username': None, 'domain': None, 'givenName': 'BILLY',
+                                                       'familyName': 'FLORES', 'country': None}},
+                       '18317': {'identity_type': 'federatedID', 'username': 'giselle.houston@classlink.k12.nj.us',
+                                 'domain': 'classlink.k12.nj.us', 'firstname': 'GISELLE', 'lastname': 'HOUSTON',
+                                 'email': 'giselle.houston@classlink.k12.nj.us', 'groups': set(), 'country': 'US',
+                                 'source_attributes': {'email': 'giselle.houston@classlink.k12.nj.us',
+                                                       'identity_type': None,
+                                                       'username': None, 'domain': None, 'givenName': 'GISELLE',
+                                                       'familyName': 'HOUSTON', 'country': None}},
+                       '19529': {'identity_type': 'federatedID', 'username': 'lari.reyesgarcia@classlink.k12.nj.us',
+                                 'domain': 'classlink.k12.nj.us', 'firstname': 'LARI', 'lastname': 'REYES GARCIA',
+                                 'email': 'lari.reyesgarcia@classlink.k12.nj.us', 'groups': set(), 'country': 'US',
+                                 'source_attributes': {'email': 'lari.reyesgarcia@classlink.k12.nj.us',
+                                                       'identity_type': None,
+                                                       'username': None, 'domain': None, 'givenName': 'LARI',
+                                                       'familyName': 'REYES GARCIA', 'country': None}}}
 
-    x = record_handler.parse_results(api_result_set, 'sourcedId', extended_attributes)
-
-    y = api_result_set
-
-    k = 5
-
-    assert record_handler.parse_results(api_result_set, 'sourcedId', extended_attributes) \
-           == {'18125':
-                   {'identity_type': 'federatedID', 'username': 'billy.flores@classlink.k12.nj.us',
-                    'domain': 'classlink.k12.nj.us', 'firstname': 'BILLY', 'lastname': 'FLORES',
-                    'email': 'billy.flores@classlink.k12.nj.us', 'groups': set(), 'country': 'US',
-                    'source_attributes': {'email': 'billy.flores@classlink.k12.nj.us', 'identity_type': None, 'username': None, 'domain': None, 'givenName': 'BILLY', 'familyName': 'FLORES', 'country': None}}, '18317': {'identity_type': 'federatedID', 'username': 'giselle.houston@classlink.k12.nj.us', 'domain': 'classlink.k12.nj.us', 'firstname': 'GISELLE', 'lastname': 'HOUSTON', 'email': 'giselle.houston@classlink.k12.nj.us', 'groups': set(), 'country': 'US', 'source_attributes': {'email': 'giselle.houston@classlink.k12.nj.us', 'identity_type': None, 'username': None, 'domain': None, 'givenName': 'GISELLE', 'familyName': 'HOUSTON', 'country': None}}, '19529': {'identity_type': 'federatedID', 'username': 'lari.reyesgarcia@classlink.k12.nj.us', 'domain': 'classlink.k12.nj.us', 'firstname': 'LARI', 'lastname': 'REYES GARCIA', 'email': 'lari.reyesgarcia@classlink.k12.nj.us', 'groups': set(), 'country': 'US', 'source_attributes': {'email': 'lari.reyesgarcia@classlink.k12.nj.us', 'identity_type': None, 'username': None, 'domain': None, 'givenName': 'LARI', 'familyName': 'REYES GARCIA', 'country': None}}}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    actual_result = record_handler.parse_results(api_result_set, 'sourcedId', [])
+    assert expected_result == actual_result
 
 
 def test_parse_yml_groups_valid(oneroster_connector):
@@ -147,240 +138,37 @@ def test_parse_yml_groups_complex_valid(oneroster_connector):
 
     assert oneroster_connector.parse_yml_groups(group_list) \
            == {
-                "classes": {
-                    "algebra i - fall": {
-                        "classes::Algebra I - Fall::students": "students"
-                    },
-                    "geography i - spring": {
-                        "classes::Geography I - Spring::students": "students"
-                    },
-                    "art i - fall": {
-                        "classes::Art I - Fall::students": "students",
-                        "classes::Art I - Fall::teachers": "teachers"
-                    },
-                    "art        i - fall": {
-                        "classes::Art        I - Fall::teachers": "teachers"
-                    },
-                    'xxx': {
-                        'xxx': 'students'}
-                },
-                "courses": {
-                    "alg-102": {
-                        "courses::Alg-102::students": "students"
-                    }
-                },
-                "schools": {
-                    "spring valley": {
-                        "schools::Spring Valley::students": "students"
-                    }
-                }
-            }
-
-
-
-
-    result_set = [{
-        'sourcedId': '22156',
-        'status': 'active',
-        'dateLastModified': '2019-03-01T18:14:45.000Z',
-        'username': 'brandon.landfair',
-        'userIds': [{
-            'type': 'FED',
-            'identifier': '22156'}],
-        'enabledUser': 'true',
-        'givenName': 'BRANDON',
-        'familyName': 'LANDFAIR',
-        'middleName': 'PATRICK',
-        'role': 'student',
-        'identifier': '19791',
-        'email': 'brandon.landfair@classlink.k12.nj.us',
-        'sms': '',
-        'phone': '',
-        'agents': [],
-        'orgs': [{
-            'href': 'https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/orgs/3',
-            'sourcedId': '3',
-            'type': 'org'}],
-        'grades': ['06'],
-        'password': ''},
-        {
-            'sourcedId': '29205',
-            'status': 'active',
-            'dateLastModified': '2019-03-01T18:14:45.000Z',
-            'username': 'mohammed.forster',
-            'userIds': [{
-                'type': 'FED',
-                'identifier': '29205'}],
-            'enabledUser': 'true',
-            'givenName': 'MOHAMMED',
-            'familyName': 'FORSTER',
-            'middleName': 'ELIZABETH',
-            'role': 'student',
-            'identifier': '20380',
-            'email': 'mohammed.forster@classlink.k12.nj.us',
-            'sms': '',
-            'phone': '',
-            'agents': [],
-            'orgs': [{
-                'href': 'https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/orgs/3',
-                'sourcedId': '3',
-                'type': 'org'}],
-            'grades': ['06'],
-            'password': ''}, {
-            'sourcedId': '32452',
-            'status': 'active',
-            'dateLastModified': '2019-03-01T18:14:45.000Z',
-            'username': 'dimple.preciado',
-            'userIds': [{
-                'type': 'FED',
-                'identifier': '32452'}],
-            'enabledUser': 'true',
-            'givenName': 'DIMPLE',
-            'familyName': 'PRECIADO',
-            'middleName': 'DAMIAN',
-            'role': 'student',
-            'identifier': '21037',
-            'email': 'dimple.preciado@classlink.k12.nj.us',
-            'sms': '',
-            'phone': '',
-            'agents': [],
-            'orgs': [{
-                'href': 'https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/orgs/3',
-                'sourcedId': '3',
-                'type': 'org'}],
-            'grades': ['06'],
-            'password': ''}, {
-            'sourcedId': '22156',
-            'status': 'active',
-            'dateLastModified': '2019-03-01T18:14:45.000Z',
-            'username': 'brandon.landfair',
-            'userIds': [{
-                'type': 'FED',
-                'identifier': '22156'}],
-            'enabledUser': 'true',
-            'givenName': 'BRANDON',
-            'familyName': 'LANDFAIR',
-            'middleName': 'PATRICK',
-            'role': 'student',
-            'identifier': '19791',
-            'email': 'brandon.landfair@classlink.k12.nj.us',
-            'sms': '',
-            'phone': '',
-            'agents': [],
-            'orgs': [{
-                'href': 'https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/orgs/3',
-                'sourcedId': '3',
-                'type': 'org'}],
-            'grades': ['06'],
-            'password': ''}, {
-            'sourcedId': '29205',
-            'status': 'active',
-            'dateLastModified': '2019-03-01T18:14:45.000Z',
-            'username': 'mohammed.forster',
-            'userIds': [{
-                'type': 'FED',
-                'identifier': '29205'}],
-            'enabledUser': 'true',
-            'givenName': 'MOHAMMED',
-            'familyName': 'FORSTER',
-            'middleName': 'ELIZABETH',
-            'role': 'student',
-            'identifier': '20380',
-            'email': 'mohammed.forster@classlink.k12.nj.us',
-            'sms': '',
-            'phone': '',
-            'agents': [],
-            'orgs': [{
-                'href': 'https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/orgs/3',
-                'sourcedId': '3',
-                'type': 'org'}],
-            'grades': ['06'],
-            'password': ''}, {
-            'sourcedId': '32452',
-            'status': 'active',
-            'dateLastModified': '2019-03-01T18:14:45.000Z',
-            'username': 'dimple.preciado',
-            'userIds': [{
-                'type': 'FED',
-                'identifier': '32452'}],
-            'enabledUser': 'true',
-            'givenName': 'DIMPLE',
-            'familyName': 'PRECIADO',
-            'middleName': 'DAMIAN',
-            'role': 'student',
-            'identifier': '21037',
-            'email': 'dimple.preciado@classlink.k12.nj.us',
-            'sms': '',
-            'phone': '',
-            'agents': [],
-            'orgs': [{
-                'href': 'https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/orgs/3',
-                'sourcedId': '3',
-                'type': 'org'}],
-            'grades': ['06'],
-            'password': ''}]
-
-    expected_dict = {
-        '22156': {
-            'identity_type': 'federatedID',
-            'username': 'brandon.landfair@classlink.k12.nj.us',
-            'domain': 'classlink.k12.nj.us',
-            'firstname': 'BRANDON',
-            'lastname': 'LANDFAIR',
-            'email': 'brandon.landfair@classlink.k12.nj.us',
-            'groups': set(),
-            'country': 'US',
-            'source_attributes': {
-                'email': 'brandon.landfair@classlink.k12.nj.us',
-                'identity_type': None,
-                'username': None,
-                'domain': None,
-                'givenName': 'BRANDON',
-                'familyName': 'LANDFAIR',
-                'country': None}},
-        '29205': {
-            'identity_type': 'federatedID',
-            'username': 'mohammed.forster@classlink.k12.nj.us',
-            'domain': 'classlink.k12.nj.us',
-            'firstname': 'MOHAMMED',
-            'lastname': 'FORSTER',
-            'email': 'mohammed.forster@classlink.k12.nj.us',
-            'groups': set(),
-            'country': 'US',
-            'source_attributes': {
-                'email': 'mohammed.forster@classlink.k12.nj.us',
-                'identity_type': None,
-                'username': None,
-                'domain': None,
-                'givenName': 'MOHAMMED',
-                'familyName': 'FORSTER',
-                'country': None}},
-        '32452': {
-            'identity_type': 'federatedID',
-            'username': 'dimple.preciado@classlink.k12.nj.us',
-            'domain': 'classlink.k12.nj.us',
-            'firstname': 'DIMPLE',
-            'lastname': 'PRECIADO',
-            'email': 'dimple.preciado@classlink.k12.nj.us',
-            'groups': set(),
-            'country': 'US',
-            'source_attributes': {
-                'email': 'dimple.preciado@classlink.k12.nj.us',
-                'identity_type': None,
-                'username': None,
-                'domain': None,
-                'givenName': 'DIMPLE',
-                'familyName': 'PRECIADO',
-                'country': None}}}
-
-    returned_dict = RecordHandler(oneroster_connector.options, None) \
-        .parse_results(result_set, 'sourcedId', extended_attributes)
-
-    # assert returned_dict == expected_dict
+               "classes": {
+                   "algebra i - fall": {
+                       "classes::Algebra I - Fall::students": "students"
+                   },
+                   "geography i - spring": {
+                       "classes::Geography I - Spring::students": "students"
+                   },
+                   "art i - fall": {
+                       "classes::Art I - Fall::students": "students",
+                       "classes::Art I - Fall::teachers": "teachers"
+                   },
+                   "art        i - fall": {
+                       "classes::Art        I - Fall::teachers": "teachers"
+                   },
+                   'xxx': {
+                       'xxx': 'students'}
+               },
+               "courses": {
+                   "alg-102": {
+                       "courses::Alg-102::students": "students"
+                   }
+               },
+               "schools": {
+                   "spring valley": {
+                       "schools::Spring Valley::students": "students"
+                   }
+               }
+           }
 
 
 def test_OneRosterValueFormatter():
-
     attributes = {
         'sourcedId': '18125',
         'status': 'active',
@@ -397,13 +185,13 @@ def test_OneRosterValueFormatter():
         'identifier': '17580',
         'email': 'billy.flores@classlink.k12.nj.us',
         'sms': None,
-        'phone': {'home': '111-111-1111',  'work': '222-222-2222'},
-        'agents': ['1','2'],
+        'phone': {'home': '111-111-1111', 'work': '222-222-2222'},
+        'agents': ['1', '2'],
         'orgs': [{
             'href': 'https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/orgs/2',
             'sourcedId': '2',
             'type': 'org'}],
-        'grades': ['15',['11','12','13'],'14'],
+        'grades': ['15', ['11', '12', '13'], '14'],
         'byte': b'byteencoded',
         'password': ''}
 
@@ -414,10 +202,10 @@ def test_OneRosterValueFormatter():
     assert formatter.get_attribute_value(attributes, "dateLastModified") == "2019-03-01T18:14:45.000Z"
 
     # Get a list
-    assert formatter.get_attribute_value(attributes, "agents") == ['1','2']
+    assert formatter.get_attribute_value(attributes, "agents") == ['1', '2']
 
     # Get a dictionary
-    assert formatter.get_attribute_value(attributes, "phone") == {'home': '111-111-1111',  'work': '222-222-2222'}
+    assert formatter.get_attribute_value(attributes, "phone") == {'home': '111-111-1111', 'work': '222-222-2222'}
     assert formatter.get_attribute_value(attributes, "orgs") == {
         'href': 'https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/orgs/2',
         'sourcedId': '2',
@@ -428,12 +216,10 @@ def test_OneRosterValueFormatter():
     assert formatter.get_attribute_value(attributes, "sms") == None
 
     # Get a nested object
-    assert formatter.get_attribute_value(attributes, "grades") ==  ['15',['11','12','13'],'14']
+    assert formatter.get_attribute_value(attributes, "grades") == ['15', ['11', '12', '13'], '14']
 
     # Decode a string
     assert formatter.get_attribute_value(attributes, "byte") == "byteencoded"
-
-
 
 # OneRosterValueFormatter Class:
 

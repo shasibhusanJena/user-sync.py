@@ -52,7 +52,7 @@ user_email_format: "{email}"
 # user_domain_format is analogous to user_email_format in syntax, but it
 # is used to discover the domain for a given user.  If not specified, the
 # domain is taken from the domain part of the user's email address.
-user_domain_format: "{org}"
+#user_domain_format: "{org}"
 
 # (optional) user_username_format (no default value)
 # user_username_format specifies how to construct a user's username on the
