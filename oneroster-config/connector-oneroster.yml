@@ -5,40 +5,47 @@
 #
 # This sample file contains all of the settable options for this protocol.
 # It is recommended that you make a copy of this file and edit it for your needs.
-# While you are at it, you will likely want to remove a lot of this  commentary,
-# in order to enhance the readability of your file.
 
-# connection settings (required)
-# Host name for organization's OneRoster implementation, eg: "https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/"
-host: "https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/"
-
-# Unique key used throughout One-Roster (sourcedId is commonly used)
-key_identifier: 'sourcedId'
-
-# Country Code that will be associated with all users
-country_code: 'US'
-
-# API credentials
 client_id: '0fc7e35773c1fffd32579507'
 client_secret: '10332e330b2e364020179021'
+host: "https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/"
 
-#All users filter
-all_users_filter: 'users'
+# Connection Settings
+#(required, no default)
+# Endpoint for organization's OneRoster implementation
+#host: "https://exampleschool-ca-v2.oneroster.com/ims/oneroster/v1p1/"
 
-#Simple Group Mapping
+# (required, no default)
+# API credentials for classlink server
+#client_id: 'client id goes here'
+#client_secret: 'client secret goes here'
+
+# (optional, default value given below)
+# unique key used throughout One-Roster (sourcedId is commonly used)
+key_identifier: 'sourcedId'
+
+# Simple Group Mapping
 # When simplifying user group mappings, you may choose the default values that are appended to your group_name
 # ie: When an English class is specified within the group mappings, after default values below are applied,
 # "English" will be {default_group_filter}::English::{default_user_filter}
+
+# (optional, default value given below)
+# the default filter applied to the prefix of a plain group name. eg: classes::name::user_filter
 default_group_filter: 'classes'
 
+# (optional, default value given below)
+# the default filter applied to the suffix of a plain group name. eg: group_filter::name::students
 default_user_filter: 'students'
 
-#Pagination (required according to One Roster final specification)
-#must be supported for ALL endpoints that return a collection
-#Limit, number of results to return during each query, Implementations of One Roster default at 100
+# (optional, default value given below)
+# all users filter.  Use this with the --users all command line option to target all users
+all_users_filter: 'users'
+
+# (optional, default value given below)
+# api call page size.  Adjusting this will adjust the frequency of API calls made to the server
 limit: '100'
 
-# (optional) user_email_format (default value given below)
+# # (optional, default value given below) user_email_format
 # user_email_format specifies how to construct a user's email address by
 # combining constant strings with the values of specific Okta profile attributes.
 # Any names in curly braces are taken as attribute names, and everything including
@@ -48,13 +55,13 @@ limit: '100'
 # the encoding specified by the string_encoding setting, above.
 user_email_format: "{email}"
 
-# (optional) user_domain_format (no default value)
+# (optional, no default) user_domain_format
 # user_domain_format is analogous to user_email_format in syntax, but it
 # is used to discover the domain for a given user.  If not specified, the
 # domain is taken from the domain part of the user's email address.
-#user_domain_format: "{org}"
+#user_domain_format: "{domain}"
 
-# (optional) user_username_format (no default value)
+# (optional, no default) user_username_format
 # user_username_format specifies how to construct a user's username on the
 # Adobe side by combining constant strings with attribute values.
 # Any names in curly braces are taken as attribute names, and everything including
@@ -67,7 +74,7 @@ user_email_format: "{email}"
 # produce a unique username for each user.
 #user_username_format: "{username}"
 
-# (optional) user_given_name_format (default value given below)
+# (optional, default value given below) user_given_name_format
 # user_given_name_format specifies how to construct a user's given name by
 # combining constant strings with the values of specific Okta profile attributes.
 # Any names in curly braces are taken as attribute names, and everything including
@@ -77,7 +84,7 @@ user_email_format: "{email}"
 # the encoding specified by the string_encoding setting, above.
 #user_given_name_format: "{givenName}"
 
-# (optional) user_surname_format (default value given below)
+# (optional, default value given below) user_surname_format
 # user_surname_format specifies how to construct a user's surname by
 # combining constant strings with the values of specific Okta profile attributes.
 # Any names in curly braces are taken as attribute names, and everything including
@@ -87,7 +94,7 @@ user_email_format: "{email}"
 # the encoding specified by the string_encoding setting, above.
 #user_surname_format: "{familyName}"
 
-# (optional) user_country_code_format (default value given below)
+# (optional, default value given below) user_country_code_format
 # user_country_code_format specifies how to construct a user's country code by
 # combining constant strings with the values of specific Okta profile attributes.
 # Any names in curly braces are taken as attribute names, and everything including
@@ -95,49 +102,17 @@ user_email_format: "{email}"
 # The default value is from "countryCode" field in Okta user profile.
 # NOTE: for this and every format setting, the constant strings must be in
 # the encoding specified by the string_encoding setting, above.
-user_country_code_format: "{countryCode}"
+# user_country_code_format: "{country}"
 
-
-
-# Not needed for now
-#Key name to the response count of the HTTP request, found in Response.headers._store
-#header_store_count_key: 'x-count'
-
-#Official excerpt from One Roster
-#It is expected that Student Information Systems may well contain massive amounts of data,
-#and as such there is a real danger of data overload if entire collections are requested.
-#To avoid this, implementations MUST adopt a pagination mechanism.
-#
-#Pagination is controlled via two parameters that are appended to the request.
-#
-#•         Limit - the number of results to return
-#
-#•         Offset - the index of the first record to return. (zero indexed)
-#
-#The default value for limit MUST be 100.
-#
-#The default value for offset MUST be 0.
-#
-#Example: return the first 10 resources in a collection of students:
-#
-#GET https://imsglobal.org/ims/oneroster/v1p1/students?limit=10
-#
-#Example: return the second 10 resources in a collection of students:
-#GET https://imsglobal.org/ims/oneroster/v1p1/students?limit=10&offset=10
-#
-#It is RECOMMENDED that implementations pass the total resource count in collection back to the requester.
-#This MUST be provided in the custom HTTP header: X-Total-Count.
-#It is RECOMMENDED that implementers pass back next, previous, first and last links in the HTTP Link Header.
-#Example: 503 student resources exist in the collection. Pagination is on the second page, in units of 10.
-#
-#Link:
-#
-#<https://imsglobal.org/ims/oneroster/v1p1/students?limit=10&offset=20>; rel="next",
-#
-#<https://imsglobal.org/ims/oneroster/v1p1/students?limit=3&offset=500>; rel="last",
-#
-#<https://imsglobal.org/ims/oneroster/v1p1/students?limit=10&offset=0>; rel="first",
-#
-#<https://imsglobal.org/ims/oneroster/v1p1/students?limit=10&offset=0>; rel="prev"
-#
-#NOTE: Pagination must be supported for ALL endpoints that return a collection.
+# (optional, no default) user_identity_type_format
+# user_identity_type_format specifies how to construct a user's desired identity
+# type on the Adobe side by combining constant strings with attribute values.
+# Any names in curly braces are take as attribute names, and everything including
+# the braces will be replaced on a per-user basis with the values of the attributes.
+# There is no default value for this setting, because most directories don't contain
+# users with different identity types (so setting the default identity type suffices).
+# If your directory contains users of different identity types, you should define
+# this field to look at the value of an appropriate attribute in your directory.
+# For example, if your directory attribute "idType" had one of the values
+# adobe, enterprise, or federated in it for each user, you could use:
+#user_identity_type_format: "{idType}ID"

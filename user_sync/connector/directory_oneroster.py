@@ -75,20 +75,19 @@ class OneRosterConnector(object):
         builder.require_string_value('client_secret')
         builder.require_string_value('host')
         builder.set_string_value('all_users_filter', 'users')
-        builder.set_string_value('limit', 1000)
+        builder.set_string_value('limit', '1000')
         builder.set_string_value('key_identifier', 'sourcedId')
         builder.set_string_value('logger_name', 'oneroster')
-        builder.set_string_value('country_code', None)
         builder.set_string_value('user_email_format', six.text_type('{email}'))
         builder.set_string_value('user_given_name_format', six.text_type('{givenName}'))
         builder.set_string_value('user_surname_format', six.text_type('{familyName}'))
-        builder.set_string_value('user_country_code_format', six.text_type('{countryCode}'))
+        builder.set_string_value('user_country_code_format', six.text_type('{country}'))
         builder.set_string_value('user_username_format', None)
         builder.set_string_value('user_domain_format', None)
         builder.set_string_value('user_identity_type', None)
         builder.set_string_value('user_identity_type_format', None)
-        builder.set_string_value('default_group_filter', None)
-        builder.set_string_value('default_user_filter', None)
+        builder.set_string_value('default_group_filter', 'classes')
+        builder.set_string_value('default_user_filter', 'students')
 
         return builder.get_options()
 
@@ -152,7 +151,7 @@ class OneRosterConnector(object):
                 elif group_name not in full_dict[group_filter]:
                     full_dict[group_filter][group_name] = {}
                 full_dict[group_filter][group_name].update({
-                                                               text: user_filter})
+                    text: user_filter})
             else:
                 group_filter = self.options['default_group_filter']
                 user_filter = self.options['default_user_filter']
@@ -162,7 +161,7 @@ class OneRosterConnector(object):
                 elif text not in full_dict[group_filter]:
                     full_dict[group_filter][text] = {}
                 full_dict[group_filter][text].update({
-                                                         text: user_filter})
+                    text: user_filter})
 
         return full_dict
 
@@ -287,7 +286,6 @@ class Connection:
 class RecordHandler:
     def __init__(self, options, logger):
         self.logger = logger
-        self.country_code = options['country_code']
         self.user_identity_type = user_sync.identity_type.parse_identity_type(options['user_identity_type'])
         self.user_identity_type_formatter = OneRosterValueFormatter(options['user_identity_type_format'])
         self.user_email_formatter = OneRosterValueFormatter(options['user_email_format'])
@@ -343,7 +341,7 @@ class RecordHandler:
             try:
                 user['identity_type'] = user_sync.identity_type.parse_identity_type(identity_type)
             except AssertionException as e:
-                self.logger.warning('Skipping user with key %s: %s', e, key)
+                self.logger.warning('Skipping user with key %s: %s', key, e)
         username, last_attribute_name = self.user_username_formatter.generate_value(record)
         username = username.strip() if username else None
         source_attributes['username'] = username
@@ -378,10 +376,7 @@ class RecordHandler:
         source_attributes['country'] = c_value
         if c_value is not None:
             user['country'] = c_value.upper()
-        elif c_value is None:
-            user['country'] = self.country_code
-        elif last_attribute_name:
-            self.logger.warning('No country code attribute (%s) for user with dn: %s', last_attribute_name)
+
         user['groups'] = set()
         if extended_attributes is not None:
             for extended_attribute in extended_attributes:
