@@ -88,7 +88,6 @@ def oneroster_connector(caller_options):
 
 
 def test_parse_results_valid(oneroster_connector, stub_api_response):
-    record_handler = RecordHandler(options=oneroster_connector.options, logger=oneroster_connector.logger)
 
     expected_result = {
         '18125': {
@@ -127,6 +126,7 @@ def test_parse_results_valid(oneroster_connector, stub_api_response):
                 'country': None}},
     }
 
+    record_handler = RecordHandler(options=oneroster_connector.options, logger=oneroster_connector.logger)
     actual_result = record_handler.parse_results(stub_api_response, 'sourcedId', [])
     assert expected_result == actual_result
 
@@ -137,8 +137,14 @@ def test_parse_results_valid(oneroster_connector, stub_api_response):
     expected_result['18125']['source_attributes']['identifier'] = '17580'
     expected_result['18317']['source_attributes']['sms'] = None
     expected_result['18317']['source_attributes']['identifier'] = '15125'
-
     actual_result = record_handler.parse_results(stub_api_response, 'sourcedId', ['sms', 'identifier'])
+    assert expected_result == actual_result
+
+    # Fetch nonexistent properties
+
+    expected_result['18125']['source_attributes']['fake'] = None
+    expected_result['18317']['source_attributes']['fake'] = None
+    actual_result = record_handler.parse_results(stub_api_response, 'sourcedId', ['sms', 'identifier', 'fake'])
     assert expected_result == actual_result
 
 
