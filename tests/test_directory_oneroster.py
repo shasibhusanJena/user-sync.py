@@ -1,7 +1,5 @@
 import pytest
 
-import user_sync
-import user_sync.connector.directory
 from user_sync.connector.directory_oneroster import *
 
 
@@ -208,6 +206,8 @@ def test_parse_yml_groups_complex_valid(oneroster_connector):
 
 
 def test_OneRosterValueFormatter():
+
+
     attributes = {
         'sourcedId': '18125',
         'status': 'active',
@@ -234,7 +234,7 @@ def test_OneRosterValueFormatter():
         'byte': b'byteencoded',
         'password': ''}
 
-    formatter = user_sync.connector.directory_oneroster.OneRosterValueFormatter(None)
+    formatter = OneRosterValueFormatter(None)
 
     # Get a simple string
     assert formatter.get_attribute_value(attributes, "username") == "billy.flores"
