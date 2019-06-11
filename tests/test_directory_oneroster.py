@@ -26,15 +26,9 @@ def caller_options():
     }
 
 
-@pytest.fixture
-def oneroster_connector(caller_options):
-    return OneRosterConnector(caller_options)
-
-
-def test_parse_results_valid(oneroster_connector):
-    record_handler = RecordHandler(options=oneroster_connector.options, logger=oneroster_connector.logger)
-
-    api_result_set = [{
+@pytest.fixture()
+def stub_api_response():
+    return [{
         'sourcedId': '18125',
         'status': 'active',
         'dateLastModified': '2019-03-01T18:14:45.000Z',
@@ -49,7 +43,7 @@ def test_parse_results_valid(oneroster_connector):
         'role': 'student',
         'identifier': '17580',
         'email': 'billy.flores@classlink.k12.nj.us',
-        'sms': '',
+        'sms': '(666) 666-6666',
         'phone': '',
         'agents': [],
         'orgs': [
@@ -86,6 +80,15 @@ def test_parse_results_valid(oneroster_connector):
             'password': ''},
 
     ]
+
+
+@pytest.fixture
+def oneroster_connector(caller_options):
+    return OneRosterConnector(caller_options)
+
+
+def test_parse_results_valid(oneroster_connector, stub_api_response):
+    record_handler = RecordHandler(options=oneroster_connector.options, logger=oneroster_connector.logger)
 
     expected_result = {
         '18125': {
@@ -124,53 +127,20 @@ def test_parse_results_valid(oneroster_connector):
                 'country': None}},
     }
 
-    actual_result = record_handler.parse_results(api_result_set, 'sourcedId', [])
+    actual_result = record_handler.parse_results(stub_api_response, 'sourcedId', [])
     assert expected_result == actual_result
 
     # asserts extended attributes are added to source_attributes dict(),
     # sms and identifier attributes have been extended
 
-    assert record_handler.parse_results(api_result_set, 'sourcedId', ['sms', 'identifier']) == \
-           {
-               '18125': {
-                   'identity_type': 'federatedID',
-                   'username': 'billy.flores@classlink.k12.nj.us',
-                   'domain': 'classlink.k12.nj.us',
-                   'firstname': 'BILLY',
-                   'lastname': 'FLORES',
-                   'email': 'billy.flores@classlink.k12.nj.us',
-                   'groups': set(),
-                   'country': None,
-                   'source_attributes': {
-                       'email': 'billy.flores@classlink.k12.nj.us',
-                       'identity_type': None,
-                       'username': None,
-                       'domain': None,
-                       'givenName': 'BILLY',
-                       'familyName': 'FLORES',
-                       'country': None,
-                       'sms': None,
-                       'identifier': '17580'}},
-               '18317': {
-                   'identity_type': 'federatedID',
-                   'username': 'giselle.houston@classlink.k12.nj.us',
-                   'domain': 'classlink.k12.nj.us',
-                   'firstname': 'GISELLE',
-                   'lastname': 'HOUSTON',
-                   'email': 'giselle.houston@classlink.k12.nj.us',
-                   'groups': set(),
-                   'country': None,
-                   'source_attributes': {
-                       'email': 'giselle.houston@classlink.k12.nj.us',
-                       'identity_type': None,
-                       'username': None,
-                       'domain': None,
-                       'givenName': 'GISELLE',
-                       'familyName': 'HOUSTON',
-                       'country': None,
-                       'sms': None,
-                       'identifier': '15125'}},
-           }
+    expected_result['18125']['source_attributes']['sms'] = '(666) 666-6666'
+    expected_result['18125']['source_attributes']['identifier'] = '17580'
+    expected_result['18317']['source_attributes']['sms'] = None
+    expected_result['18317']['source_attributes']['identifier'] = '15125'
+
+    actual_result = record_handler.parse_results(stub_api_response, 'sourcedId', ['sms', 'identifier'])
+    assert expected_result == actual_result
+
 
 
 def test_parse_yml_groups_valid(oneroster_connector):
@@ -307,3 +277,12 @@ def test_get_attr_values():
 
     # Decode a string
     assert formatter.get_attribute_value(attributes, "byte") == "byteencoded"
+
+#
+# def test_lug_ex(oneroster_connector):
+#     import mock
+#     with mock.patch("user_sync.connector.directory_oneroster.Connection.list_api_response_handler") as mock_endpoint:
+#         mock_endpoint.return_value = "1234"
+#         x = oneroster_connector.load_users_and_groups(['xxx'],[],False)
+#
+#         print()
