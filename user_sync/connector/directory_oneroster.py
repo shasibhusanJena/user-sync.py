@@ -99,7 +99,7 @@ class OneRosterConnector(object):
         :type all_users: bool
         :rtype (bool, iterable(dict))
         """
-        rh = RecordHandler(self.options, logger=self.logger)
+        rh = RecordHandler(self.logger, self.options)
         conn = Connection(self.logger, self.options)
         groups_from_yml = self.parse_yaml_groups(groups)
         users_by_key = {}
@@ -284,7 +284,7 @@ class Connection:
 
 
 class RecordHandler:
-    def __init__(self, options, logger):
+    def __init__(self, logger, options):
         self.logger = logger
         self.user_identity_type = user_sync.identity_type.parse_identity_type(options['user_identity_type'])
         self.user_identity_type_formatter = OneRosterValueFormatter(options['user_identity_type_format'])
