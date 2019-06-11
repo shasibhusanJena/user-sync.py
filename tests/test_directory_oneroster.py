@@ -88,7 +88,6 @@ def oneroster_connector(caller_options):
 
 
 def test_parse_results_valid(oneroster_connector, stub_api_response):
-
     expected_result = {
         '18125': {
             'identity_type': 'federatedID',
@@ -148,26 +147,74 @@ def test_parse_results_valid(oneroster_connector, stub_api_response):
     assert expected_result == actual_result
 
 
-
 def test_parse_yml_groups_valid(oneroster_connector):
-    assert oneroster_connector.parse_yaml_groups({'classes::yyy::students'}) \
-           == {
-               'classes': {
-                   'yyy': {
-                       'classes::yyy::students': 'students'}}}
+    r = oneroster_connector.parse_yaml_groups({'classes::yyy::students'})
+    assert r == {
+        'classes': {
+            'yyy': {
+                'classes::yyy::students': 'students'}
+        }
+    }
 
-    assert oneroster_connector.parse_yaml_groups({'courses::y    y    y::teachers'}) \
-           == {
-               'courses': {
-                   'y    y    y': {
-                       'courses::y    y    y::teachers': 'teachers'}}}
+    r = oneroster_connector.parse_yaml_groups({'courses::y    y    y::teachers'})
+    assert r == {
+        'courses': {
+            'y    y    y': {
+                'courses::y    y    y::teachers': 'teachers'
+            }
+        }
+    }
 
-    assert oneroster_connector.parse_yaml_groups({'xxx'}) \
-           == {
-               'classes': {
-                   'xxx': {
-                       'xxx': 'students'}}}
+    r = oneroster_connector.parse_yaml_groups({'xxx'})
+    assert r == {
+        'classes': {
+            'xxx': {
+                'xxx': 'students'}
+        }
+    }
 
+
+def test_parse_yml_groups_complex_valid(oneroster_connector):
+    group_list = {'courses::Alg-102::students',
+                  'classes::Geography I - Spring::students',
+                  'classes::Art I - Fall::students',
+                  'classes::Art I - Fall::teachers',
+                  'classes::Art        I - Fall::teachers',
+                  'classes::Algebra I - Fall::students',
+                  'schools::Spring Valley::students',
+                  'xxx'}
+
+    r = oneroster_connector.parse_yaml_groups(group_list)
+
+    assert r == {
+        "classes": {
+            "algebra i - fall": {
+                "classes::Algebra I - Fall::students": "students"
+            },
+            "geography i - spring": {
+                "classes::Geography I - Spring::students": "students"
+            },
+            "art i - fall": {
+                "classes::Art I - Fall::students": "students",
+                "classes::Art I - Fall::teachers": "teachers"
+            },
+            "art        i - fall": {
+                "classes::Art        I - Fall::teachers": "teachers"
+            },
+            'xxx': {
+                'xxx': 'students'}
+        },
+        "courses": {
+            "alg-102": {
+                "courses::Alg-102::students": "students"
+            }
+        },
+        "schools": {
+            "spring valley": {
+                "schools::Spring Valley::students": "students"
+            }
+        }
+    }
 
 def test_parse_yml_groups_failure(oneroster_connector, log_stream):
     stream, logger = log_stream
@@ -183,48 +230,6 @@ def test_parse_yml_groups_failure(oneroster_connector, log_stream):
     error_logger_message = stream.getvalue()
     assert 'stud' in error_logger_message
     assert 'course' in error_logger_message
-
-
-def test_parse_yml_groups_complex_valid(oneroster_connector):
-    group_list = {'courses::Alg-102::students',
-                  'classes::Geography I - Spring::students',
-                  'classes::Art I - Fall::students',
-                  'classes::Art I - Fall::teachers',
-                  'classes::Art        I - Fall::teachers',
-                  'classes::Algebra I - Fall::students',
-                  'schools::Spring Valley::students',
-                  'xxx'}
-
-    assert oneroster_connector.parse_yaml_groups(group_list) \
-           == {
-               "classes": {
-                   "algebra i - fall": {
-                       "classes::Algebra I - Fall::students": "students"
-                   },
-                   "geography i - spring": {
-                       "classes::Geography I - Spring::students": "students"
-                   },
-                   "art i - fall": {
-                       "classes::Art I - Fall::students": "students",
-                       "classes::Art I - Fall::teachers": "teachers"
-                   },
-                   "art        i - fall": {
-                       "classes::Art        I - Fall::teachers": "teachers"
-                   },
-                   'xxx': {
-                       'xxx': 'students'}
-               },
-               "courses": {
-                   "alg-102": {
-                       "courses::Alg-102::students": "students"
-                   }
-               },
-               "schools": {
-                   "spring valley": {
-                       "schools::Spring Valley::students": "students"
-                   }
-               }
-           }
 
 
 def test_get_attr_values():
