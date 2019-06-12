@@ -19,10 +19,10 @@ class OnerosterAPI:
         self.limit = options['limit']
         self.client_id = options['client_id']
         self.client_secret = options['client_secret']
-        self.oneroster = OneRoster(self.client_id, self.client_secret)
         self.key_identifier = options['key_identifier']
+        self.oneroster = OneRoster(self.client_id, self.client_secret)
 
-    def get_users(self, group_filter, group_name, user_filter, finder_option):
+    def get_users(self, group_filter, group_name, user_filter, request_type):
         list_api_results = []
         if group_filter == 'courses':
             key_id = self.execute_actions('courses', group_name, self.key_identifier, 'key_identifier')
@@ -31,7 +31,7 @@ class OnerosterAPI:
             list_classes = self.execute_actions(group_filter, user_filter, key_id, 'course_classlist')
             for each_class in list_classes:
                 list_api_results.extend(self.execute_actions('classes', user_filter, each_class, 'mapped_users'))
-        elif finder_option == 'all_users':
+        elif request_type == 'all_users':
             list_api_results.extend(self.execute_actions(None, user_filter, None, 'all_users'))
         else:
             key_id = self.execute_actions(group_filter, None, group_name, 'key_identifier')
@@ -40,10 +40,31 @@ class OnerosterAPI:
             list_api_results.extend(self.execute_actions(group_filter, user_filter, key_id, 'mapped_users'))
         return list_api_results
 
-    def construct_url(self, base_string_seeking, id_specified, finder_option, users_filter):
-        if finder_option == 'course_classlist':
+    def execute_actions(self, group_filter, user_filter, identifier, request_type):
+        result = []
+        if request_type == 'all_users':
+            url_request = self.construct_url(user_filter, None, '', None)
+            result = self.make_call(url_request, 'all_users', None)
+        elif request_type == 'key_identifier':
+            if group_filter == 'courses':
+                url_request = self.construct_url(user_filter, identifier, 'course_classlist', None)
+                result = self.make_call(url_request, 'key_identifier', group_filter, user_filter)
+            else:
+                url_request = self.construct_url(group_filter, identifier, 'key_identifier', None)
+                result = self.make_call(url_request, 'key_identifier', group_filter, identifier)
+        elif request_type == 'mapped_users':
+            base_filter = group_filter if group_filter == 'schools' else 'classes'
+            url_request = self.construct_url(base_filter, identifier, request_type, user_filter)
+            result = self.make_call(url_request, 'mapped_users', group_filter, group_filter)
+        elif request_type == 'course_classlist':
+            url_request = self.construct_url("", identifier, 'users_from_course', None)
+            result = self.make_call(url_request, request_type, group_filter)
+        return result
+
+    def construct_url(self, base_string_seeking, id_specified, request_type, users_filter):
+        if request_type == 'course_classlist':
             url_ender = 'courses/?limit=' + self.limit + '&offset=0'
-        elif finder_option == 'users_from_course':
+        elif request_type == 'users_from_course':
             url_ender = 'courses/' + id_specified + '/classes?limit=' + self.limit + '&offset=0'
         elif users_filter is not None:
             url_ender = base_string_seeking + '/' + id_specified + '/' + users_filter + '?limit=' + self.limit + '&offset=0'
@@ -51,41 +72,20 @@ class OnerosterAPI:
             url_ender = base_string_seeking + '?limit=' + self.limit + '&offset=0'
         return self.host_name + url_ender
 
-    def execute_actions(self, group_filter, user_filter, identifier, finder_option):
-        result = []
-        if finder_option == 'all_users':
-            url_request = self.construct_url(user_filter, None, '', None)
-            result = self.make_call(url_request, 'all_users', None)
-        elif finder_option == 'key_identifier':
-            if group_filter == 'courses':
-                url_request = self.construct_url(user_filter, identifier, 'course_classlist', None)
-                result = self.make_call(url_request, 'key_identifier', group_filter, user_filter)
-            else:
-                url_request = self.construct_url(group_filter, identifier, 'key_identifier', None)
-                result = self.make_call(url_request, 'key_identifier', group_filter, identifier)
-        elif finder_option == 'mapped_users':
-            base_filter = group_filter if group_filter == 'schools' else 'classes'
-            url_request = self.construct_url(base_filter, identifier, finder_option, user_filter)
-            result = self.make_call(url_request, 'mapped_users', group_filter, group_filter)
-        elif finder_option == 'course_classlist':
-            url_request = self.construct_url("", identifier, 'users_from_course', None)
-            result = self.make_call(url_request, finder_option, group_filter)
-
-        return result
-
-    def make_call(self, url_request, finder_option, group_filter, group_name=None):
+    def make_call(self, url, request_type, group_filter, group_name=None):
         list_api_results = []
         key = 'first'
         while key is not None:
-            response = self.oneroster.make_roster_request(url_request) \
-                if key == 'first' \
-                else self.oneroster.make_roster_request(response.links[key]['url'])
+            if key == 'first':
+                response =  self.oneroster.make_roster_request(url)
+            else:
+                response = self.oneroster.make_roster_request(response.links[key]['url'])
             if response.ok is not True:
                 status = response.status_code
                 message = response.reason
                 raise ValueError('Non Successful Response'
                                  + '  ' + 'status:' + str(status) + '  ' + 'message:' + str(message))
-            if finder_option == 'key_identifier':
+            if request_type == 'key_identifier':
                 other = 'course' if group_filter == 'courses' else 'classes'
                 name_identifier, revised_key = ('name', 'orgs') if group_filter == 'schools' else ('title', other)
                 for each_class in json.loads(response.content).get(revised_key):
@@ -97,7 +97,7 @@ class OnerosterAPI:
                         list_api_results.append(key_id)
                         return list_api_results[0]
 
-            elif finder_option == 'course_classlist':
+            elif request_type == 'course_classlist':
                 for ignore, each_class in json.loads(response.content).items():
                     list_api_results.append(each_class[0][self.key_identifier])
 
@@ -109,7 +109,7 @@ class OnerosterAPI:
             key = 'next' if 'next' in response.links else 'last'
 
         if list_api_results.__len__() == 0:
-            self.logger.warning("No " + finder_option + " for " + group_filter + "  " + group_name)
+            self.logger.warning("No " + request_type + " for " + group_filter + "  " + group_name)
 
         return list_api_results
 
