@@ -2,11 +2,11 @@ import collections
 import time
 from random import randint
 from six.moves import urllib
+import six
 import hmac
 import base64
 import hashlib
 import requests
-import re
 import json
 
 
@@ -20,7 +20,7 @@ class OnerosterAPI:
         self.client_id = options['client_id']
         self.client_secret = options['client_secret']
         self.key_identifier = options['key_identifier']
-        self.oneroster = OneRoster(self.client_id, self.client_secret)
+        self.oneroster = ClasslinkAPI(self.client_id, self.client_secret)
 
     def get_users(self, group_filter, group_name, user_filter, request_type):
         list_api_results = []
@@ -72,12 +72,12 @@ class OnerosterAPI:
             url_ender = base_string_seeking + '?limit=' + self.limit + '&offset=0'
         return self.host_name + url_ender
 
-    def make_call(self, url, request_type, group_filter, group_name=None):
+    def make_call(self, url, request_type, group_filter, group_name):
         user_list = []
         key = 'first'
         while key is not None:
             if key == 'first':
-                response =  self.oneroster.make_roster_request(url)
+                response = self.oneroster.make_roster_request(url)
             else:
                 response = self.oneroster.make_roster_request(response.links[key]['url'])
             if not response.ok:
@@ -87,7 +87,7 @@ class OnerosterAPI:
                 other = 'course' if group_filter == 'courses' else 'classes'
                 name_identifier, revised_key = ('name', 'orgs') if group_filter == 'schools' else ('title', other)
                 for entry in json.loads(response.content).get(revised_key):
-                    if str.lower(entry[name_identifier]) == str.lower(group_name):
+                    if self.decode_string(entry[name_identifier]) == self.decode_string(group_name):
                         try:
                             key_id = entry[self.key_identifier]
                         except ValueError:
@@ -109,7 +109,30 @@ class OnerosterAPI:
 
         return user_list
 
-class OneRoster(object):
+    def decode_string(self, string):
+        try:
+            decoded = string.decode()
+        except:
+            decoded = str(string)
+        return decoded.lower().strip()
+
+
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+
+
+class ClasslinkAPI(object):
     def __init__(self, client_id, client_secret):
         self._client_id = client_id
         self._client_secret = client_secret
