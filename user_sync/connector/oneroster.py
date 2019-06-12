@@ -1,7 +1,11 @@
+
 import json
 
 from classlink import ClasslinkAPI
 
+
+# Github: https://github.com/vossen-adobe/classlink
+# PyPI: https://pypi.org/project/classlink-oneroster/
 
 class OnerosterAPI:
     """ Starts connection and makes queries with One-Roster API"""
@@ -104,7 +108,6 @@ class OnerosterAPI:
 
     def decode_string(self, string):
         try:
-
             decoded = string.decode()
         except:
             decoded = str(string)

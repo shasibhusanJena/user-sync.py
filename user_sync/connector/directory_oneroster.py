@@ -268,11 +268,10 @@ class RecordHandler:
 
 
 class OneRosterValueFormatter(object):
-    encoding = 'utf8'
 
     def __init__(self, string_format):
         """
-        The format string must be a unicode or ascii string: see notes above about being careful in Py2!
+        The format string must be a unicode or ascii string
         """
         if string_format is None:
             attribute_names = []
@@ -283,11 +282,6 @@ class OneRosterValueFormatter(object):
         self.string_format = string_format
         self.attribute_names = attribute_names
 
-    def get_attribute_names(self):
-        """
-        :rtype list(str)
-        """
-        return self.attribute_names
 
     def generate_value(self, record):
         """
@@ -308,8 +302,7 @@ class OneRosterValueFormatter(object):
                 result = self.string_format.format(**values)
         return result, attribute_name
 
-    @classmethod
-    def get_attribute_value(cls, attributes, attribute_name, first_only=False):
+    def get_attribute_value(self, attributes, attribute_name, first_only=False):
         """
         The attribute value type must be decodable (str in py2, bytes in py3)
         :type attributes: dict
@@ -318,17 +311,17 @@ class OneRosterValueFormatter(object):
         """
         attribute_values = attributes.get(attribute_name)
         if isinstance(attribute_values, list):
-            attribute_values = [cls.decode_attribute(val, attribute_name) for val in attribute_values]
+            attribute_values = [self.decode_attribute(val, attribute_name) for val in attribute_values]
             return attribute_values[0] if first_only or len(attribute_values) == 1 else attribute_values
         elif attribute_values:
-            return cls.decode_attribute(attribute_values, attribute_name)
+            return self.decode_attribute(attribute_values, attribute_name)
         return None
 
-    @classmethod
-    def decode_attribute(cls, attr, attr_name):
+    def decode_attribute(self, attr, attr_name):
         try:
-            return attr.decode(cls.encoding)
+            return attr.decode()
         except UnicodeError as e:
             raise AssertionException("Encoding error in value of attribute '%s': %s" % (attr_name, e))
         except:
             return attr
+
