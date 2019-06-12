@@ -216,20 +216,10 @@ def test_parse_yml_groups_complex_valid(oneroster_connector):
         }
     }
 
-def test_parse_yml_groups_failure(oneroster_connector, log_stream):
-    stream, logger = log_stream
-    oneroster_connector.logger = logger
+def test_parse_yml_groups_failure(oneroster_connector):
 
-    # false value for group_filter, viable options [courses, classes, schools]
-    oneroster_connector.parse_yaml_groups({'course::Alg-102::students'})
-
-    # false value for user_filter, viable options [students, teachers, users]
-    oneroster_connector.parse_yaml_groups({'courses::Alg-102::stud'})
-
-    stream.flush()
-    error_logger_message = stream.getvalue()
-    assert 'stud' in error_logger_message
-    assert 'course' in error_logger_message
+    pytest.raises(ValueError,oneroster_connector.parse_yaml_groups,groups_list={'course::Alg-102::students'})
+    pytest.raises(ValueError,oneroster_connector.parse_yaml_groups,groups_list={'courses::Alg-102::stud'})
 
 
 def test_get_attr_values():
