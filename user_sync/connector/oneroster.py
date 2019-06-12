@@ -9,7 +9,8 @@ import requests
 import re
 import json
 
-class Connection:
+
+class OnerosterAPI:
     """ Starts connection and makes queries with One-Roster API"""
 
     def __init__(self, logger, options):
@@ -21,68 +22,58 @@ class Connection:
         self.oneroster = OneRoster(self.client_id, self.client_secret)
         self.key_identifier = options['key_identifier']
 
-    def list_api_response_handler(self, group_filter, group_name, user_filter, finder_option):
+    def get_users(self, group_filter, group_name, user_filter, finder_option):
         list_api_results = []
         if group_filter == 'courses':
-            key_id = self.list_item_retriever('courses', group_name, self.key_identifier, 'key_identifier')
+            key_id = self.execute_actions('courses', group_name, self.key_identifier, 'key_identifier')
             if key_id.__len__() == 0:
                 return list_api_results
-            list_classes = self.list_item_retriever(group_filter, user_filter, key_id, 'course_classlist')
+            list_classes = self.execute_actions(group_filter, user_filter, key_id, 'course_classlist')
             for each_class in list_classes:
-                list_api_results.extend(self.list_item_retriever('classes', user_filter, each_class, 'mapped_users'))
-
+                list_api_results.extend(self.execute_actions('classes', user_filter, each_class, 'mapped_users'))
         elif finder_option == 'all_users':
-            list_api_results.extend(self.list_item_retriever(None, user_filter, None, 'all_users'))
-
+            list_api_results.extend(self.execute_actions(None, user_filter, None, 'all_users'))
         else:
-            key_id = self.list_item_retriever(group_filter, None, group_name, 'key_identifier')
+            key_id = self.execute_actions(group_filter, None, group_name, 'key_identifier')
             if key_id.__len__() == 0:
                 return list_api_results
-            list_api_results.extend(self.list_item_retriever(group_filter, user_filter, key_id, 'mapped_users'))
+            list_api_results.extend(self.execute_actions(group_filter, user_filter, key_id, 'mapped_users'))
         return list_api_results
 
-    def string_first_url_builder(self, base_string_seeking, id_specified, finder_option, users_filter):
+    def construct_url(self, base_string_seeking, id_specified, finder_option, users_filter):
         if finder_option == 'course_classlist':
             url_ender = 'courses/?limit=' + self.limit + '&offset=0'
-
         elif finder_option == 'users_from_course':
             url_ender = 'courses/' + id_specified + '/classes?limit=' + self.limit + '&offset=0'
-
         elif users_filter is not None:
             url_ender = base_string_seeking + '/' + id_specified + '/' + users_filter + '?limit=' + self.limit + '&offset=0'
-
         else:
             url_ender = base_string_seeking + '?limit=' + self.limit + '&offset=0'
-
         return self.host_name + url_ender
 
-    def list_item_retriever(self, group_filter, user_filter, identifier, finder_option):
-        list_api_results = []
-
+    def execute_actions(self, group_filter, user_filter, identifier, finder_option):
+        result = []
         if finder_option == 'all_users':
-            url_request = self.string_first_url_builder(user_filter, None, '', None)
-            list_api_results = self.start_call(url_request, 'all_users', None)
-
+            url_request = self.construct_url(user_filter, None, '', None)
+            result = self.make_call(url_request, 'all_users', None)
         elif finder_option == 'key_identifier':
             if group_filter == 'courses':
-                url_request = self.string_first_url_builder(user_filter, identifier, 'course_classlist', None)
-                list_api_results = self.start_call(url_request, 'key_identifier', group_filter, user_filter)
+                url_request = self.construct_url(user_filter, identifier, 'course_classlist', None)
+                result = self.make_call(url_request, 'key_identifier', group_filter, user_filter)
             else:
-                url_request = self.string_first_url_builder(group_filter, identifier, 'key_identifier', None)
-                list_api_results = self.start_call(url_request, 'key_identifier', group_filter, identifier)
-
+                url_request = self.construct_url(group_filter, identifier, 'key_identifier', None)
+                result = self.make_call(url_request, 'key_identifier', group_filter, identifier)
         elif finder_option == 'mapped_users':
             base_filter = group_filter if group_filter == 'schools' else 'classes'
-            url_request = self.string_first_url_builder(base_filter, identifier, finder_option, user_filter)
-            list_api_results = self.start_call(url_request, 'mapped_users', group_filter, group_filter)
-
+            url_request = self.construct_url(base_filter, identifier, finder_option, user_filter)
+            result = self.make_call(url_request, 'mapped_users', group_filter, group_filter)
         elif finder_option == 'course_classlist':
-            url_request = self.string_first_url_builder("", identifier, 'users_from_course', None)
-            list_api_results = self.start_call(url_request, finder_option, group_filter)
+            url_request = self.construct_url("", identifier, 'users_from_course', None)
+            result = self.make_call(url_request, finder_option, group_filter)
 
-        return list_api_results
+        return result
 
-    def start_call(self, url_request, finder_option, group_filter, group_name=None):
+    def make_call(self, url_request, finder_option, group_filter, group_name=None):
         list_api_results = []
         key = 'first'
         while key is not None:
@@ -124,7 +115,6 @@ class Connection:
 
     def encode_str(self, text):
         return re.sub(r'(\s)', '', text).lower()
-
 
 
 class OneRoster(object):
@@ -175,9 +165,6 @@ class OneRoster(object):
 
         return self.__make_get_request(url_pieces[0], auth_header, url_params)
 
-
-
-
     def __merge_dicts(self, oauth, params):
         """
         Merge the oauth and param dictionaries
@@ -197,7 +184,7 @@ class OneRoster(object):
         """
         characters = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
         result = ""
-        for i in range (0, nonce_len):
+        for i in range(0, nonce_len):
             result += characters[randint(0, len(characters) - 1)]
 
         return result

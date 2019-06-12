@@ -29,7 +29,7 @@ import user_sync.connector.helper
 import user_sync.helper
 import user_sync.identity_type
 from user_sync.error import AssertionException
-from user_sync.connector.oneroster import Connection
+from user_sync.connector.oneroster import OnerosterAPI
 
 
 def connector_metadata():
@@ -99,7 +99,7 @@ class OneRosterConnector(object):
         :rtype (bool, iterable(dict))
         """
         rh = RecordHandler(self.logger, self.options)
-        conn = Connection(self.logger, self.options)
+        api = OnerosterAPI(self.logger, self.options)
         groups_from_yml = self.parse_yaml_groups(groups)
         users_by_key = {}
         for group_filter in groups_from_yml:
@@ -107,7 +107,7 @@ class OneRosterConnector(object):
             for group_name in inner_dict:
                 for user_group in inner_dict[group_name]:
                     user_filter = inner_dict[group_name][user_group]
-                    response = conn.list_api_response_handler(
+                    response = api.get_users(
                         group_filter, group_name, user_filter, 'mapped_users')
                     new_users_by_key = rh.parse_results(response, self.options['key_identifier'], extended_attributes)
                     for key, value in six.iteritems(new_users_by_key):
@@ -115,7 +115,7 @@ class OneRosterConnector(object):
                             users_by_key[key] = value
                         users_by_key[key]['groups'].add(user_group)
         if all_users:
-            response = conn.list_api_response_handler("", "", self.options['all_users_filter'], 'all_users')
+            response = api.get_users("", "", self.options['all_users_filter'], 'all_users')
             new_all_users = rh.parse_results(response, self.options['key_identifier'], extended_attributes)
             for key, value in six.iteritems(new_all_users):
                 if key not in users_by_key:
