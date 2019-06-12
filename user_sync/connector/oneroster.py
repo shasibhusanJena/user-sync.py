@@ -73,49 +73,41 @@ class OnerosterAPI:
         return self.host_name + url_ender
 
     def make_call(self, url, request_type, group_filter, group_name=None):
-        list_api_results = []
+        user_list = []
         key = 'first'
         while key is not None:
             if key == 'first':
                 response =  self.oneroster.make_roster_request(url)
             else:
                 response = self.oneroster.make_roster_request(response.links[key]['url'])
-            if response.ok is not True:
-                status = response.status_code
-                message = response.reason
+            if not response.ok:
                 raise ValueError('Non Successful Response'
-                                 + '  ' + 'status:' + str(status) + '  ' + 'message:' + str(message))
+                                 + '  ' + 'status:' + str(response.status_code) + '  ' + 'message:' + str(response.reason))
             if request_type == 'key_identifier':
                 other = 'course' if group_filter == 'courses' else 'classes'
                 name_identifier, revised_key = ('name', 'orgs') if group_filter == 'schools' else ('title', other)
-                for each_class in json.loads(response.content).get(revised_key):
-                    if self.encode_str(each_class[name_identifier]) == self.encode_str(group_name):
+                for entry in json.loads(response.content).get(revised_key):
+                    if str.lower(entry[name_identifier]) == str.lower(group_name):
                         try:
-                            key_id = each_class[self.key_identifier]
+                            key_id = entry[self.key_identifier]
                         except ValueError:
                             raise ValueError('Key identifier: ' + self.key_identifier + ' not a valid identifier')
-                        list_api_results.append(key_id)
-                        return list_api_results[0]
-
+                        user_list.append(key_id)
+                        return user_list[0]
             elif request_type == 'course_classlist':
-                for ignore, each_class in json.loads(response.content).items():
-                    list_api_results.append(each_class[0][self.key_identifier])
-
+                for ignore, entry in json.loads(response.content).items():
+                    user_list.append(entry[0][self.key_identifier])
             else:
                 for ignore, users in json.loads(response.content).items():
-                    list_api_results.extend(users)
+                    user_list.extend(users)
             if key == 'last' or int(response.headers._store['x-count'][1]) < int(self.limit):
                 break
             key = 'next' if 'next' in response.links else 'last'
 
-        if list_api_results.__len__() == 0:
+        if not user_list:
             self.logger.warning("No " + request_type + " for " + group_filter + "  " + group_name)
 
-        return list_api_results
-
-    def encode_str(self, text):
-        return re.sub(r'(\s)', '', text).lower()
-
+        return user_list
 
 class OneRoster(object):
     def __init__(self, client_id, client_secret):
