@@ -131,38 +131,32 @@ class OneRosterConnector(object):
         :type groups_list: set(str) from user-sync-config-ldap.yml
         :rtype: iterable(dict)
         """
-        full_dict = {}
+        groups = {}
         for text in groups_list:
             if re.search('.*(\:\:).*(\:\:).*', text):
                 group_filter, group_name, user_filter = text.lower().split("::")
 
-                if group_filter not in {'classes', 'courses', 'schools'}:
-                    self.logger.warning("Incorrect group_filter: " + group_filter + " for " + text +
-                                        " .... must be either: classes, courses, or schools")
-                    continue
+                if group_filter not in {'classes', 'courses', 'schools', 'sections'}:
+                    raise ValueError("Bad group type: " + group_filter + " for " + text + ", valid are: classes, courses, sections, schools")
                 if user_filter not in {'students', 'teachers', 'users'}:
-                    self.logger.warning("Incorrect user_filter: " + user_filter + " for " + text +
-                                        " .... must be either: students, teachers, or users")
-                    continue
-                if group_filter not in full_dict:
-                    full_dict[group_filter] = {
-                        group_name: {}}
-                elif group_name not in full_dict[group_filter]:
-                    full_dict[group_filter][group_name] = {}
-                full_dict[group_filter][group_name].update({
-                    text: user_filter})
+                    raise ValueError("Bad user type: " + group_filter + " for " + text + ", valid are: students, teachers, or users")
+
+                if group_filter not in groups:
+                    groups[group_filter] = {group_name: {}}
+                elif group_name not in groups[group_filter]:
+                    groups[group_filter][group_name] = {}
+                groups[group_filter][group_name].update({text: user_filter})
             else:
                 group_filter = self.options['default_group_filter']
                 user_filter = self.options['default_user_filter']
-                if group_filter not in full_dict:
-                    full_dict[group_filter] = {
-                        text: {}}
-                elif text not in full_dict[group_filter]:
-                    full_dict[group_filter][text] = {}
-                full_dict[group_filter][text].update({
-                    text: user_filter})
+                if group_filter not in groups:
+                    groups[group_filter] = {text: {}}
+                elif text not in groups[group_filter]:
+                    groups[group_filter][text] = {}
+                groups[group_filter][text].update({text: user_filter})
 
-        return full_dict
+        return groups
+
 
 class RecordHandler:
     def __init__(self, logger, options):
@@ -282,7 +276,6 @@ class OneRosterValueFormatter(object):
         self.string_format = string_format
         self.attribute_names = attribute_names
 
-
     def generate_value(self, record):
         """
         :type record: dict
@@ -302,7 +295,8 @@ class OneRosterValueFormatter(object):
                 result = self.string_format.format(**values)
         return result, attribute_name
 
-    def get_attribute_value(self, attributes, attribute_name, first_only=False):
+    @classmethod
+    def get_attribute_value(cls, attributes, attribute_name, first_only=False):
         """
         The attribute value type must be decodable (str in py2, bytes in py3)
         :type attributes: dict
@@ -311,17 +305,17 @@ class OneRosterValueFormatter(object):
         """
         attribute_values = attributes.get(attribute_name)
         if isinstance(attribute_values, list):
-            attribute_values = [self.decode_attribute(val, attribute_name) for val in attribute_values]
+            attribute_values = [cls.decode_attribute(val, attribute_name) for val in attribute_values]
             return attribute_values[0] if first_only or len(attribute_values) == 1 else attribute_values
         elif attribute_values:
-            return self.decode_attribute(attribute_values, attribute_name)
+            return cls.decode_attribute(attribute_values, attribute_name)
         return None
 
-    def decode_attribute(self, attr, attr_name):
+    @classmethod
+    def decode_attribute(cls, attr, attr_name):
         try:
             return attr.decode()
         except UnicodeError as e:
             raise AssertionException("Encoding error in value of attribute '%s': %s" % (attr_name, e))
         except:
             return attr
-

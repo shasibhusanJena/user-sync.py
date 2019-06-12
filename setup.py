@@ -55,7 +55,7 @@ setup(name='user-sync',
           'six',
           'umapi-client>=2.12',
           'click',
-          'click-default-group',
+          'click-default-group'
       ],
       extras_require={
           ':sys_platform=="linux" or sys_platform=="linux2"': [
