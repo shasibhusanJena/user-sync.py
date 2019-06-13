@@ -56,7 +56,7 @@ setup(name='user-sync',
           'umapi-client>=2.12',
           'click',
           'click-default-group',
-          'classlink-oneroster'
+          'classlink-oneroster==0.0.1rc3',
       ],
       extras_require={
           ':sys_platform=="linux" or sys_platform=="linux2"': [
