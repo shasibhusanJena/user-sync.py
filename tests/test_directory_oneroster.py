@@ -1,6 +1,7 @@
 import pytest
-
+import mock
 from user_sync.connector.directory_oneroster import *
+
 
 
 @pytest.fixture()
@@ -220,6 +221,20 @@ def test_parse_yml_groups_failure(oneroster_connector):
 
     pytest.raises(ValueError,oneroster_connector.parse_yaml_groups,groups_list={'course::Alg-102::students'})
     pytest.raises(ValueError,oneroster_connector.parse_yaml_groups,groups_list={'courses::Alg-102::stud'})
+
+# def test_load_users_and_groups(oneroster_connector, stub_api_response):
+#
+#     record_handler = RecordHandler(options=oneroster_connector.options, logger=oneroster_connector.logger)
+#
+#     user1 = record_handler.create_user_object(stub_api_response[0], 'sourcedId', [])
+#
+#     with mock.patch("user_sync.connector.directory_oneroster.OnerosterAPI.get_users") as mock_endpoint:
+#         mock_endpoint.return_value = stub_api_response
+#
+#
+#
+#
+#         x = list(oneroster_connector.load_users_and_groups(['xxx'], [], False))
 
 
 def test_get_attr_values():
