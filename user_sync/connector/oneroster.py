@@ -140,8 +140,7 @@ class ClasslinkConnector():
 class CleverConnector():
 
     def __init__(self, options):
-        self.logger = logging.getLogger("classlink")
-        self.host_name = options['host']
+        self.logger = logging.getLogger("clever")
         self.client_id = options['client_id']
         self.client_secret = options['client_secret']
         self.key_identifier = options['key_identifier']
@@ -152,7 +151,7 @@ class CleverConnector():
         # configuration.username = self.client_id
         # configuration.password = self.client_secret
         # configuration.get_basic_auth_token()
-        #configuration.access_token = 'TEST_TOKEN'
+        configuration.access_token = 'TEST_TOKEN'
         self.clever_api = clever.DataApi(clever.ApiClient(configuration))
 
 
