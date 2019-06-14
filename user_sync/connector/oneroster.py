@@ -1,24 +1,48 @@
+# from __future__ import print_function
 
 import json
-import classlink_oneroster as classlink
+import logging
+
+import clever
+import classlink_oneroster
+
+from clever.rest import ApiException
+
 
 # Github: https://github.com/vossen-adobe/classlink
 # PyPI: https://pypi.org/project/classlink-oneroster/
 
+def get_connector(options):
+    platform = options['platform']
+    if platform == 'classlink':
+        return ClasslinkConnector(options)
+    elif platform == 'clever':
+        return CleverConnector(options)
 
-class OnerosterAPI:
+    raise ModuleNotFoundError("No module for " + platform +
+                              " was found. Supported are: [classlink, clever]")
+
+
+class ClasslinkConnector():
     """ Starts connection and makes queries with One-Roster API"""
 
-    def __init__(self, logger, options):
-        self.logger = logger
+    def __init__(self, options):
+        self.logger = logging.getLogger("classlink")
         self.host_name = options['host']
-        self.limit = options['limit']
         self.client_id = options['client_id']
         self.client_secret = options['client_secret']
         self.key_identifier = options['key_identifier']
-        self.oneroster = classlink.ClasslinkAPI(self.client_id, self.client_secret)
+        self.max_users = options['max_user_limit']
+        self.page_size = str(options['page_size'])
+        self.classlink_api = classlink_oneroster.ClasslinkAPI(self.client_id, self.client_secret)
 
-    def get_users(self, group_filter, group_name, user_filter, request_type):
+    def get_users(self,
+                  group_filter,  # Type of group (class, course, school)
+                  group_name,  # Plain group name (Math 6)
+                  user_filter,  # Which users: users, students, staff
+                  request_type,  # Determines which logic is used (see below)
+                  ):
+
         list_api_results = []
         if group_filter == 'courses':
             key_id = self.execute_actions('courses', group_name, self.key_identifier, 'key_identifier')
@@ -59,13 +83,13 @@ class OnerosterAPI:
 
     def construct_url(self, base_string_seeking, id_specified, request_type, users_filter):
         if request_type == 'course_classlist':
-            url_ender = 'courses/?limit=' + self.limit + '&offset=0'
+            url_ender = 'courses/?limit=' + self.page_size + '&offset=0'
         elif request_type == 'users_from_course':
-            url_ender = 'courses/' + id_specified + '/classes?limit=' + self.limit + '&offset=0'
+            url_ender = 'courses/' + id_specified + '/classes?limit=' + self.page_size + '&offset=0'
         elif users_filter is not None:
-            url_ender = base_string_seeking + '/' + id_specified + '/' + users_filter + '?limit=' + self.limit + '&offset=0'
+            url_ender = base_string_seeking + '/' + id_specified + '/' + users_filter + '?limit=' + self.page_size + '&offset=0'
         else:
-            url_ender = base_string_seeking + '?limit=' + self.limit + '&offset=0'
+            url_ender = base_string_seeking + '?limit=' + self.page_size + '&offset=0'
         return self.host_name + url_ender
 
     def make_call(self, url, request_type, group_filter, group_name=None):
@@ -73,9 +97,9 @@ class OnerosterAPI:
         key = 'first'
         while key is not None:
             if key == 'first':
-                response = self.oneroster.make_roster_request(url)
+                response = self.classlink_api.make_roster_request(url)
             else:
-                response = self.oneroster.make_roster_request(response.links[key]['url'])
+                response = self.classlink_api.make_roster_request(response.links[key]['url'])
             if not response.ok:
                 raise ValueError('Non Successful Response'
                                  + '  ' + 'status:' + str(response.status_code) + '  ' + 'message:' + str(response.reason))
@@ -96,7 +120,7 @@ class OnerosterAPI:
             else:
                 for ignore, users in json.loads(response.content).items():
                     user_list.extend(users)
-            if key == 'last' or int(response.headers._store['x-count'][1]) < int(self.limit):
+            if key == 'last' or int(response.headers._store['x-count'][1]) < int(self.page_size):
                 break
             key = 'next' if 'next' in response.links else 'last'
 
@@ -111,3 +135,38 @@ class OnerosterAPI:
         except:
             decoded = str(string)
         return decoded.lower().strip()
+
+
+class CleverConnector():
+
+    def __init__(self, options):
+        self.logger = logging.getLogger("classlink")
+        self.host_name = options['host']
+        self.client_id = options['client_id']
+        self.client_secret = options['client_secret']
+        self.key_identifier = options['key_identifier']
+        self.max_users = options['max_user_limit']
+        self.page_size = str(options['page_size'])
+
+        configuration = clever.Configuration()
+        # configuration.username = self.client_id
+        # configuration.password = self.client_secret
+        # configuration.get_basic_auth_token()
+        #configuration.access_token = 'TEST_TOKEN'
+        self.clever_api = clever.DataApi(clever.ApiClient(configuration))
+
+
+    def get_users(self, **kwargs):
+
+        try:
+
+            kw = {}
+            kw['limit'] = 10
+
+            api_response = self.clever_api.get_students_with_http_info(**kw)
+            users = api_response[0].data
+
+            print()
+
+        except ApiException as e:
+            print("Example exception handling")
