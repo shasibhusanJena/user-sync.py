@@ -63,7 +63,6 @@ class OneRosterConnector(object):
     def __init__(self, caller_options):
         caller_config = user_sync.config.DictConfig('%s configuration' % self.name, caller_options)
         self.options = self.get_options(caller_config)
-        self.options['platform'] = 'classlink'
         self.logger = user_sync.connector.helper.create_logger(self.options)
         caller_config.report_unused_values(self.logger)
         self.logger.debug('%s initialized with options: %s', self.name, self.options)
@@ -73,9 +72,9 @@ class OneRosterConnector(object):
         builder = user_sync.config.OptionsBuilder(caller_config)
         builder.require_string_value('client_id')
         builder.require_string_value('client_secret')
-        builder.require_string_value('host')
+        builder.require_string_value('platform')
+        builder.set_string_value('host', None)
         builder.set_string_value('all_users_filter', 'users')
-        builder.set_string_value('limit', '1000')
         builder.set_string_value('key_identifier', 'sourcedId')
         builder.set_string_value('logger_name', 'oneroster')
         builder.set_string_value('user_email_format', six.text_type('{email}'))
@@ -88,6 +87,8 @@ class OneRosterConnector(object):
         builder.set_string_value('user_identity_type_format', None)
         builder.set_string_value('default_group_filter', 'classes')
         builder.set_string_value('default_user_filter', 'students')
+        builder.set_int_value('page_size', 1000)
+        builder.set_int_value('max_user_limit', 0)
 
         return builder.get_options()
 
@@ -105,12 +106,21 @@ class OneRosterConnector(object):
         users_by_key = {}
 
         for group_filter in groups_from_yml:
+
             inner_dict = groups_from_yml[group_filter]
+
             for group_name in inner_dict:
                 for user_group in inner_dict[group_name]:
+
                     user_filter = inner_dict[group_name][user_group]
+
                     response = api.get_users(
-                        group_filter, group_name, user_filter, 'mapped_users')
+                        group_filter=group_filter,
+                        group_name=group_name,
+                        user_filter=user_filter,
+                        request_type='mapped_users',
+                    )
+
                     new_users_by_key = rh.parse_results(response, self.options['key_identifier'], extended_attributes)
                     for key, value in six.iteritems(new_users_by_key):
                         if key not in users_by_key:

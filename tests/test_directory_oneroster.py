@@ -11,11 +11,13 @@ def oneroster_connector(caller_options):
 @pytest.fixture()
 def caller_options():
     return {
+        'platform': 'classlink',
         'client_id': '000000000',
         'client_secret': '111111111',
         'host': 'https://example.oneroster.com/ims/oneroster/v1p1/',
         'all_users_filter': 'users',
-        'limit': '100',
+        'page_size': 100,
+        'max_user_limit': 0,
         'key_identifier': 'sourcedId',
         'logger_name': 'oneroster',
         'user_email_format': '{email}',
