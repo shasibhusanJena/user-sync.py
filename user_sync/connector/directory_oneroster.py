@@ -19,17 +19,17 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import json
-import six
 import re
 import string
 
+import six
+
 import user_sync.config
 import user_sync.connector.helper
+import user_sync.connector.oneroster
 import user_sync.helper
 import user_sync.identity_type
 from user_sync.error import AssertionException
-from user_sync.connector.oneroster import OnerosterAPI
 
 
 def connector_metadata():
@@ -63,6 +63,7 @@ class OneRosterConnector(object):
     def __init__(self, caller_options):
         caller_config = user_sync.config.DictConfig('%s configuration' % self.name, caller_options)
         self.options = self.get_options(caller_config)
+        self.options['platform'] = 'classlink'
         self.logger = user_sync.connector.helper.create_logger(self.options)
         caller_config.report_unused_values(self.logger)
         self.logger.debug('%s initialized with options: %s', self.name, self.options)
@@ -99,9 +100,10 @@ class OneRosterConnector(object):
         :rtype (bool, iterable(dict))
         """
         rh = RecordHandler(self.logger, self.options)
-        api = OnerosterAPI(self.logger, self.options)
+        api = user_sync.connector.oneroster.get_connector(self.options)
         groups_from_yml = self.parse_yaml_groups(groups)
         users_by_key = {}
+
         for group_filter in groups_from_yml:
             inner_dict = groups_from_yml[group_filter]
             for group_name in inner_dict:

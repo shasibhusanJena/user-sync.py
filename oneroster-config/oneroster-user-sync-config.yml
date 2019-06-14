@@ -36,8 +36,8 @@ adobe_users:
   # Any user in one or more of the named Adobe groups is excluded from
   # updates by User Sync.
   exclude_adobe_groups:
-    #- "Sample Product Configuration"
-    #- "Sample User Group"
+  #- "Sample Product Configuration"
+  #- "Sample User Group"
 
   # (optional) exclude_users (no default value)
   # exclude_users is a list of values, each of which is a Python
@@ -48,8 +48,8 @@ adobe_users:
   # Except in the case of federated IDs that do username-based login,
   # the username of a user is the same as the email of the user.
   exclude_users:
-    #- ".*@special.com"
-    #- "freelancer-[0-9]+.*"
+  #- ".*@special.com"
+  #- "freelancer-[0-9]+.*"
 
   # (required) connectors
   # The connectors section specifies how to connect User Sync to Adobe.
@@ -92,7 +92,7 @@ directory_users:
   # for one (or any) of your users, you can specify a default type here that
   # will be used: one of "adobeID", "enterpriseID", or "federatedID".
   user_identity_type: federatedID
-  
+
   # (optional) default_country_code (no default value)
   # All Adobe users have a country code, which is a two-letter (ISO-3166) country code
   # which represents the home country of the user.
@@ -181,21 +181,21 @@ directory_users:
       adobe_groups:
         - "Caves and Embers"
 
-    # - directory_group: "courses:: SS12 Participation in Gov't/Econ::students"
-    #   adobe_groups:
-    #     - "Caves and Embers"
+    - directory_group: "courses:: SS12 Participation in Gov't/Econ::students"
+      adobe_groups:
+        - "Caves and Embers"
 
     - directory_group: "schools::ClassLink HS::students"
       adobe_groups:
         - "All students"
 
-#    - directory_group: "classes::Art ii -Spring::students"
-#      adobe_groups:
-#        - "Classlink"
-#
-#    - directory_group: "xxx"
-#      adobe_groups:
-#        - "Classlink_dont_fill"
+    #    - directory_group: "classes::Art ii -Spring::students"
+    #      adobe_groups:
+    #        - "Classlink"
+    #
+    #    - directory_group: "xxx"
+    #      adobe_groups:
+    #        - "Classlink_dont_fill"
     # Courses are working!!
 #    - directory_group: "courses::English 9::students"
 #      adobe_groups:

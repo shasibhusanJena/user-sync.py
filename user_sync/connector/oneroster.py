@@ -1,16 +1,25 @@
 
 import json
+import logging
+
 import classlink_oneroster as classlink
+
 
 # Github: https://github.com/vossen-adobe/classlink
 # PyPI: https://pypi.org/project/classlink-oneroster/
 
+def get_connector(options):
+    platform = options['platform']
+    if platform == 'classlink':
+        return ClasslinkConnector(options)
+    else:
+        raise ModuleNotFoundError("No module for " + platform + " was found.  Supported are: [classlink, clever]")
 
-class OnerosterAPI:
+class ClasslinkConnector():
     """ Starts connection and makes queries with One-Roster API"""
 
-    def __init__(self, logger, options):
-        self.logger = logger
+    def __init__(self, options):
+        self.logger = logging.getLogger("classlink")
         self.host_name = options['host']
         self.limit = options['limit']
         self.client_id = options['client_id']

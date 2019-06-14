@@ -136,7 +136,7 @@ def test_load_users_and_groups(oneroster_connector, stub_api_response, stub_pars
     expected[0]['source_attributes']['groups'] = {'xxx'}
     expected[1]['source_attributes']['groups'] = {'xxx'}
 
-    with mock.patch("user_sync.connector.directory_oneroster.OnerosterAPI.get_users") as mock_endpoint:
+    with mock.patch("user_sync.connector.oneroster.ClasslinkConnector.get_users") as mock_endpoint:
         with mock.patch("user_sync.connector.directory_oneroster.RecordHandler.parse_results") as mock_parse_results:
             mock_endpoint.return_value = stub_api_response
             mock_parse_results.return_value = stub_parse_results
