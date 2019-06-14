@@ -19,17 +19,17 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import json
-import six
 import re
 import string
 
+import six
+
 import user_sync.config
 import user_sync.connector.helper
+import user_sync.connector.oneroster
 import user_sync.helper
 import user_sync.identity_type
 from user_sync.error import AssertionException
-from user_sync.connector.oneroster import OnerosterAPI
 
 
 def connector_metadata():
@@ -72,9 +72,9 @@ class OneRosterConnector(object):
         builder = user_sync.config.OptionsBuilder(caller_config)
         builder.require_string_value('client_id')
         builder.require_string_value('client_secret')
-        builder.require_string_value('host')
+        builder.require_string_value('platform')
+        builder.set_string_value('host', None)
         builder.set_string_value('all_users_filter', 'users')
-        builder.set_string_value('limit', '1000')
         builder.set_string_value('key_identifier', 'sourcedId')
         builder.set_string_value('logger_name', 'oneroster')
         builder.set_string_value('user_email_format', six.text_type('{email}'))
@@ -87,6 +87,8 @@ class OneRosterConnector(object):
         builder.set_string_value('user_identity_type_format', None)
         builder.set_string_value('default_group_filter', 'classes')
         builder.set_string_value('default_user_filter', 'students')
+        builder.set_int_value('page_size', 1000)
+        builder.set_int_value('max_user_limit', 0)
 
         return builder.get_options()
 
@@ -99,23 +101,37 @@ class OneRosterConnector(object):
         :rtype (bool, iterable(dict))
         """
         rh = RecordHandler(self.logger, self.options)
-        api = OnerosterAPI(self.logger, self.options)
+        api = user_sync.connector.oneroster.get_connector(self.options)
         groups_from_yml = self.parse_yaml_groups(groups)
         users_by_key = {}
+
         for group_filter in groups_from_yml:
+
             inner_dict = groups_from_yml[group_filter]
+
             for group_name in inner_dict:
                 for user_group in inner_dict[group_name]:
+
                     user_filter = inner_dict[group_name][user_group]
+
                     response = api.get_users(
-                        group_filter, group_name, user_filter, 'mapped_users')
+                        group_filter=group_filter,
+                        group_name=group_name,
+                        user_filter=user_filter,
+                        request_type='mapped_users',
+                    )
+
                     new_users_by_key = rh.parse_results(response, self.options['key_identifier'], extended_attributes)
                     for key, value in six.iteritems(new_users_by_key):
                         if key not in users_by_key:
                             users_by_key[key] = value
                         users_by_key[key]['groups'].add(user_group)
         if all_users:
-            response = api.get_users("", "", self.options['all_users_filter'], 'all_users')
+            response = api.get_users(
+                        user_filter=self.options['all_users_filter'],
+                        request_type='all_users',
+                    )
+
             new_all_users = rh.parse_results(response, self.options['key_identifier'], extended_attributes)
             for key, value in six.iteritems(new_all_users):
                 if key not in users_by_key:

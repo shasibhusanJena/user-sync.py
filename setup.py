@@ -57,6 +57,7 @@ setup(name='user-sync',
           'click',
           'click-default-group',
           'classlink-oneroster==0.0.1rc3',
+          'clever',
       ],
       extras_require={
           ':sys_platform=="linux" or sys_platform=="linux2"': [
