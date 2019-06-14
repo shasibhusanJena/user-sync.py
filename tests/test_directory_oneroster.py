@@ -3,13 +3,17 @@ import mock
 from user_sync.connector.directory_oneroster import *
 
 
+@pytest.fixture
+def oneroster_connector(caller_options):
+    return OneRosterConnector(caller_options)
+
 
 @pytest.fixture()
 def caller_options():
     return {
-        'client_id': '0fc7e35773c1fffd32579507',
-        'client_secret': '10332e330b2e364020179021',
-        'host': 'https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/',
+        'client_id': '000000000',
+        'client_secret': '111111111',
+        'host': 'https://example.oneroster.com/ims/oneroster/v1p1/',
         'all_users_filter': 'users',
         'limit': '100',
         'key_identifier': 'sourcedId',
@@ -27,105 +31,9 @@ def caller_options():
     }
 
 
-@pytest.fixture()
-def stub_api_response():
-    return [{
-        'sourcedId': '18125',
-        'status': 'active',
-        'dateLastModified': '2019-03-01T18:14:45.000Z',
-        'username': 'billy.flores',
-        'userIds': [{
-            'type': 'FED',
-            'identifier': '18125'}],
-        'enabledUser': 'true',
-        'givenName': 'BILLY',
-        'familyName': 'FLORES',
-        'middleName': 'DASEAN',
-        'role': 'student',
-        'identifier': '17580',
-        'email': 'billy.flores@classlink.k12.nj.us',
-        'sms': '(666) 666-6666',
-        'phone': '',
-        'agents': [],
-        'orgs': [
-            {
-                'href': 'https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/orgs/2',
-                'sourcedId': '2',
-                'type': 'org'}],
-        'grades': ['11'],
-        'password': ''},
-        {
-            'sourcedId': '18317',
-            'status': 'active',
-            'dateLastModified': '2019-03-01T18:14:45.000Z',
-            'username': 'giselle.houston',
-            'userIds': [{
-                'type': 'FED',
-                'identifier': '18317'}],
-            'enabledUser': 'true',
-            'givenName': 'GISELLE',
-            'familyName': 'HOUSTON',
-            'middleName': 'CAMILO',
-            'role': 'student',
-            'identifier': '15125',
-            'email': 'giselle.houston@classlink.k12.nj.us',
-            'sms': '',
-            'phone': '',
-            'agents': [],
-            'orgs': [
-                {
-                    'href': 'https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/orgs/2',
-                    'sourcedId': '2',
-                    'type': 'org'}],
-            'grades': ['11'],
-            'password': ''},
+def test_parse_results_valid(oneroster_connector, stub_api_response, stub_parse_results):
 
-    ]
-
-
-@pytest.fixture
-def oneroster_connector(caller_options):
-    return OneRosterConnector(caller_options)
-
-
-def test_parse_results_valid(oneroster_connector, stub_api_response):
-    expected_result = {
-        '18125': {
-            'identity_type': 'federatedID',
-            'username': 'billy.flores@classlink.k12.nj.us',
-            'domain': 'classlink.k12.nj.us',
-            'firstname': 'BILLY',
-            'lastname': 'FLORES',
-            'email': 'billy.flores@classlink.k12.nj.us',
-            'groups': set(),
-            'country': None,
-            'source_attributes': {
-                'email': 'billy.flores@classlink.k12.nj.us',
-                'identity_type': None,
-                'username': None,
-                'domain': None,
-                'givenName': 'BILLY',
-                'familyName': 'FLORES',
-                'country': None}},
-        '18317': {
-            'identity_type': 'federatedID',
-            'username': 'giselle.houston@classlink.k12.nj.us',
-            'domain': 'classlink.k12.nj.us',
-            'firstname': 'GISELLE',
-            'lastname': 'HOUSTON',
-            'email': 'giselle.houston@classlink.k12.nj.us',
-            'groups': set(),
-            'country': None,
-            'source_attributes': {
-                'email': 'giselle.houston@classlink.k12.nj.us',
-                'identity_type': None,
-                'username': None,
-                'domain': None,
-                'givenName': 'GISELLE',
-                'familyName': 'HOUSTON',
-                'country': None}},
-    }
-
+    expected_result = stub_parse_results
     record_handler = RecordHandler(options=oneroster_connector.options, logger=oneroster_connector.logger)
     actual_result = record_handler.parse_results(stub_api_response, 'sourcedId', [])
     assert expected_result == actual_result
@@ -217,24 +125,24 @@ def test_parse_yml_groups_complex_valid(oneroster_connector):
         }
     }
 
+
 def test_parse_yml_groups_failure(oneroster_connector):
+    pytest.raises(ValueError, oneroster_connector.parse_yaml_groups, groups_list={'course::Alg-102::students'})
+    pytest.raises(ValueError, oneroster_connector.parse_yaml_groups, groups_list={'courses::Alg-102::stud'})
 
-    pytest.raises(ValueError,oneroster_connector.parse_yaml_groups,groups_list={'course::Alg-102::students'})
-    pytest.raises(ValueError,oneroster_connector.parse_yaml_groups,groups_list={'courses::Alg-102::stud'})
 
-# def test_load_users_and_groups(oneroster_connector, stub_api_response):
-#
-#     record_handler = RecordHandler(options=oneroster_connector.options, logger=oneroster_connector.logger)
-#
-#     user1 = record_handler.create_user_object(stub_api_response[0], 'sourcedId', [])
-#
-#     with mock.patch("user_sync.connector.directory_oneroster.OnerosterAPI.get_users") as mock_endpoint:
-#         mock_endpoint.return_value = stub_api_response
-#
-#
-#
-#
-#         x = list(oneroster_connector.load_users_and_groups(['xxx'], [], False))
+def test_load_users_and_groups(oneroster_connector, stub_api_response, stub_parse_results):
+    expected = list(stub_parse_results.values())
+    expected[0]['source_attributes']['groups'] = {'xxx'}
+    expected[1]['source_attributes']['groups'] = {'xxx'}
+
+    with mock.patch("user_sync.connector.directory_oneroster.OnerosterAPI.get_users") as mock_endpoint:
+        with mock.patch("user_sync.connector.directory_oneroster.RecordHandler.parse_results") as mock_parse_results:
+            mock_endpoint.return_value = stub_api_response
+            mock_parse_results.return_value = stub_parse_results
+
+            actual_result = list(oneroster_connector.load_users_and_groups(['xxx'], [], False))
+            assert actual_result == expected
 
 
 def test_get_attr_values():
@@ -294,11 +202,99 @@ def test_get_attr_values():
     # Decode a string
     assert formatter.get_attribute_value(attributes, "byte") == "byteencoded"
 
-#
-# def test_lug_ex(oneroster_connector):
-#     import mock
-#     with mock.patch("user_sync.connector.directory_oneroster.Connection.list_api_response_handler") as mock_endpoint:
-#         mock_endpoint.return_value = "1234"
-#         x = oneroster_connector.load_users_and_groups(['xxx'],[],False)
-#
-#         print()
+
+@pytest.fixture()
+def stub_api_response():
+    return [{
+        'sourcedId': '18125',
+        'status': 'active',
+        'dateLastModified': '2019-03-01T18:14:45.000Z',
+        'username': 'billy.flores',
+        'userIds': [{
+            'type': 'FED',
+            'identifier': '18125'}],
+        'enabledUser': 'true',
+        'givenName': 'BILLY',
+        'familyName': 'FLORES',
+        'middleName': 'DASEAN',
+        'role': 'student',
+        'identifier': '17580',
+        'email': 'billy.flores@classlink.k12.nj.us',
+        'sms': '(666) 666-6666',
+        'phone': '',
+        'agents': [],
+        'orgs': [
+            {
+                'href': 'https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/orgs/2',
+                'sourcedId': '2',
+                'type': 'org'}],
+        'grades': ['11'],
+        'password': ''},
+        {
+            'sourcedId': '18317',
+            'status': 'active',
+            'dateLastModified': '2019-03-01T18:14:45.000Z',
+            'username': 'giselle.houston',
+            'userIds': [{
+                'type': 'FED',
+                'identifier': '18317'}],
+            'enabledUser': 'true',
+            'givenName': 'GISELLE',
+            'familyName': 'HOUSTON',
+            'middleName': 'CAMILO',
+            'role': 'student',
+            'identifier': '15125',
+            'email': 'giselle.houston@classlink.k12.nj.us',
+            'sms': '',
+            'phone': '',
+            'agents': [],
+            'orgs': [
+                {
+                    'href': 'https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/orgs/2',
+                    'sourcedId': '2',
+                    'type': 'org'}],
+            'grades': ['11'],
+            'password': ''},
+
+    ]
+
+
+@pytest.fixture()
+def stub_parse_results():
+    return {
+        '18125': {
+            'identity_type': 'federatedID',
+            'username': 'billy.flores@classlink.k12.nj.us',
+            'domain': 'classlink.k12.nj.us',
+            'firstname': 'BILLY',
+            'lastname': 'FLORES',
+            'email': 'billy.flores@classlink.k12.nj.us',
+            'groups': set(),
+            'country': None,
+            'source_attributes': {
+                'email': 'billy.flores@classlink.k12.nj.us',
+                'identity_type': None,
+                'username': None,
+                'domain': None,
+                'givenName': 'BILLY',
+                'familyName': 'FLORES',
+                'country': None}
+        },
+        '18317': {'identity_type': 'federatedID',
+                  'username': 'giselle.houston@classlink.k12.nj.us',
+                  'domain': 'classlink.k12.nj.us',
+                  'firstname': 'GISELLE',
+                  'lastname': 'HOUSTON',
+                  'email': 'giselle.houston@classlink.k12.nj.us',
+                  'groups': set(),
+                  'country': None,
+                  'source_attributes': {
+                      'email': 'giselle.houston@classlink.k12.nj.us',
+                      'identity_type': None,
+                      'username': None,
+                      'domain': None,
+                      'givenName': 'GISELLE',
+                      'familyName': 'HOUSTON',
+                      'country': None}
+                  }
+    }
