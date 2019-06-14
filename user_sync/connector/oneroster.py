@@ -37,28 +37,28 @@ class ClasslinkConnector():
         self.classlink_api = classlink_oneroster.ClasslinkAPI(self.client_id, self.client_secret)
 
     def get_users(self,
-                  group_filter,  # Type of group (class, course, school)
-                  group_name,  # Plain group name (Math 6)
-                  user_filter,  # Which users: users, students, staff
-                  request_type,  # Determines which logic is used (see below)
+                  group_filter=None,  # Type of group (class, course, school)
+                  group_name=None,        # Plain group name (Math 6)
+                  user_filter=None,  # Which users: users, students, staff
+                  request_type=None,       # Determines which logic is used (see below)
                   ):
 
-        list_api_results = []
+        results = []
         if group_filter == 'courses':
             key_id = self.execute_actions('courses', group_name, self.key_identifier, 'key_identifier')
             if key_id.__len__() == 0:
-                return list_api_results
+                return results
             list_classes = self.execute_actions(group_filter, user_filter, key_id, 'course_classlist')
             for each_class in list_classes:
-                list_api_results.extend(self.execute_actions('classes', user_filter, each_class, 'mapped_users'))
+                results.extend(self.execute_actions('classes', user_filter, each_class, 'mapped_users'))
         elif request_type == 'all_users':
-            list_api_results.extend(self.execute_actions(None, user_filter, None, 'all_users'))
+            results.extend(self.execute_actions(None, user_filter, None, 'all_users'))
         else:
             key_id = self.execute_actions(group_filter, None, group_name, 'key_identifier')
             if key_id.__len__() == 0:
-                return list_api_results
-            list_api_results.extend(self.execute_actions(group_filter, user_filter, key_id, 'mapped_users'))
-        return list_api_results
+                return results
+            results.extend(self.execute_actions(group_filter, user_filter, key_id, 'mapped_users'))
+        return results
 
     def execute_actions(self, group_filter, user_filter, identifier, request_type):
         result = []

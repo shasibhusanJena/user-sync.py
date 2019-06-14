@@ -127,7 +127,11 @@ class OneRosterConnector(object):
                             users_by_key[key] = value
                         users_by_key[key]['groups'].add(user_group)
         if all_users:
-            response = api.get_users("", "", self.options['all_users_filter'], 'all_users')
+            response = api.get_users(
+                        user_filter=self.options['all_users_filter'],
+                        request_type='all_users',
+                    )
+
             new_all_users = rh.parse_results(response, self.options['key_identifier'], extended_attributes)
             for key, value in six.iteritems(new_all_users):
                 if key not in users_by_key:
