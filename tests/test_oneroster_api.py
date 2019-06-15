@@ -1,5 +1,6 @@
 import pytest
 import mock
+import random
 import user_sync.connector.oneroster as oneroster
 
 
@@ -31,6 +32,26 @@ def test_make_call(clever_api):
 
 
 def test_get_primary_key(clever_api):
+
+    c = clever_api.clever_api.get_sections().data
+
+    l = [{'id': cr.data.id, 'name': cr.data.name, 'course': cr.data.course} for cr in c]
+    random.shuffle(l)
+    l2 = l[0:10]
+
+
+
+    print()
+
+    # base_obj = [
+    #     {'name':'Class 1', 'id': '45gdf461d'}
+    #     {'name':'Special !%$@', 'id': '5346df461d'}
+    #     {'name':'Special !%$@', 'id': '5346df461d'}
+    #     {'name':'Special !%$@', 'id': '5346df461d'}
+    #     {'name':'Special !%$@', 'id': '5346df461d'}
+    #     {'name':'Special !%$@', 'id': '5346df461d'}
+    # ]
+
     clever_api.get_primary_key('sections', name='Introduction to Web Design - Corwin - 1')
 
 

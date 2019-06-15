@@ -189,7 +189,6 @@ class CleverConnector():
         # :param str ending_before:
 
         collected_objects = []
-
         while True:
             try:
                 response = call(**params)
@@ -226,10 +225,8 @@ class CleverConnector():
             return []
 
     def get_sections_for_course(self, name):
-
         id_list = self.get_primary_key('courses', name)
         sections = []
-
         for i in id_list:
             sections.extend(
                 self.make_call(
