@@ -22,6 +22,20 @@ def get_connector(options):
     raise ModuleNotFoundError("No module for " + platform +
                               " was found. Supported are: [classlink, clever]")
 
+def decode_string(string):
+    try:
+        decoded = string.decode()
+    except:
+        decoded = str(string)
+    return decoded.lower().strip()
+
+
+#
+#
+#
+#
+#
+#
 
 class ClasslinkConnector():
     """ Starts connection and makes queries with One-Roster API"""
@@ -107,7 +121,7 @@ class ClasslinkConnector():
                 other = 'course' if group_filter == 'courses' else 'classes'
                 name_identifier, revised_key = ('name', 'orgs') if group_filter == 'schools' else ('title', other)
                 for entry in json.loads(response.content).get(revised_key):
-                    if self.decode_string(entry[name_identifier]) == self.decode_string(group_name):
+                    if decode_string(entry[name_identifier]) == decode_string(group_name):
                         try:
                             key_id = entry[self.key_identifier]
                         except ValueError:
@@ -129,13 +143,15 @@ class ClasslinkConnector():
 
         return user_list
 
-    def decode_string(self, string):
-        try:
-            decoded = string.decode()
-        except:
-            decoded = str(string)
-        return decoded.lower().strip()
 
+#
+#
+#
+#
+#
+#
+#
+#
 
 class CleverConnector():
 
@@ -163,7 +179,7 @@ class CleverConnector():
 
         # api_response = self.clever_api.get_students_with_http_info(**kw)
         # users = api_response[0].data
-        return []
+        return set([])
 
     def make_call(self, call, **params):
 
@@ -201,12 +217,10 @@ class CleverConnector():
 
         if call:
             objects = self.make_call(call)
-
-            id_list = list(map(lambda x: x.data.id, list (filter(lambda x: (x.data.name == name), objects))))
-            # possibly want to do a better comparison than == (like regex)
-
+            id_list = list(
+                map(lambda x: x.data.id,
+                    filter(lambda x: (decode_string(x.data.name) == decode_string(name)), objects)))
             return id_list
-
         else:
             # warning of some sort
             return []
@@ -219,11 +233,26 @@ class CleverConnector():
         for i in id_list:
             sections.extend(
                 self.make_call(
-                    self.clever_api.get_sections_for_course_with_http_info,id=i
-                )
-            )
-
+                    self.clever_api.get_sections_for_course_with_http_info,id=i))
         return sections
+
+    def get_users_for_course(self, name, user_filter):
+
+        if user_filter == 'users':
+            call = self.clever_api.get_students_for_section_with_http_info
+        elif user_filter == 'teachers':
+            call = self.clever_api.get_teachers_for_section_with_http_info
+        else:
+            # throw somthing
+            return
+
+        sections = self.get_sections_for_course(name)
+        user_list = []
+        for s in sections:
+            user_list.extend(self.make_call(call, id=s))
+
+        return user_list
+
 
     def translate(self, group_filter=None, user_filter=None, name=None, is_id=False):
 
@@ -237,15 +266,15 @@ class CleverConnector():
             return [self.clever_api.get_students_for_section_with_http_info,
                     self.clever_api.get_teachers_for_section_with_http_info]
 
-        # elif group_filter == "courses" and user_filter == "students":
-        #     return [self.clever_api.get_students_for_section_with_http_info]
-        #
-        # elif group_filter == "courses" and user_filter == "teachers":
-        #     return [self.clever_api.get_teachers_for_section_with_http_info]
-        #
-        # elif group_filter == "courses" and user_filter == "users":
-        #     return [self.clever_api.get_students_for_section_with_http_info,
-        #             self.clever_api.get_teachers_for_section_with_http_info]
+        elif group_filter == "courses" and user_filter == "students":
+            return [self.get_users_for_course]
+
+        elif group_filter == "courses" and user_filter == "teachers":
+            return [self.get_users_for_course]
+
+        elif group_filter == "courses" and user_filter == "users":
+            return [self.get_users_for_course,
+                    self.get_users_for_course]
 
         elif group_filter == "schools" and user_filter == "students":
             return [self.clever_api.get_students_for_school_with_http_info]
