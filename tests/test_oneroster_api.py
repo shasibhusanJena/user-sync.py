@@ -31,36 +31,48 @@ def test_make_call(clever_api):
     print()
 
 
-def test_get_primary_key(clever_api):
+@mock.patch('user_sync.connector.oneroster.CleverConnector.make_call')
+def test_get_primary_key(mock_make_call, clever_api):
+    data = [
+        {'id': '58da8c6b894273be680001fc', 'name': 'Class 003, Homeroom - Stark - 0', 'course': '5970d4dd35e9e69741000162'},
+        {'id': '58da8c6b894273be6800020a', 'name': 'Class 202, Homeroom - Jones - 0', 'course': '5970d4dd35e9e6974100016d'},
+        {'id': '58da8c6b894273be6800020a', 'name': 'Class 202, Homeroom - Jones - 0', 'course': '5970d4dd35e9e6974100016d'},
+        {'id': '58da8c6b894273be68000236', 'name': 'Grade 2 Math, Class 201 - Hammes - 3', 'course': '5970d4dd35e9e697410001c5'},
+        {'id': '58da8c6b894273be68000222', 'name': 'Kindergarten Math, Class 002 - Schoen - 1', 'course': '5970d4dd35e9e69741000221'},
+        {'id': '58da8c6b894273be68000242', 'name': 'Mathematics, Class 601 - Goldner - 3', 'course': '5970d4dd35e9e69741000238'}
+    ]
 
-    c = clever_api.clever_api.get_sections().data
+    mock_make_call.return_value = build_mock_response_object(data)
 
-    l = [{'id': cr.data.id, 'name': cr.data.name, 'course': cr.data.course} for cr in c]
-    random.shuffle(l)
-    l2 = l[0:10]
-
-
+    z = clever_api.get_primary_key("sections", "Class 202, Homeroom - Jones - 0")
+    z2 = clever_api.get_primary_key("sections", "Class 2022, Homeroom - Jones - 0")
 
     print()
-
-    # base_obj = [
-    #     {'name':'Class 1', 'id': '45gdf461d'}
-    #     {'name':'Special !%$@', 'id': '5346df461d'}
-    #     {'name':'Special !%$@', 'id': '5346df461d'}
-    #     {'name':'Special !%$@', 'id': '5346df461d'}
-    #     {'name':'Special !%$@', 'id': '5346df461d'}
-    #     {'name':'Special !%$@', 'id': '5346df461d'}
-    # ]
-
-    clever_api.get_primary_key('sections', name='Introduction to Web Design - Corwin - 1')
 
 
 def test_get_sections_for_course(clever_api):
     course = '5970d4dd35e9e69741000160'
     course_name = 'Class 001, Homeroom'
 
-    #res = clever_api.clever_api.get_courses_with_http_info()
+    # res = clever_api.clever_api.get_courses_with_http_info()
 
     res = clever_api.get_sections_for_course(course_name)
 
     print()
+
+
+def test_samle_data(clever_api):
+    c = clever_api.clever_api.get_sections().data
+    clever_api.get_primary_key('sections', name='Introduction to Web Design - Corwin - 1')
+    print()
+
+
+def build_mock_response_object(objects):
+    mock_results = []
+    for o in objects:
+        obj = mock.MagicMock()
+        obj.data.id = o['id']
+        obj.data.name = o['name']
+        obj.data.course = o['course']
+        mock_results.append(obj)
+    return mock_results

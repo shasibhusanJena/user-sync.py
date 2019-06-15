@@ -206,23 +206,25 @@ class CleverConnector():
 
     def get_primary_key(self, type, name):
 
-        call = None
         if type == 'sections':
             call = self.clever_api.get_sections_with_http_info
         elif type == 'courses':
             call = self.clever_api.get_courses_with_http_info
         elif type == 'schools':
             call = self.clever_api.get_schools_with_http_info
-
-        if call:
-            objects = self.make_call(call)
-            id_list = list(
-                map(lambda x: x.data.id,
-                    filter(lambda x: (decode_string(x.data.name) == decode_string(name)), objects)))
-            return id_list
         else:
-            # warning of some sort
-            return []
+            raise ValueError("Invalid group filter: " + type + " is not a valid type. [sections, courses, schools]")
+
+        objects = self.make_call(call)
+        id_list = list(
+            map(lambda x: x.data.id,
+                filter(lambda x: (decode_string(x.data.name) == decode_string(name)), objects)))
+
+        if not id_list:
+            self.logger.warning("No objects found for " + type + ": " + name)
+        return id_list
+
+
 
     def get_sections_for_course(self, name):
         id_list = self.get_primary_key('courses', name)
