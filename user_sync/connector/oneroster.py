@@ -2,7 +2,7 @@
 
 import json
 import logging
-
+import time
 import clever
 import classlink_oneroster
 
@@ -38,9 +38,9 @@ class ClasslinkConnector():
 
     def get_users(self,
                   group_filter=None,  # Type of group (class, course, school)
-                  group_name=None,        # Plain group name (Math 6)
+                  group_name=None,  # Plain group name (Math 6)
                   user_filter=None,  # Which users: users, students, staff
-                  request_type=None,       # Determines which logic is used (see below)
+                  request_type=None,  # Determines which logic is used (see below)
                   ):
 
         results = []
@@ -146,26 +146,113 @@ class CleverConnector():
         self.key_identifier = options['key_identifier']
         self.max_users = options['max_user_limit']
         self.page_size = str(options['page_size'])
-
         configuration = clever.Configuration()
+
+        # client_id: 5d8a7b5eff6cbe25bc6e
+        # client_secret: ec6d2c060987e32cbe785f7f1a58a307a04cf0a4
+        # Our token: 3d65011e5b5d02c9de5cd129442a3b539de57cf6
+
         # configuration.username = self.client_id
         # configuration.password = self.client_secret
         # configuration.get_basic_auth_token()
+
         configuration.access_token = 'TEST_TOKEN'
         self.clever_api = clever.DataApi(clever.ApiClient(configuration))
 
-
     def get_users(self, **kwargs):
 
-        try:
+        # api_response = self.clever_api.get_students_with_http_info(**kw)
+        # users = api_response[0].data
+        return []
 
-            kw = {}
-            kw['limit'] = 10
+    def make_call(self, call, **params):
 
-            api_response = self.clever_api.get_students_with_http_info(**kw)
-            users = api_response[0].data
+        # :param async bool
+        # :param int limit:
+        # :param str starting_after:
+        # :param str ending_before:
 
-            print()
+        collected_objects = []
 
-        except ApiException as e:
-            print("Example exception handling")
+        while True:
+            try:
+                response = call(**params)
+                new_objects = response[0].data
+                if new_objects:
+                    collected_objects.extend(new_objects)
+                    params['starting_after'] = new_objects[-1].data.id
+                else:
+                    break
+            except ApiException as e:
+                raise e
+            except Exception as e:
+                raise e
+        return collected_objects
+
+    def get_primary_key(self, type, name):
+
+        call = None
+        if type == 'sections':
+            call = self.clever_api.get_sections_with_http_info
+        elif type == 'courses':
+            call = self.clever_api.get_courses_with_http_info
+        elif type == 'schools':
+            call = self.clever_api.get_schools_with_http_info
+
+        if call:
+            objects = self.make_call(call)
+
+            id_list = list(map(lambda x: x.data.id, list (filter(lambda x: (x.data.name == name), objects))))
+            # possibly want to do a better comparison than == (like regex)
+
+            return id_list
+
+        else:
+            # warning of some sort
+            return []
+
+    def get_sections_for_course(self, name):
+
+        id_list = self.get_primary_key('courses', name)
+        sections = []
+
+        for i in id_list:
+            sections.extend(
+                self.make_call(
+                    self.clever_api.get_sections_for_course_with_http_info,id=i
+                )
+            )
+
+        return sections
+
+    def translate(self, group_filter=None, user_filter=None, name=None, is_id=False):
+
+        if group_filter == "sections" and user_filter == "students":
+            return [self.clever_api.get_students_for_section_with_http_info]
+
+        elif group_filter == "sections" and user_filter == "teachers":
+            return [self.clever_api.get_teachers_for_section_with_http_info]
+
+        elif group_filter == "sections" and user_filter == "users":
+            return [self.clever_api.get_students_for_section_with_http_info,
+                    self.clever_api.get_teachers_for_section_with_http_info]
+
+        # elif group_filter == "courses" and user_filter == "students":
+        #     return [self.clever_api.get_students_for_section_with_http_info]
+        #
+        # elif group_filter == "courses" and user_filter == "teachers":
+        #     return [self.clever_api.get_teachers_for_section_with_http_info]
+        #
+        # elif group_filter == "courses" and user_filter == "users":
+        #     return [self.clever_api.get_students_for_section_with_http_info,
+        #             self.clever_api.get_teachers_for_section_with_http_info]
+
+        elif group_filter == "schools" and user_filter == "students":
+            return [self.clever_api.get_students_for_school_with_http_info]
+
+        elif group_filter == "schools" and user_filter == "teachers":
+            return [self.clever_api.get_teachers_for_school_with_http_info]
+
+        elif group_filter == "schools" and user_filter == "users":
+            return [self.clever_api.get_students_for_school_with_http_info,
+                    self.clever_api.get_teachers_for_school_with_http_info]
