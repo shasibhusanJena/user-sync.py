@@ -34,12 +34,12 @@ def test_make_call(clever_api):
 @mock.patch('user_sync.connector.oneroster.CleverConnector.make_call')
 def test_get_primary_key(mock_make_call, clever_api):
     data = [
-        {'id': '58da8c6b894273be680001fc', 'name': 'Class 003, Homeroom - Stark - 0', 'course': '5970d4dd35e9e69741000162'},
-        {'id': '58da8c6b894273be6800020a', 'name': 'Class 202, Homeroom - Jones - 0', 'course': '5970d4dd35e9e6974100016d'},
-        {'id': '58da8c6b894273be6800020a', 'name': 'Class 202, Homeroom - Jones - 0', 'course': '5970d4dd35e9e6974100016d'},
-        {'id': '58da8c6b894273be68000236', 'name': 'Grade 2 Math, Class 201 - Hammes - 3', 'course': '5970d4dd35e9e697410001c5'},
-        {'id': '58da8c6b894273be68000222', 'name': 'Kindergarten Math, Class 002 - Schoen - 1', 'course': '5970d4dd35e9e69741000221'},
-        {'id': '58da8c6b894273be68000242', 'name': 'Mathematics, Class 601 - Goldner - 3', 'course': '5970d4dd35e9e69741000238'}
+        {'id': '58da8c6b894273be680001fc', 'name': 'Class 003, Homeroom - Stark - 0'},
+        {'id': '58da8c6b894273be6800020a', 'name': 'Class 202, Homeroom - Jones - 0'},
+        {'id': '58da8c6b894273be6800020a', 'name': 'Class 202, Homeroom - Jones - 0'},
+        {'id': '58da8c6b894273be68000236', 'name': 'Grade 2 Math, Class 201 - Hammes - 3'},
+        {'id': '58da8c6b894273be68000222', 'name': 'Kindergarten Math, Class 002 - Schoen - 1'},
+        {'id': '58da8c6b894273be68000242', 'name': 'Mathematics, Class 601 - Goldner - 3'}
     ]
 
     mock_make_call.return_value = build_mock_response_object(data)
@@ -71,8 +71,9 @@ def build_mock_response_object(objects):
     mock_results = []
     for o in objects:
         obj = mock.MagicMock()
-        obj.data.id = o['id']
-        obj.data.name = o['name']
-        obj.data.course = o['course']
+        obj.data.id = o.get('id')
+        obj.data.name = o.get('name')
+        obj.data.course = o.get('course')
         mock_results.append(obj)
     return mock_results
+
