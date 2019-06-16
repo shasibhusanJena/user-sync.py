@@ -22,6 +22,7 @@ def get_connector(options):
     raise ModuleNotFoundError("No module for " + platform +
                               " was found. Supported are: [classlink, clever]")
 
+
 def decode_string(string):
     try:
         decoded = string.decode()
@@ -163,6 +164,7 @@ class CleverConnector():
         self.key_identifier = options['key_identifier']
         self.max_users = options['max_user_limit']
         self.page_size = str(options['page_size'])
+        self.match = options['match']
         configuration = clever.Configuration()
 
         # client_id: 5d8a7b5eff6cbe25bc6e
@@ -218,29 +220,31 @@ class CleverConnector():
                              " is not a valid type. [sections, courses, schools]")
 
         objects = self.make_call(call)
-        id_list = list(
-            map(lambda x: x.data.id,
-                filter(lambda x: (decode_string(x.data.name) == decode_string(name)),
-                       objects)))
+        id_list = []
+        for o in objects:
+            try:
+                if decode_string(getattr(o.data, self.match)) == decode_string(name):
+                    id_list.append(o.data.id)
+            except AttributeError:
+                self.logger.warning("No property: '" + self.match +
+                                    "' was found on " + type.rstrip('s') + " for entity '" + name + "'")
+                break
 
         if not id_list:
             self.logger.warning("No objects found for " + type + ": " + name)
         return id_list
-
-
 
     def get_sections_for_course(self, name):
         id_list = self.get_primary_key('courses', name)
         sections = []
         for i in id_list:
             sections.extend(
-                self.make_call(
-                    self.clever_api.get_sections_for_course_with_http_info,id=i))
-        return sections
+                self.make_call(self.clever_api.get_sections_for_course_with_http_info, id=i)[0].data)
+        return map(lambda x: x.data.id, sections)
 
     def get_users_for_course(self, name, user_filter):
 
-        if user_filter == 'users':
+        if user_filter == 'students':
             call = self.clever_api.get_students_for_section_with_http_info
         elif user_filter == 'teachers':
             call = self.clever_api.get_teachers_for_section_with_http_info
@@ -254,7 +258,6 @@ class CleverConnector():
             user_list.extend(self.make_call(call, id=s))
 
         return user_list
-
 
     def translate(self, group_filter=None, user_filter=None, name=None, is_id=False):
 

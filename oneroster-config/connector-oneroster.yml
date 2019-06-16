@@ -18,6 +18,7 @@
 platform: 'clever'
 client_id: '5d8a7b5eff6cbe25bc6e'
 client_secret: 'ec6d2c060987e32cbe785f7f1a58a307a04cf0a4'
+match: 'name'
 
 # Connection Settings
 #(required, no default)
