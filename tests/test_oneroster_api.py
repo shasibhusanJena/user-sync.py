@@ -21,21 +21,24 @@ def clever_api():
 
     return oneroster.CleverConnector(options)
 
+
 def test_get_users(clever_api):
     pass
+
 
 def test_make_call(clever_api):
     pass
 
+
 @mock.patch('user_sync.connector.oneroster.CleverConnector.make_call')
 def test_get_primary_key(mock_make_call, clever_api, log_stream):
     data = [
-        {'id': '58da8c6b894273be680001fc', 'name': 'Class 003, Homeroom - Stark - 0'},
-        {'id': '58da8c6b894273be6800020a', 'name': 'Class 202, Homeroom - Jones - 0'},
-        {'id': '58da8c6b894273be5100020a', 'name': 'Class 202, Homeroom - Jones - 0'},
-        {'id': '58da8c6b894273be68000236', 'name': 'Grade 2 Math, Class 201 - Hammes - 3'},
-        {'id': '58da8c6b894273be68000222', 'name': 'Kindergarten Math, Class 002 - Schoen - 1'},
-        {'id': '58da8c6b894273be68000242', 'name': 'Mathematics, Class 601 - Goldner - 3'}
+        {'id': '58da8c6b894273be680001fc', 'name': 'Class 003, Homeroom - Stark - 0', 'sis_id': '278-002-1020', 'course': 'Math 101'},
+        {'id': '58da8c6b894273be6800020a', 'name': 'Class 202, Homeroom - Jones - 0', 'sis_id': '341-356-1315', 'course': 'Art 101'},
+        {'id': '58da8c6b894273be5100020a', 'name': 'Class 202, Homeroom - Jones - 0', 'sis_id': '754-1523-6311', 'course': 'Sci 101'},
+        {'id': '58da8c6b894273be68000236', 'name': 'Grade 2 Math, Class 201 - Hammes - 3', 'sis_id': '161-875-2356', 'course': 'Geo 101'},
+        {'id': '58da8c6b894273be68000222', 'name': 'Kindergarten Math, Class 002 - Schoen - 1', 'sis_id': '958-163-2145', 'course': 'Alg 101'},
+        {'id': '58da8c6b894273be68000242', 'name': 'Mathematics, Class 601 - Goldner - 3', 'sis_id': '762-561-6723', 'course': 'Shop 101'}
     ]
 
     mock_make_call.return_value = get_mock_api_response(data)[0].data
@@ -60,10 +63,14 @@ def test_get_primary_key(mock_make_call, clever_api, log_stream):
     logs = stream.getvalue()
     assert re.search("(No property: 'bad' was found on section for entity 'fake')", logs)
 
-    data = [{'id': '58da8c6b894273be680001fc', 'name': 'Class 003, Homeroom - Stark - 0', 'course': 'Math 101'}]
-    mock_make_call.return_value = get_mock_api_response(data)[0].data
-    clever_api.match = 'course'
 
+    # Get ID based on SIS ID
+    clever_api.match = "sis_id"
+    keys = clever_api.get_primary_key("sections", "161-875-2356")
+    assert keys == ['58da8c6b894273be68000236']
+
+    # Get ID based on course
+    clever_api.match = 'course'
     keys = clever_api.get_primary_key("sections", "Math 101")
     assert keys == ['58da8c6b894273be680001fc']
 
