@@ -111,6 +111,52 @@ def test_get_sections_for_course(get_key, make_call, clever_api):
     assert collections.Counter(expected) == collections.Counter(result)
 
 
+@mock.patch('user_sync.connector.oneroster.CleverConnector.make_call')
+@mock.patch('user_sync.connector.oneroster.CleverConnector.get_sections_for_course')
+def test_get_users_for_course(get_sections, make_call, clever_api):
+    mock_students = [
+        {
+            'email': 'z.steve@example.net',
+            'name': {'first': 'Steve', 'last': 'Ziemann', 'middle': 'G'},
+            'school': '58da8c58155b940248000007',
+            'sis_id': '100095233', },
+        {
+            'email': 'julia.r@example.org',
+            'name': {'first': 'Julia', 'last': 'Runolfsdottir', 'middle': 'B'},
+            'school': '58da8c58155b940248000007',
+            'sis_id': '108028995'}]
+
+    mock_teachers = [
+        {
+            'email': 'sisko.b@example.net',
+            'name': {'first': 'Benjamin', 'last': 'Sisko', 'middle': 'J'},
+            'school': '58da8c58155b940248000007',
+            'sis_id': '1001234233', },
+        {
+            'email': 'picard.j@example.org',
+            'name': {'first': 'Jean Luc', 'last': 'Picard', 'middle': ''},
+            'school': '58da8c58155b940248000007',
+            'sis_id': '108062341'}]
+
+    get_sections.return_value = ['12345']
+    make_call.side_effect = [
+        get_mock_api_response(mock_students),
+        get_mock_api_response(mock_teachers)
+    ]
+
+    response =  clever_api.get_users_for_course("Math 9", "users")
+    response_data = [{'email': d.data.email, 'name': d.data.name,
+                      'school': d.data.school, 'sis_id': d.data.sis_id} for d in response]
+
+    mock_students.extend(mock_teachers)
+    assert response_data == mock_students
+
+# def test_x(clever_api):
+#     d = clever_api.clever_api.get_students_with_http_info()[0].data
+#
+#     print()
+
+
 def test_translate(clever_api):
     calls = clever_api.translate('sections', 'users')
     assert calls[0] == clever_api.clever_api.get_students_for_section_with_http_info
@@ -134,3 +180,6 @@ class MockEntry():
         self.id = kwargs.get('id')
         self.name = kwargs.get('name')
         self.course = kwargs.get('course')
+        self.email = kwargs.get('email')
+        self.school = kwargs.get('school')
+        self.sis_id = kwargs.get('sis_id')

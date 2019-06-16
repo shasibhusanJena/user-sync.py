@@ -237,25 +237,27 @@ class CleverConnector():
     def get_sections_for_course(self, name):
         id_list = self.get_primary_key('courses', name)
         sections = []
+
         for i in id_list:
             sections.extend(
                 self.make_call(self.clever_api.get_sections_for_course_with_http_info, id=i)[0].data)
-        return map(lambda x: x.data.id, sections)
+
+        if not sections:
+            self.logger.warning("No sections found for course '" + name + "'")
+            return []
+        else:
+            return map(lambda x: x.data.id, sections)
 
     def get_users_for_course(self, name, user_filter):
-
-        if user_filter == 'students':
-            call = self.clever_api.get_students_for_section_with_http_info
-        elif user_filter == 'teachers':
-            call = self.clever_api.get_teachers_for_section_with_http_info
-        else:
-            # throw somthing
-            return
-
+        calls = self.translate('sections',user_filter)
         sections = self.get_sections_for_course(name)
         user_list = []
         for s in sections:
-            user_list.extend(self.make_call(call, id=s))
+            for c in calls:
+                user_list.extend(self.make_call(c, id=s)[0].data)
+
+        if not user_list:
+            self.logger.warning("No users found for course '" + name + "'")
         return user_list
 
     def translate(self, group_filter, user_filter):
@@ -268,7 +270,7 @@ class CleverConnector():
 
             'courses_students': [self.get_users_for_course],
             'courses_teachers': [self.get_users_for_course],
-            'courses_users': [self.get_users_for_course],
+            'courses_users': [self.get_users_for_course, self.get_users_for_course],
 
             'schools_students': [self.clever_api.get_students_for_school_with_http_info],
             'schools_teachers': [self.clever_api.get_teachers_for_school_with_http_info],
@@ -283,5 +285,4 @@ class CleverConnector():
 
         if not call:
             raise ValueError("Unrecognized method request: 'get_" + user_filter + "_for_" + group_filter + "'")
-
         return call
