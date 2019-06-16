@@ -34,7 +34,7 @@ def test_make_call(clever_api):
 def test_get_primary_key(mock_make_call, clever_api, log_stream, mock_section_data):
     stream, logger = log_stream
     clever_api.logger = logger
-    mock_make_call.return_value = get_mock_api_response(mock_section_data)[0].data
+    mock_make_call.return_value = get_mock_api_response_dataonly(mock_section_data)
 
     keys = clever_api.get_primary_key("sections", "Class 202, Homeroom - Jones - 0")
     assert keys == ['58da8c6b894273be6800020a', '58da8c6b894273be5100020a']
@@ -79,7 +79,8 @@ def test_get_sections_for_course(get_key, make_call, clever_api, mock_section_da
     get_key.return_value = ['12345', '67892']
 
     # Each time we call, we get a response
-    make_call.side_effect = [get_mock_api_response(data_1), get_mock_api_response(data_2)]
+    make_call.side_effect = [get_mock_api_response_dataonly(data_1),
+                             get_mock_api_response_dataonly(data_2)]
 
     # Combine ID fields from data 1 and 2
     expected = [map(lambda x: x['id'], data) for data in [data_1, data_2]]
@@ -97,8 +98,8 @@ def test_get_users_for_course(get_sections, make_call, clever_api, mock_user_dat
 
     get_sections.return_value = ['12345']
     make_call.side_effect = [
-        get_mock_api_response(mock_students),
-        get_mock_api_response(mock_teachers)
+        get_mock_api_response_dataonly(mock_students),
+        get_mock_api_response_dataonly(mock_teachers)
     ]
 
     response = clever_api.get_users_for_course("Math 9", "users")
@@ -126,6 +127,8 @@ def get_mock_api_response(data, status_code=200, headers=None):
     response_list = [MockResponse(MockEntry(**d)) for d in data]
     return (MockResponse(response_list), status_code, headers)
 
+def get_mock_api_response_dataonly(data):
+    return get_mock_api_response(data)[0].data
 
 class MockResponse():
     def __init__(self, data):
