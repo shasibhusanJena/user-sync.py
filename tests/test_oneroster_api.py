@@ -1,12 +1,11 @@
-import pytest
-import mock
-import random
-import urllib3
-import re
 import collections
-import user_sync.connector.oneroster as oneroster
+import re
 
-cleverpath = 'user_sync.connector.oneroster.CleverConnector'
+import mock
+import pytest
+import urllib3
+
+import user_sync.connector.oneroster as oneroster
 
 
 @pytest.fixture()
@@ -22,20 +21,11 @@ def clever_api():
 
     return oneroster.CleverConnector(options)
 
+def test_get_users(clever_api):
+    pass
 
-# def test_simple_filters(clever_api):
-#     x = clever_api.translate(group_filter='sections', user_filter='students', name='classname')
-#
-#
-# def test_make_call(clever_api):
-#     section = "'58da8c6a894273be68000184'"
-#     # 31 Users
-#
-#     call = clever_api.clever_api.get_section(id='58da8c6a894273be68000184')
-#     #   results = clever_api.make_call(call, limit=100, id=section)
-#
-#     print()
-
+def test_make_call(clever_api):
+    pass
 
 @mock.patch('user_sync.connector.oneroster.CleverConnector.make_call')
 def test_get_primary_key(mock_make_call, clever_api, log_stream):
@@ -144,17 +134,12 @@ def test_get_users_for_course(get_sections, make_call, clever_api):
         get_mock_api_response(mock_teachers)
     ]
 
-    response =  clever_api.get_users_for_course("Math 9", "users")
+    response = clever_api.get_users_for_course("Math 9", "users")
     response_data = [{'email': d.data.email, 'name': d.data.name,
                       'school': d.data.school, 'sis_id': d.data.sis_id} for d in response]
 
     mock_students.extend(mock_teachers)
     assert response_data == mock_students
-
-# def test_x(clever_api):
-#     d = clever_api.clever_api.get_students_with_http_info()[0].data
-#
-#     print()
 
 
 def test_translate(clever_api):

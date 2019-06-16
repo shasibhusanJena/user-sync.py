@@ -148,7 +148,7 @@ class ClasslinkConnector():
 #
 #
 #
-#
+#   Clever
 #
 #
 #
@@ -170,7 +170,6 @@ class CleverConnector():
         # client_id: 5d8a7b5eff6cbe25bc6e
         # client_secret: ec6d2c060987e32cbe785f7f1a58a307a04cf0a4
         # Our token: 3d65011e5b5d02c9de5cd129442a3b539de57cf6
-
         # configuration.username = self.client_id
         # configuration.password = self.client_secret
         # configuration.get_basic_auth_token()
@@ -179,9 +178,6 @@ class CleverConnector():
         self.clever_api = clever.DataApi(clever.ApiClient(configuration))
 
     def get_users(self, **kwargs):
-
-        # api_response = self.clever_api.get_students_with_http_info(**kw)
-        # users = api_response[0].data
         return set([])
 
     def make_call(self, call, **params):
@@ -208,7 +204,6 @@ class CleverConnector():
         return collected_objects
 
     def get_primary_key(self, type, name):
-
         call = {
             'sections': self.clever_api.get_sections_with_http_info,
             'courses': self.clever_api.get_sections_with_http_info,
@@ -229,7 +224,6 @@ class CleverConnector():
                 self.logger.warning("No property: '" + self.match +
                                     "' was found on " + type.rstrip('s') + " for entity '" + name + "'")
                 break
-
         if not id_list:
             self.logger.warning("No objects found for " + type + ": " + name)
         return id_list
@@ -241,7 +235,6 @@ class CleverConnector():
         for i in id_list:
             sections.extend(
                 self.make_call(self.clever_api.get_sections_for_course_with_http_info, id=i)[0].data)
-
         if not sections:
             self.logger.warning("No sections found for course '" + name + "'")
             return []
@@ -255,7 +248,6 @@ class CleverConnector():
         for s in sections:
             for c in calls:
                 user_list.extend(self.make_call(c, id=s)[0].data)
-
         if not user_list:
             self.logger.warning("No users found for course '" + name + "'")
         return user_list
