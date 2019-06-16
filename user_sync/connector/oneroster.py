@@ -204,6 +204,9 @@ class CleverConnector():
         return collected_objects
 
     def get_primary_key(self, type, name):
+        if self.match == 'id':
+            return name
+
         call = {
             'sections': self.clever_api.get_sections_with_http_info,
             'courses': self.clever_api.get_sections_with_http_info,
