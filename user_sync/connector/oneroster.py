@@ -209,13 +209,13 @@ class CleverConnector():
 
     def get_primary_key(self, type, name):
 
-        if type == 'sections':
-            call = self.clever_api.get_sections_with_http_info
-        elif type == 'courses':
-            call = self.clever_api.get_courses_with_http_info
-        elif type == 'schools':
-            call = self.clever_api.get_schools_with_http_info
-        else:
+        call = {
+            'sections': self.clever_api.get_sections_with_http_info,
+            'courses': self.clever_api.get_sections_with_http_info,
+            'schools': self.clever_api.get_sections_with_http_info,
+        }.get(type)
+
+        if not call:
             raise ValueError("Invalid group filter: " + type +
                              " is not a valid type. [sections, courses, schools]")
 
@@ -256,7 +256,6 @@ class CleverConnector():
         user_list = []
         for s in sections:
             user_list.extend(self.make_call(call, id=s))
-
         return user_list
 
     def translate(self, group_filter=None, user_filter=None, name=None, is_id=False):

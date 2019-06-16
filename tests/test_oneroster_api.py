@@ -23,18 +23,18 @@ def clever_api():
     return oneroster.CleverConnector(options)
 
 
-def test_simple_filters(clever_api):
-    x = clever_api.translate(group_filter='sections', user_filter='students', name='classname')
-
-
-def test_make_call(clever_api):
-    section = "'58da8c6a894273be68000184'"
-    # 31 Users
-
-    call = clever_api.clever_api.get_section(id='58da8c6a894273be68000184')
-    #   results = clever_api.make_call(call, limit=100, id=section)
-
-    print()
+# def test_simple_filters(clever_api):
+#     x = clever_api.translate(group_filter='sections', user_filter='students', name='classname')
+#
+#
+# def test_make_call(clever_api):
+#     section = "'58da8c6a894273be68000184'"
+#     # 31 Users
+#
+#     call = clever_api.clever_api.get_section(id='58da8c6a894273be68000184')
+#     #   results = clever_api.make_call(call, limit=100, id=section)
+#
+#     print()
 
 
 @mock.patch('user_sync.connector.oneroster.CleverConnector.make_call')
@@ -111,24 +111,15 @@ def test_get_sections_for_course(get_key, make_call, clever_api):
     assert collections.Counter(expected) == collections.Counter(result)
 
 
-# def test_samle_data(clever_api):
-#
-#
-#     c = clever_api.clever_api.get_sections_with_http_info()
-#  #   clever_api.get_primary_key('sections', name='Introduction to Web Design - Corwin - 1')
-#     print()
-
 
 def get_mock_api_response(data, status_code=200, headers=None):
     headers = urllib3.response.HTTPHeaderDict(headers)
     response_list = [MockResponse(MockEntry(**d)) for d in data]
     return (MockResponse(response_list), status_code, headers)
 
-
 class MockResponse():
     def __init__(self, data):
         self.data = data
-
 
 class MockEntry():
     def __init__(self, **kwargs):
