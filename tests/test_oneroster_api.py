@@ -33,22 +33,30 @@ def test_make_call(clever_api):
 
 
 @mock.patch('user_sync.connector.oneroster.CleverConnector.make_call')
-def test_get_primary_key(mock_make_call, clever_api):
+def test_get_primary_key(mock_make_call, clever_api, log_stream):
     data = [
         {'id': '58da8c6b894273be680001fc', 'name': 'Class 003, Homeroom - Stark - 0'},
         {'id': '58da8c6b894273be6800020a', 'name': 'Class 202, Homeroom - Jones - 0'},
-        {'id': '58da8c6b894273be6800020a', 'name': 'Class 202, Homeroom - Jones - 0'},
+        {'id': '58da8c6b894273be5100020a', 'name': 'Class 202, Homeroom - Jones - 0'},
         {'id': '58da8c6b894273be68000236', 'name': 'Grade 2 Math, Class 201 - Hammes - 3'},
         {'id': '58da8c6b894273be68000222', 'name': 'Kindergarten Math, Class 002 - Schoen - 1'},
         {'id': '58da8c6b894273be68000242', 'name': 'Mathematics, Class 601 - Goldner - 3'}
     ]
 
-    mock_make_call.return_value = get_mock_response(data)[0].data
+    mock_make_call.return_value = get_mock_api_response(data)[0].data
 
-    z = clever_api.get_primary_key("sections", "Class 202, Homeroom - Jones - 0")
-    z2 = clever_api.get_primary_key("sections", "Class 2022, Homeroom - Jones - 0")
+    stream, logger = log_stream
+    clever_api.logger = logger
 
-    print()
+    keys = clever_api.get_primary_key("sections", "Class 202, Homeroom - Jones - 0")
+    assert keys == ['58da8c6b894273be6800020a', '58da8c6b894273be5100020a']
+
+    keys = clever_api.get_primary_key("sections", "Fake class")
+    assert not keys
+
+    stream.flush()
+    logs = stream.getvalue()
+    assert logs == 'No objects found for sections: Fake class\n'
 
 
 def test_get_sections_for_course(clever_api):
@@ -68,7 +76,7 @@ def test_get_sections_for_course(clever_api):
 
 
 
-def get_mock_response(data, status_code=200, headers=None):
+def get_mock_api_response(data, status_code=200, headers=None):
     headers = urllib3.response.HTTPHeaderDict(headers)
     response_list = [MockResponse(MockEntry(**d)) for d in data]
     return (MockResponse(response_list), status_code, headers)
