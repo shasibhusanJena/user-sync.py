@@ -31,20 +31,10 @@ def test_make_call(clever_api):
 
 
 @mock.patch('user_sync.connector.oneroster.CleverConnector.make_call')
-def test_get_primary_key(mock_make_call, clever_api, log_stream):
-    data = [
-        {'id': '58da8c6b894273be680001fc', 'name': 'Class 003, Homeroom - Stark - 0', 'sis_id': '278-002-1020', 'course': 'Math 101'},
-        {'id': '58da8c6b894273be6800020a', 'name': 'Class 202, Homeroom - Jones - 0', 'sis_id': '341-356-1315', 'course': 'Art 101'},
-        {'id': '58da8c6b894273be5100020a', 'name': 'Class 202, Homeroom - Jones - 0', 'sis_id': '754-1523-6311', 'course': 'Sci 101'},
-        {'id': '58da8c6b894273be68000236', 'name': 'Grade 2 Math, Class 201 - Hammes - 3', 'sis_id': '161-875-2356', 'course': 'Geo 101'},
-        {'id': '58da8c6b894273be68000222', 'name': 'Kindergarten Math, Class 002 - Schoen - 1', 'sis_id': '958-163-2145', 'course': 'Alg 101'},
-        {'id': '58da8c6b894273be68000242', 'name': 'Mathematics, Class 601 - Goldner - 3', 'sis_id': '762-561-6723', 'course': 'Shop 101'}
-    ]
-
-    mock_make_call.return_value = get_mock_api_response(data)[0].data
-
+def test_get_primary_key(mock_make_call, clever_api, log_stream, mock_section_data):
     stream, logger = log_stream
     clever_api.logger = logger
+    mock_make_call.return_value = get_mock_api_response(mock_section_data)[0].data
 
     keys = clever_api.get_primary_key("sections", "Class 202, Homeroom - Jones - 0")
     assert keys == ['58da8c6b894273be6800020a', '58da8c6b894273be5100020a']
@@ -63,7 +53,6 @@ def test_get_primary_key(mock_make_call, clever_api, log_stream):
     logs = stream.getvalue()
     assert re.search("(No property: 'bad' was found on section for entity 'fake')", logs)
 
-
     # Get ID based on SIS ID
     clever_api.match = "sis_id"
     keys = clever_api.get_primary_key("sections", "161-875-2356")
@@ -79,20 +68,12 @@ def test_get_primary_key(mock_make_call, clever_api, log_stream):
 
 @mock.patch('user_sync.connector.oneroster.CleverConnector.make_call')
 @mock.patch('user_sync.connector.oneroster.CleverConnector.get_primary_key')
-def test_get_sections_for_course(get_key, make_call, clever_api):
+def test_get_sections_for_course(get_key, make_call, clever_api, mock_section_data):
     # Sections for ID 1
-    data_1 = [
-        {'id': '58da8c6b894273be680001fc', 'name': 'Class 003, Homeroom - Stark - 0'},
-        {'id': '58da8c6b894273be6800020a', 'name': 'Class 202, Homeroom - Jones - 0'},
-        {'id': '58da8c6b894273be5100020a', 'name': 'Class 202, Homeroom - Jones - 0'},
-    ]
+    data_1 = mock_section_data[0:2]
 
     # Sections for ID 2
-    data_2 = [
-        {'id': '58da8c6b894273be68000236', 'name': 'Grade 2 Math, Class 201 - Hammes - 3'},
-        {'id': '58da8c6b894273be68000222', 'name': 'Kindergarten Math, Class 002 - Schoen - 1'},
-        {'id': '58da8c6b894273be68000242', 'name': 'Mathematics, Class 601 - Goldner - 3'}
-    ]
+    data_2 = mock_section_data[3:5]
 
     # These are the id's found for course name (totally arbitrary here)
     get_key.return_value = ['12345', '67892']
@@ -110,30 +91,9 @@ def test_get_sections_for_course(get_key, make_call, clever_api):
 
 @mock.patch('user_sync.connector.oneroster.CleverConnector.make_call')
 @mock.patch('user_sync.connector.oneroster.CleverConnector.get_sections_for_course')
-def test_get_users_for_course(get_sections, make_call, clever_api):
-    mock_students = [
-        {
-            'email': 'z.steve@example.net',
-            'name': {'first': 'Steve', 'last': 'Ziemann', 'middle': 'G'},
-            'school': '58da8c58155b940248000007',
-            'sis_id': '100095233', },
-        {
-            'email': 'julia.r@example.org',
-            'name': {'first': 'Julia', 'last': 'Runolfsdottir', 'middle': 'B'},
-            'school': '58da8c58155b940248000007',
-            'sis_id': '108028995'}]
-
-    mock_teachers = [
-        {
-            'email': 'sisko.b@example.net',
-            'name': {'first': 'Benjamin', 'last': 'Sisko', 'middle': 'J'},
-            'school': '58da8c58155b940248000007',
-            'sis_id': '1001234233', },
-        {
-            'email': 'picard.j@example.org',
-            'name': {'first': 'Jean Luc', 'last': 'Picard', 'middle': ''},
-            'school': '58da8c58155b940248000007',
-            'sis_id': '108062341'}]
+def test_get_users_for_course(get_sections, make_call, clever_api, mock_user_data):
+    mock_students = mock_user_data[0:1]
+    mock_teachers = mock_user_data[2:3]
 
     get_sections.return_value = ['12345']
     make_call.side_effect = [
@@ -156,6 +116,11 @@ def test_translate(clever_api):
     pytest.raises(ValueError, clever_api.translate, user_filter="x", group_filter="y")
 
 
+@mock.patch('user_sync.connector.oneroster.CleverConnector.make_call')
+def test_make_call(make_call, clever_api):
+    pass
+
+
 def get_mock_api_response(data, status_code=200, headers=None):
     headers = urllib3.response.HTTPHeaderDict(headers)
     response_list = [MockResponse(MockEntry(**d)) for d in data]
@@ -175,3 +140,75 @@ class MockEntry():
         self.email = kwargs.get('email')
         self.school = kwargs.get('school')
         self.sis_id = kwargs.get('sis_id')
+
+
+@pytest.fixture()
+def mock_section_data():
+    return [
+        {
+            'id': '58da8c6b894273be680001fc',
+            'name': 'Class 003, Homeroom - Stark - 0',
+            'sis_id': '278-002-1020',
+            'course': 'Math 101'
+        },
+        {
+            'id': '58da8c6b894273be6800020a',
+            'name': 'Class 202, Homeroom - Jones - 0',
+            'sis_id': '341-356-1315',
+            'course': 'Art 101'
+        },
+        {
+            'id': '58da8c6b894273be5100020a',
+            'name': 'Class 202, Homeroom - Jones - 0',
+            'sis_id': '754-1523-6311',
+            'course': 'Sci 101'
+        },
+        {
+            'id': '58da8c6b894273be68000236',
+            'name': 'Grade 2 Math, Class 201 - Hammes - 3',
+            'sis_id': '161-875-2356',
+            'course': 'Geo 101'
+        },
+        {
+            'id': '58da8c6b894273be68000222',
+            'name': 'Kindergarten Math, Class 002 - Schoen - 1',
+            'sis_id': '958-163-2145',
+            'course': 'Alg 101'},
+        {
+            'id': '58da8c6b894273be68000242',
+            'name': 'Mathematics, Class 601 - Goldner - 3',
+            'sis_id': '762-561-6723',
+            'course': 'Shop 101'}
+    ]
+
+
+@pytest.fixture()
+def mock_user_data():
+    return [
+        {
+            'email': 'z.steve@example.net',
+            'name': {'first': 'Steve', 'last': 'Ziemann', 'middle': 'G'},
+            'school': '58da8c58155b940248000007',
+            'sis_id': '100095233'
+        },
+        {
+            'email': 'julia.r@example.org',
+            'name': {'first': 'Julia', 'last': 'Runolfsdottir', 'middle': 'B'},
+            'school': '58da8c58155b940248000007',
+            'sis_id': '108028995'
+        },
+        {
+            'email': 'sisko.b@example.net',
+            'name': {'first': 'Benjamin', 'last': 'Sisko', 'middle': 'J'},
+            'school': '58da8c58155b940248000007',
+            'sis_id': '1001234233'
+        },
+        {
+            'email': 'picard.j@example.org',
+            'name': {'first': 'Jean Luc', 'last': 'Picard', 'middle': ''},
+            'school': '58da8c58155b940248000007',
+            'sis_id': '108062341'
+        }
+    ]
+
+
