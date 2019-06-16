@@ -258,34 +258,30 @@ class CleverConnector():
             user_list.extend(self.make_call(call, id=s))
         return user_list
 
-    def translate(self, group_filter=None, user_filter=None, name=None, is_id=False):
+    def translate(self, group_filter, user_filter):
 
-        if group_filter == "sections" and user_filter == "students":
-            return [self.clever_api.get_students_for_section_with_http_info]
+        call = {
+            'sections_students': [self.clever_api.get_students_for_section_with_http_info],
+            'sections_teachers': [self.clever_api.get_teachers_for_section_with_http_info],
+            'sections_users': [self.clever_api.get_students_for_section_with_http_info,
+                               self.clever_api.get_teachers_for_section_with_http_info],
 
-        elif group_filter == "sections" and user_filter == "teachers":
-            return [self.clever_api.get_teachers_for_section_with_http_info]
+            'courses_students': [self.get_users_for_course],
+            'courses_teachers': [self.get_users_for_course],
+            'courses_users': [self.get_users_for_course],
 
-        elif group_filter == "sections" and user_filter == "users":
-            return [self.clever_api.get_students_for_section_with_http_info,
-                    self.clever_api.get_teachers_for_section_with_http_info]
+            'schools_students': [self.clever_api.get_students_for_school_with_http_info],
+            'schools_teachers': [self.clever_api.get_teachers_for_school_with_http_info],
+            'schools_users': [self.clever_api.get_students_for_school_with_http_info,
+                              self.clever_api.get_teachers_for_school_with_http_info],
 
-        elif group_filter == "courses" and user_filter == "students":
-            return [self.get_users_for_course]
+            'all_students' : [self.clever_api.get_students_with_http_info],
+            'all_teachers' : [self.clever_api.get_teachers_with_http_info],
+            'all_users' : [self.clever_api.get_students_with_http_info,
+                           self.clever_api.get_teachers_with_http_info],
+        }.get(group_filter + "_" + user_filter)
 
-        elif group_filter == "courses" and user_filter == "teachers":
-            return [self.get_users_for_course]
+        if not call:
+            raise ValueError("Unrecognized method request: 'get_" + user_filter + "_for_" + group_filter + "'")
 
-        elif group_filter == "courses" and user_filter == "users":
-            return [self.get_users_for_course,
-                    self.get_users_for_course]
-
-        elif group_filter == "schools" and user_filter == "students":
-            return [self.clever_api.get_students_for_school_with_http_info]
-
-        elif group_filter == "schools" and user_filter == "teachers":
-            return [self.clever_api.get_teachers_for_school_with_http_info]
-
-        elif group_filter == "schools" and user_filter == "users":
-            return [self.clever_api.get_students_for_school_with_http_info,
-                    self.clever_api.get_teachers_for_school_with_http_info]
+        return call

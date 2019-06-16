@@ -111,15 +111,23 @@ def test_get_sections_for_course(get_key, make_call, clever_api):
     assert collections.Counter(expected) == collections.Counter(result)
 
 
+def test_translate(clever_api):
+    calls = clever_api.translate('sections', 'users')
+    assert calls[0] == clever_api.clever_api.get_students_for_section_with_http_info
+    assert calls[1] == clever_api.clever_api.get_teachers_for_section_with_http_info
+    pytest.raises(ValueError, clever_api.translate, user_filter="x", group_filter="y")
+
 
 def get_mock_api_response(data, status_code=200, headers=None):
     headers = urllib3.response.HTTPHeaderDict(headers)
     response_list = [MockResponse(MockEntry(**d)) for d in data]
     return (MockResponse(response_list), status_code, headers)
 
+
 class MockResponse():
     def __init__(self, data):
         self.data = data
+
 
 class MockEntry():
     def __init__(self, **kwargs):
