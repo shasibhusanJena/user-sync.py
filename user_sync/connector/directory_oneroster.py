@@ -87,6 +87,7 @@ class OneRosterConnector(object):
         builder.set_string_value('user_identity_type_format', None)
         builder.set_string_value('default_group_filter', 'classes')
         builder.set_string_value('default_user_filter', 'students')
+        builder.set_string_value('match', 'name')
         builder.set_int_value('page_size', 1000)
         builder.set_int_value('max_user_limit', 0)
 

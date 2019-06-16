@@ -2,7 +2,7 @@
 
 import json
 import logging
-
+import time
 import clever
 import classlink_oneroster
 
@@ -23,6 +23,21 @@ def get_connector(options):
                               " was found. Supported are: [classlink, clever]")
 
 
+def decode_string(string):
+    try:
+        decoded = string.decode()
+    except:
+        decoded = str(string)
+    return decoded.lower().strip()
+
+
+#
+#
+#
+#
+#
+#
+
 class ClasslinkConnector():
     """ Starts connection and makes queries with One-Roster API"""
 
@@ -38,9 +53,9 @@ class ClasslinkConnector():
 
     def get_users(self,
                   group_filter=None,  # Type of group (class, course, school)
-                  group_name=None,        # Plain group name (Math 6)
+                  group_name=None,  # Plain group name (Math 6)
                   user_filter=None,  # Which users: users, students, staff
-                  request_type=None,       # Determines which logic is used (see below)
+                  request_type=None,  # Determines which logic is used (see below)
                   ):
 
         results = []
@@ -107,7 +122,7 @@ class ClasslinkConnector():
                 other = 'course' if group_filter == 'courses' else 'classes'
                 name_identifier, revised_key = ('name', 'orgs') if group_filter == 'schools' else ('title', other)
                 for entry in json.loads(response.content).get(revised_key):
-                    if self.decode_string(entry[name_identifier]) == self.decode_string(group_name):
+                    if decode_string(entry[name_identifier]) == decode_string(group_name):
                         try:
                             key_id = entry[self.key_identifier]
                         except ValueError:
@@ -129,12 +144,15 @@ class ClasslinkConnector():
 
         return user_list
 
-    def decode_string(self, string):
-        try:
-            decoded = string.decode()
-        except:
-            decoded = str(string)
-        return decoded.lower().strip()
+
+#
+#
+#
+#   Clever
+#
+#
+#
+#
 
 
 class CleverConnector():
@@ -146,26 +164,117 @@ class CleverConnector():
         self.key_identifier = options['key_identifier']
         self.max_users = options['max_user_limit']
         self.page_size = str(options['page_size'])
-
+        self.match = options['match']
         configuration = clever.Configuration()
+
+        # client_id: 5d8a7b5eff6cbe25bc6e
+        # client_secret: ec6d2c060987e32cbe785f7f1a58a307a04cf0a4
+        # Our token: 3d65011e5b5d02c9de5cd129442a3b539de57cf6
         # configuration.username = self.client_id
         # configuration.password = self.client_secret
         # configuration.get_basic_auth_token()
+
         configuration.access_token = 'TEST_TOKEN'
         self.clever_api = clever.DataApi(clever.ApiClient(configuration))
 
-
     def get_users(self, **kwargs):
+        return set([])
 
-        try:
+    def make_call(self, call, **params):
 
-            kw = {}
-            kw['limit'] = 10
+        # :param async bool
+        # :param int limit:
+        # :param str starting_after:
+        # :param str ending_before:
 
-            api_response = self.clever_api.get_students_with_http_info(**kw)
-            users = api_response[0].data
+        collected_objects = []
+        while True:
+            try:
+                response = call(**params)
+                new_objects = response[0].data
+                if new_objects:
+                    collected_objects.extend(new_objects)
+                    params['starting_after'] = new_objects[-1].data.id
+                else:
+                    break
+            except ApiException as e:
+                raise e
+            except Exception as e:
+                raise e
+        return collected_objects
 
-            print()
+    def get_primary_key(self, type, name):
+        call = {
+            'sections': self.clever_api.get_sections_with_http_info,
+            'courses': self.clever_api.get_sections_with_http_info,
+            'schools': self.clever_api.get_sections_with_http_info,
+        }.get(type)
 
-        except ApiException as e:
-            print("Example exception handling")
+        if not call:
+            raise ValueError("Invalid group filter: " + type +
+                             " is not a valid type. [sections, courses, schools]")
+
+        objects = self.make_call(call)
+        id_list = []
+        for o in objects:
+            try:
+                if decode_string(getattr(o.data, self.match)) == decode_string(name):
+                    id_list.append(o.data.id)
+            except AttributeError:
+                self.logger.warning("No property: '" + self.match +
+                                    "' was found on " + type.rstrip('s') + " for entity '" + name + "'")
+                break
+        if not id_list:
+            self.logger.warning("No objects found for " + type + ": " + name)
+        return id_list
+
+    def get_sections_for_course(self, name):
+        id_list = self.get_primary_key('courses', name)
+        sections = []
+
+        for i in id_list:
+            sections.extend(
+                self.make_call(self.clever_api.get_sections_for_course_with_http_info, id=i)[0].data)
+        if not sections:
+            self.logger.warning("No sections found for course '" + name + "'")
+            return []
+        else:
+            return map(lambda x: x.data.id, sections)
+
+    def get_users_for_course(self, name, user_filter):
+        calls = self.translate('sections',user_filter)
+        sections = self.get_sections_for_course(name)
+        user_list = []
+        for s in sections:
+            for c in calls:
+                user_list.extend(self.make_call(c, id=s)[0].data)
+        if not user_list:
+            self.logger.warning("No users found for course '" + name + "'")
+        return user_list
+
+    def translate(self, group_filter, user_filter):
+
+        call = {
+            'sections_students': [self.clever_api.get_students_for_section_with_http_info],
+            'sections_teachers': [self.clever_api.get_teachers_for_section_with_http_info],
+            'sections_users': [self.clever_api.get_students_for_section_with_http_info,
+                               self.clever_api.get_teachers_for_section_with_http_info],
+
+            'courses_students': [self.get_users_for_course],
+            'courses_teachers': [self.get_users_for_course],
+            'courses_users': [self.get_users_for_course, self.get_users_for_course],
+
+            'schools_students': [self.clever_api.get_students_for_school_with_http_info],
+            'schools_teachers': [self.clever_api.get_teachers_for_school_with_http_info],
+            'schools_users': [self.clever_api.get_students_for_school_with_http_info,
+                              self.clever_api.get_teachers_for_school_with_http_info],
+
+            'all_students' : [self.clever_api.get_students_with_http_info],
+            'all_teachers' : [self.clever_api.get_teachers_with_http_info],
+            'all_users' : [self.clever_api.get_students_with_http_info,
+                           self.clever_api.get_teachers_with_http_info],
+        }.get(group_filter + "_" + user_filter)
+
+        if not call:
+            raise ValueError("Unrecognized method request: 'get_" + user_filter + "_for_" + group_filter + "'")
+        return call
