@@ -7,6 +7,7 @@ if ($env:python.endswith("36-x64")) {
 }
 .\venv\Scripts\activate.ps1
 pip install external\okta-0.0.3.1-py2.py3-none-any.whl
+pip install external\clever_python-3.0.2-py2.py3-none-any.whl
 pip install -e .
 pip install -e .[test]
 pip install -e .[setup]
