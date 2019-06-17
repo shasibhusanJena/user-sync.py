@@ -23,8 +23,13 @@ def clever_api():
 
 
 def test_get_users(clever_api):
-    pass
 
+
+    # clever_api.get_users(group_filter='sections',
+    #                      user_filter='students',
+    #                      group_name='Class 003, Homeroom - Stark - 0')
+
+    clever_api.get_users(user_filter='users')
 
 @mock.patch('clever.DataApi.get_students_with_http_info')
 def test_make_call(get_students, clever_api, mock_user_data):
