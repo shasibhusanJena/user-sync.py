@@ -2,10 +2,9 @@
 
 import json
 import logging
-import time
-import clever
-import classlink_oneroster
 
+import classlink_oneroster
+import clever
 from clever.rest import ApiException
 
 
@@ -197,7 +196,7 @@ class CleverConnector():
         user_list = [x.data for x in results]
         return user_list
 
-    def make_call(self, call, users=False,  **params):
+    def make_call(self, call, users=False, **params):
 
         # :param async bool
         # :param int limit:

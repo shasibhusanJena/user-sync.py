@@ -22,14 +22,89 @@ def clever_api():
     return oneroster.CleverConnector(options)
 
 
-def test_get_users(clever_api):
+@mock.patch('clever.DataApi.get_students_with_http_info')
+@mock.patch('clever.DataApi.get_teachers_with_http_info')
+def test_get_users(get_teachers, get_students, clever_api, mock_many_students, mock_teacher):
+
+    # Empty response needed to end the make cap
+    empty_repsonse = get_mock_api_response([])
+    mock_student_response = [get_mock_api_response(mock_many_students), empty_repsonse]
+    mock_teacher_response = [get_mock_api_response(mock_teacher), empty_repsonse]
+
+    # Reset data
+    get_students.side_effect = mock_student_response
+
+    # Get students
+    response = clever_api.get_users(user_filter='students')
+    expected = [x['id'] for x in mock_many_students]
+    actual = [x.id for x in response]
+    assert collections.Counter(expected) == collections.Counter(actual)
+
+    # Reset data
+    get_teachers.side_effect = mock_teacher_response
+
+    response = clever_api.get_users(user_filter='teachers')
+    expected = [x['id'] for x in mock_teacher]
+    actual = [x.id for x in response]
+    assert collections.Counter(expected) == collections.Counter(actual)
+
+    # Reset data
+    get_students.side_effect = mock_student_response
+    get_teachers.side_effect = mock_teacher_response
+
+    # Get all users
+    response = clever_api.get_users(user_filter='users')
+    expected = [x['id'] for x in mock_many_students]
+    expected.append(mock_teacher[0]['id'])
+    actual = [x.id for x in response]
+    assert collections.Counter(expected) == collections.Counter(actual)
 
 
-    # clever_api.get_users(group_filter='sections',
-    #                      user_filter='students',
-    #                      group_name='Class 003, Homeroom - Stark - 0')
+@mock.patch('clever.DataApi.get_students_for_section_with_http_info')
+@mock.patch('clever.DataApi.get_teachers_for_section_with_http_info')
+@mock.patch('user_sync.connector.oneroster.CleverConnector.get_primary_key')
+def test_get_users_for_section(get_key, get_teachers, get_students, clever_api, mock_many_students, mock_teacher):
 
-    clever_api.get_users(user_filter='users')
+    # Empty response needed to end the make cap
+    empty_repsonse = get_mock_api_response([])
+    mock_student_response = [get_mock_api_response(mock_many_students), empty_repsonse]
+    mock_teacher_response = [get_mock_api_response(mock_teacher), empty_repsonse]
+
+    # Section key - not actually relevent here
+    get_key.return_value = ['58da8c6b894273be680001fc']
+
+    # Get students
+    get_students.side_effect = mock_student_response
+    response = clever_api.get_users(user_filter='students',
+                                    group_filter='sections',
+                                    group_name='Class 003, Homeroom - Stark - 0')
+
+    expected = [x['id'] for x in mock_many_students]
+    actual = [x.id for x in response]
+    assert collections.Counter(expected) == collections.Counter(actual)
+
+    # Get students
+    get_teachers.side_effect = mock_teacher_response
+    response = clever_api.get_users(user_filter='teachers',
+                                    group_filter='sections',
+                                    group_name='Class 003, Homeroom - Stark - 0')
+
+    expected = [x['id'] for x in mock_teacher]
+    actual = [x.id for x in response]
+    assert collections.Counter(expected) == collections.Counter(actual)
+
+    # Get all users
+    get_students.side_effect = mock_student_response
+    get_teachers.side_effect = mock_teacher_response
+    response = clever_api.get_users(user_filter='users',
+                                    group_filter='sections',
+                                    group_name='Class 003, Homeroom - Stark - 0')
+
+    expected = [x['id'] for x in mock_many_students]
+    expected.append(mock_teacher[0]['id'])
+    actual = [x.id for x in response]
+    assert collections.Counter(expected) == collections.Counter(actual)
+
 
 @mock.patch('clever.DataApi.get_students_with_http_info')
 def test_make_call(get_students, clever_api, mock_user_data):
@@ -155,6 +230,22 @@ class MockEntry():
         self.sis_id = kwargs.get('sis_id')
 
 
+# Not a real test - just for producing data
+# def test_data_generator(clever_api):
+#     res = clever_api.get_users(group_filter='sections',
+#                                user_filter='users',
+#                                group_name='Class 003, Homeroom - Stark - 0')
+#     mock_many = [
+#         {
+#             'id': x.id,
+#             'name': x.name,
+#             'email': x.email,
+#             'sis_id': x.sis_id,
+#             'school': x.school
+#         } for x in res
+#     ]
+
+
 @pytest.fixture()
 def mock_section_data():
     return [
@@ -227,3 +318,32 @@ def mock_user_data():
             'sis_id': '108062341'
         }
     ]
+
+
+@pytest.fixture()
+def mock_many_students():
+    return [{'id': '58da8c63d7dc0ca06800043e', 'name': {'first': 'Karen', 'last': 'Harvey', 'middle': 'D'}, 'email': 'karen.h@example.net', 'sis_id': '173157322'},
+            {'id': '58da8c63d7dc0ca068000443', 'name': {'first': 'Adrianna', 'last': 'Sawayn', 'middle': 'A'}, 'email': 'adrianna.s@example.org', 'sis_id': '176057934'},
+            {'id': '58da8c63d7dc0ca06800045f', 'name': {'first': 'Jonathan', 'last': 'Dietrich', 'middle': 'G'}, 'email': 'd.jonathan@example.com', 'sis_id': '206776810'},
+            {'id': '58da8c63d7dc0ca06800047a', 'name': {'first': 'George', 'last': "O'Connell", 'middle': 'S'}, 'email': 'o_george@example.org', 'sis_id': '235286679'},
+            {'id': '58da8c63d7dc0ca068000497', 'name': {'first': 'Kevin', 'last': 'Herman', 'middle': 'B'}, 'email': 'h_kevin@example.net', 'sis_id': '265863904'},
+            {'id': '58da8c63d7dc0ca0680004ca', 'name': {'first': 'Alice', 'last': 'Fadel', 'middle': 'J'}, 'email': 'f_alice@example.org', 'sis_id': '297056232'},
+            {'id': '58da8c64d7dc0ca068000562', 'name': {'first': 'Mark', 'last': 'McGlynn', 'middle': 'A'}, 'email': 'm.mark@example.net', 'sis_id': '427573397'},
+            {'id': '58da8c64d7dc0ca0680005aa', 'name': {'first': 'Mark', 'last': 'Hackett', 'middle': 'E'}, 'email': 'h.mark@example.org', 'sis_id': '495684672'},
+            {'id': '58da8c64d7dc0ca0680005c0', 'name': {'first': 'Linda', 'last': 'Abernathy', 'middle': 'C'}, 'email': 'linda.a@example.com', 'sis_id': '508410312'},
+            {'id': '58da8c64d7dc0ca0680005c3', 'name': {'first': 'Julianne', 'last': 'Dicki', 'middle': 'C'}, 'email': 'd.julianne@example.net', 'sis_id': '510492620'},
+            {'id': '58da8c64d7dc0ca0680005e7', 'name': {'first': 'Tammy', 'last': 'Robel', 'middle': 'R'}, 'email': 'tammy_r@example.net', 'sis_id': '547417208'},
+            {'id': '58da8c64d7dc0ca068000640', 'name': {'first': 'Marcia', 'last': 'Rippin', 'middle': 'R'}, 'email': 'r_marcia@example.org', 'sis_id': '635560230'},
+            {'id': '58da8c64d7dc0ca06800064b', 'name': {'first': 'Margaret', 'last': 'Grant', 'middle': 'D'}, 'email': 'margaret_g@example.net', 'sis_id': '641257513'},
+            {'id': '58da8c64d7dc0ca068000674', 'name': {'first': 'Florence', 'last': 'Rowe', 'middle': 'P'}, 'email': 'florence_r@example.org', 'sis_id': '674331356'},
+            {'id': '58da8c65d7dc0ca068000698', 'name': {'first': 'Mary', 'last': 'Rosenbaum', 'middle': 'P'}, 'email': 'r.mary@example.com', 'sis_id': '710689080'},
+            {'id': '58da8c65d7dc0ca0680006f4', 'name': {'first': 'Kimberly', 'last': 'Mraz', 'middle': 'R'}, 'email': 'm.kimberly@example.org', 'sis_id': '800017226'},
+            {'id': '58da8c65d7dc0ca068000715', 'name': {'first': 'Diana', 'last': 'Monahan', 'middle': 'E'}, 'email': 'm.diana@example.net', 'sis_id': '830604811'},
+            {'id': '58da8c65d7dc0ca06800077d', 'name': {'first': 'Vivian', 'last': 'Kris', 'middle': 'K'}, 'email': 'vivian_k@example.net', 'sis_id': '926639679'},
+            {'id': '58da8c65d7dc0ca0680007ab', 'name': {'first': 'Vanessa', 'last': 'Farrell', 'middle': 'C'}, 'email': 'vanessa_f@example.org', 'sis_id': '963452890'},
+            {'id': '58da8c65d7dc0ca0680007b0', 'name': {'first': 'Jeffrey', 'last': 'Hettinger', 'middle': 'A'}, 'email': 'h.jeffrey@example.org', 'sis_id': '967155729'}]
+
+
+@pytest.fixture()
+def mock_teacher():
+    return [{'id': '58da8c5da7a7e5a64700009c', 'name': {'first': 'Jessica', 'last': 'Stark', 'middle': 'R'}, 'email': 'stark_jessica@example.net', 'sis_id': '70'}]
