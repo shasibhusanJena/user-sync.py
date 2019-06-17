@@ -2,10 +2,9 @@
 
 import json
 import logging
-import time
-import clever
-import classlink_oneroster
 
+import classlink_oneroster
+import clever
 from clever.rest import ApiException
 
 
@@ -161,10 +160,11 @@ class CleverConnector():
         self.logger = logging.getLogger("clever")
         self.client_id = options['client_id']
         self.client_secret = options['client_secret']
-        self.key_identifier = options['key_identifier']
         self.max_users = options['max_user_limit']
-        self.page_size = str(options['page_size'])
         self.match = options['match']
+        self.page_size = options['page_size']
+
+        if self.max_users <= 0: self.max_users = None
         configuration = clever.Configuration()
 
         # client_id: 5d8a7b5eff6cbe25bc6e
@@ -177,16 +177,33 @@ class CleverConnector():
         configuration.access_token = 'TEST_TOKEN'
         self.clever_api = clever.DataApi(clever.ApiClient(configuration))
 
-    def get_users(self, **kwargs):
-        return set([])
+    def get_users(self,
+                  group_filter=None,  # Type of group (class, course, school)
+                  group_name=None,  # Plain group name (Math 6)
+                  user_filter=None,  # Which users: users, students, staff
+                  ):
 
-    def make_call(self, call, **params):
+        calls = self.translate(group_filter=group_filter, user_filter=user_filter)
+
+        results = []
+        if group_filter:
+            for c in calls:
+                for i in self.get_primary_key(group_filter, group_name):
+                    results.extend(self.make_call(c, users=True, id=i))
+        else:
+            [results.extend(self.make_call(c, users=True)) for c in calls]
+
+        user_list = [x.data for x in results]
+        return user_list
+
+    def make_call(self, call, users=False, **params):
 
         # :param async bool
         # :param int limit:
         # :param str starting_after:
         # :param str ending_before:
 
+        params['limit'] = self.page_size
         collected_objects = []
         while True:
             try:
@@ -194,6 +211,8 @@ class CleverConnector():
                 new_objects = response[0].data
                 if new_objects:
                     collected_objects.extend(new_objects)
+                    if self.max_users and users and len(collected_objects) > self.max_users:
+                        return collected_objects[0:self.max_users]
                     params['starting_after'] = new_objects[-1].data.id
                 else:
                     break
@@ -245,7 +264,7 @@ class CleverConnector():
             return map(lambda x: x.data.id, sections)
 
     def get_users_for_course(self, name, user_filter):
-        calls = self.translate('sections',user_filter)
+        calls = self.translate('sections', user_filter)
         sections = self.get_sections_for_course(name)
         user_list = []
         for s in sections:
@@ -256,6 +275,9 @@ class CleverConnector():
         return user_list
 
     def translate(self, group_filter, user_filter):
+
+        group_filter = group_filter if group_filter else ''
+        user_filter = user_filter if user_filter else ''
 
         call = {
             'sections_students': [self.clever_api.get_students_for_section_with_http_info],
@@ -272,10 +294,10 @@ class CleverConnector():
             'schools_users': [self.clever_api.get_students_for_school_with_http_info,
                               self.clever_api.get_teachers_for_school_with_http_info],
 
-            'all_students' : [self.clever_api.get_students_with_http_info],
-            'all_teachers' : [self.clever_api.get_teachers_with_http_info],
-            'all_users' : [self.clever_api.get_students_with_http_info,
-                           self.clever_api.get_teachers_with_http_info],
+            '_students': [self.clever_api.get_students_with_http_info],
+            '_teachers': [self.clever_api.get_teachers_with_http_info],
+            '_users': [self.clever_api.get_students_with_http_info,
+                       self.clever_api.get_teachers_with_http_info],
         }.get(group_filter + "_" + user_filter)
 
         if not call:
