@@ -26,15 +26,25 @@ def test_get_users(clever_api):
     pass
 
 
-def test_make_call(clever_api):
-    pass
+@mock.patch('clever.DataApi.get_students_with_http_info')
+def test_make_call(get_students, clever_api, mock_user_data):
+    page_1 = get_mock_api_response(mock_user_data[0:2])
+    page_2 = get_mock_api_response(mock_user_data[2:4])
+    page_3 = get_mock_api_response([])
+
+    get_students.side_effect = [page_1, page_2, page_3]
+
+    results = clever_api.make_call(clever_api.clever_api.get_students_with_http_info)
+    expected = [x['id'] for x in mock_user_data]
+    actual = [x.data.id for x in results]
+    assert collections.Counter(expected) == collections.Counter(actual)
 
 
 @mock.patch('user_sync.connector.oneroster.CleverConnector.make_call')
 def test_get_primary_key(mock_make_call, clever_api, log_stream, mock_section_data):
     stream, logger = log_stream
     clever_api.logger = logger
-    mock_make_call.return_value = get_mock_api_response(mock_section_data)[0].data
+    mock_make_call.return_value = get_mock_api_response_dataonly(mock_section_data)
 
     keys = clever_api.get_primary_key("sections", "Class 202, Homeroom - Jones - 0")
     assert keys == ['58da8c6b894273be6800020a', '58da8c6b894273be5100020a']
@@ -79,7 +89,8 @@ def test_get_sections_for_course(get_key, make_call, clever_api, mock_section_da
     get_key.return_value = ['12345', '67892']
 
     # Each time we call, we get a response
-    make_call.side_effect = [get_mock_api_response(data_1), get_mock_api_response(data_2)]
+    make_call.side_effect = [get_mock_api_response_dataonly(data_1),
+                             get_mock_api_response_dataonly(data_2)]
 
     # Combine ID fields from data 1 and 2
     expected = [map(lambda x: x['id'], data) for data in [data_1, data_2]]
@@ -92,21 +103,19 @@ def test_get_sections_for_course(get_key, make_call, clever_api, mock_section_da
 @mock.patch('user_sync.connector.oneroster.CleverConnector.make_call')
 @mock.patch('user_sync.connector.oneroster.CleverConnector.get_sections_for_course')
 def test_get_users_for_course(get_sections, make_call, clever_api, mock_user_data):
-    mock_students = mock_user_data[0:1]
-    mock_teachers = mock_user_data[2:3]
+    mock_students = mock_user_data[0:2]
+    mock_teachers = mock_user_data[2:4]
 
     get_sections.return_value = ['12345']
     make_call.side_effect = [
-        get_mock_api_response(mock_students),
-        get_mock_api_response(mock_teachers)
+        get_mock_api_response_dataonly(mock_students),
+        get_mock_api_response_dataonly(mock_teachers)
     ]
 
     response = clever_api.get_users_for_course("Math 9", "users")
-    response_data = [{'email': d.data.email, 'name': d.data.name,
-                      'school': d.data.school, 'sis_id': d.data.sis_id} for d in response]
-
-    mock_students.extend(mock_teachers)
-    assert response_data == mock_students
+    expected = [x['id'] for x in mock_user_data]
+    actual = [x.data.id for x in response]
+    assert collections.Counter(expected) == collections.Counter(actual)
 
 
 def test_translate(clever_api):
@@ -116,15 +125,14 @@ def test_translate(clever_api):
     pytest.raises(ValueError, clever_api.translate, user_filter="x", group_filter="y")
 
 
-@mock.patch('user_sync.connector.oneroster.CleverConnector.make_call')
-def test_make_call(make_call, clever_api):
-    pass
-
-
 def get_mock_api_response(data, status_code=200, headers=None):
     headers = urllib3.response.HTTPHeaderDict(headers)
     response_list = [MockResponse(MockEntry(**d)) for d in data]
     return (MockResponse(response_list), status_code, headers)
+
+
+def get_mock_api_response_dataonly(data):
+    return get_mock_api_response(data)[0].data
 
 
 class MockResponse():
@@ -186,29 +194,31 @@ def mock_section_data():
 def mock_user_data():
     return [
         {
+            'id': '58da8c6b894224000242',
             'email': 'z.steve@example.net',
             'name': {'first': 'Steve', 'last': 'Ziemann', 'middle': 'G'},
             'school': '58da8c58155b940248000007',
             'sis_id': '100095233'
         },
         {
+            'id': '58da8c6b89486y677765',
             'email': 'julia.r@example.org',
             'name': {'first': 'Julia', 'last': 'Runolfsdottir', 'middle': 'B'},
             'school': '58da8c58155b940248000007',
             'sis_id': '108028995'
         },
         {
+            'id': '58da8c6b89427512faef3f',
             'email': 'sisko.b@example.net',
             'name': {'first': 'Benjamin', 'last': 'Sisko', 'middle': 'J'},
             'school': '58da8c58155b940248000007',
             'sis_id': '1001234233'
         },
         {
+            'id': '58da8c75ghgdsdf0242',
             'email': 'picard.j@example.org',
             'name': {'first': 'Jean Luc', 'last': 'Picard', 'middle': ''},
             'school': '58da8c58155b940248000007',
             'sis_id': '108062341'
         }
     ]
-
-

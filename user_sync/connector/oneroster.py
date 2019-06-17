@@ -237,7 +237,7 @@ class CleverConnector():
 
         for i in id_list:
             sections.extend(
-                self.make_call(self.clever_api.get_sections_for_course_with_http_info, id=i)[0].data)
+                self.make_call(self.clever_api.get_sections_for_course_with_http_info, id=i))
         if not sections:
             self.logger.warning("No sections found for course '" + name + "'")
             return []
@@ -250,7 +250,7 @@ class CleverConnector():
         user_list = []
         for s in sections:
             for c in calls:
-                user_list.extend(self.make_call(c, id=s)[0].data)
+                user_list.extend(self.make_call(c, id=s))
         if not user_list:
             self.logger.warning("No users found for course '" + name + "'")
         return user_list
