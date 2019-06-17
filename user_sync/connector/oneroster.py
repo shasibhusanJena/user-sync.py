@@ -181,6 +181,7 @@ class CleverConnector():
                   group_filter=None,  # Type of group (class, course, school)
                   group_name=None,  # Plain group name (Math 6)
                   user_filter=None,  # Which users: users, students, staff
+                  **kwargs
                   ):
 
         calls = self.translate(group_filter=group_filter, user_filter=user_filter)
