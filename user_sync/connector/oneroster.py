@@ -188,7 +188,6 @@ class CleverConnector():
                 raise LookupError("Authorization attempt failed...")
             self.access_token = p.group()
 
-
     def get_users_raw(self,
                       group_filter=None,  # Type of group (class, course, school)
                       group_name=None,  # Plain group name (Math 6)
@@ -204,7 +203,6 @@ class CleverConnector():
             [results.extend(self.make_call(c, users=True)) for c in calls]
         user_list = [x.data for x in results]
         return user_list
-
 
     def get_users(self,
                   group_filter=None,  # Type of group (class, course, school)
@@ -226,7 +224,6 @@ class CleverConnector():
                 new_user['middleName'] = new_user['name'].get('middle')
             deserialized_users.append(new_user)
         return deserialized_users
-
 
     def make_call(self, call, users=False, **params):
         # :param async bool
@@ -252,7 +249,6 @@ class CleverConnector():
             except Exception as e:
                 raise e
         return collected_objects
-
 
     def get_primary_key(self, type, name):
         if self.match == 'id':
@@ -282,7 +278,6 @@ class CleverConnector():
             self.logger.warning("No objects found for " + type + ": " + name)
         return id_list
 
-
     def get_sections_for_course(self, name):
         id_list = self.get_primary_key('courses', name)
         sections = []
@@ -296,7 +291,6 @@ class CleverConnector():
         else:
             return map(lambda x: x.data.id, sections)
 
-
     def get_users_for_course(self, name, user_filter):
         calls = self.translate('sections', user_filter)
         sections = self.get_sections_for_course(name)
@@ -307,7 +301,6 @@ class CleverConnector():
         if not user_list:
             self.logger.warning("No users found for course '" + name + "'")
         return user_list
-
 
     def translate(self, group_filter, user_filter):
         group_filter = group_filter if group_filter else ''
@@ -337,7 +330,6 @@ class CleverConnector():
         if not call:
             raise ValueError("Unrecognized method request: 'get_" + user_filter + "_for_" + group_filter + "'")
         return call
-
 
     def deserialize_object(self, obj, classkey=None):
         if isinstance(obj, dict):

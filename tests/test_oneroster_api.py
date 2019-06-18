@@ -206,10 +206,6 @@ def test_translate(clever_api):
     pytest.raises(ValueError, clever_api.translate, user_filter="x", group_filter="y")
 
 
-
-#def test_objectmapper(clever_api):
-
-
 def get_mock_api_response(data, status_code=200, headers=None):
     headers = urllib3.response.HTTPHeaderDict(headers)
     response_list = [MockResponse(MockEntry(**d)) for d in data]
