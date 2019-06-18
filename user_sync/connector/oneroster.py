@@ -1,12 +1,12 @@
 # from __future__ import print_function
-import re
 import json
 import logging
-import requests
+import re
+
 import classlink_oneroster
 import clever
+import requests
 from clever.rest import ApiException
-from json import JSONDecodeError
 
 
 # Github: https://github.com/vossen-adobe/classlink
@@ -19,7 +19,7 @@ def get_connector(options):
     elif platform == 'clever':
         return CleverConnector(options)
 
-    raise ModuleNotFoundError("No module for " + platform +
+    raise NotImplementedError("No module for " + platform +
                               " was found. Supported are: [classlink, clever]")
 
 
@@ -180,9 +180,9 @@ class CleverConnector():
         auth_resp = requests.get("https://clever.com/oauth/tokens", auth=(self.client_id, self.client_secret))
         try:
             self.access_token = json.loads(auth_resp.content)['data'][0]['access_token']
-        except JSONDecodeError:
+        except ValueError:
             self.logger.warning(" Failed to parse response, attemting regex search... ")
-            pattern = '(?<=access_tooooken(":"|\':\')).+[a-z0-9]{25,}'
+            pattern = '(?<=access_token(":"|\':\')).+[a-z0-9]{25,}'
             p = re.search(pattern, auth_resp.text)
             if not p:
                 raise LookupError("Authorization attempt failed...")
