@@ -213,7 +213,9 @@ class RecordHandler:
         attribute_warning = "No %s attribute (%s) for user with key: %s, defaulting to %s"
         source_attributes = {}
         key = record.get(key_identifier)
-        if key is None or record.get('status') != 'active':
+        if key is None:
+            return
+        if 'status' in record and record.get('status') != 'active':
             return
         email, last_attribute_name = self.user_email_formatter.generate_value(record)
         email = email.strip() if email else None

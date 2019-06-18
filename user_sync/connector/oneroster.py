@@ -211,9 +211,9 @@ class CleverConnector():
             new_user = dict(self.deserialize_object(u))
 
             if 'name' in new_user:
-                new_user['firstname'] = new_user['name'].get('first')
-                new_user['lastname'] = new_user['name'].get('first')
-                new_user['middlename'] = new_user['name'].get('first')
+                new_user['givenName'] = new_user['name'].get('first')
+                new_user['familyName'] = new_user['name'].get('last')
+                new_user['middleName'] = new_user['name'].get('middle')
             deserialized_users.append(new_user)
         return deserialized_users
 
