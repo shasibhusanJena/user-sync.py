@@ -235,10 +235,10 @@ class MockEntry():
 
 
 #Not a real test - just for producing data
-def test_data_generator(clever_api):
-    res = clever_api.get_users(group_filter='sections',
-                                      user_filter='users',
-                                      group_name='Class 003, Homeroom - Stark - 0')
+# def test_data_generator(clever_api):
+#     res = clever_api.get_users(group_filter='sections',
+#                                       user_filter='users',
+#                                       group_name='Class 003, Homeroom - Stark - 0')
 #     mock_many = [
 #         {
 #             'id': x.id,
