@@ -231,7 +231,7 @@ class MockEntry():
         self.sis_id = kwargs.get('sis_id')
 
 
-#Not a real test - just for producing data
+# Not a real test - just for producing data
 # def test_data_generator(clever_api):
 #     res = clever_api.get_users(group_filter='sections',
 #                                       user_filter='users',

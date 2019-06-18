@@ -173,6 +173,7 @@ class CleverConnector():
             self.authenticate()
 
         configuration = clever.Configuration()
+        configuration.host = 'https://api.clever.com/v2.1'
         configuration.access_token = self.access_token
         self.clever_api = clever.DataApi(clever.ApiClient(configuration))
 
