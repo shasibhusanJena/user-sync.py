@@ -177,6 +177,12 @@ directory_users:
     # Adobe products, such as InDesign and InCopy.)
     # [You will need to edit or remove these examples.]
 
+
+
+    - directory_group: "sections::Class 003, Homeroom - Stark - 0::students"
+      adobe_groups:
+        - "Caves and Embers"
+
 #    - directory_group: "Algebra 2 (MAT315)"
 #      adobe_groups:
 #        - "Caves and Embers"
@@ -381,4 +387,4 @@ invocation_defaults:
   # any default you set should almost certainly be single-quoted.
   user_filter:
   # For argument --users, the default is 'all'.
-  users: all
+  users: mapped

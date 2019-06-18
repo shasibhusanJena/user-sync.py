@@ -1,11 +1,12 @@
 # from __future__ import print_function
-
+import re
 import json
 import logging
-
+import requests
 import classlink_oneroster
 import clever
 from clever.rest import ApiException
+from json import JSONDecodeError
 
 
 # Github: https://github.com/vossen-adobe/classlink
@@ -163,26 +164,36 @@ class CleverConnector():
         self.max_users = options['max_user_limit']
         self.match = options['match']
         self.page_size = options['page_size']
+        self.access_token = options['access_token']
 
-        if self.max_users <= 0: self.max_users = None
+        if self.max_users <= 0:
+            self.max_users = None
+
+        if not self.access_token:
+            self.authenticate()
+
         configuration = clever.Configuration()
-
-        # client_id: 5d8a7b5eff6cbe25bc6e
-        # client_secret: ec6d2c060987e32cbe785f7f1a58a307a04cf0a4
-        # Our token: 3d65011e5b5d02c9de5cd129442a3b539de57cf6
-        # configuration.username = self.client_id
-        # configuration.password = self.client_secret
-        # configuration.get_basic_auth_token()
-
-        configuration.access_token = 'TEST_TOKEN'
+        configuration.access_token = self.access_token
         self.clever_api = clever.DataApi(clever.ApiClient(configuration))
 
-    def get_users_raw(self,
-                      group_filter=None,    # Type of group (class, course, school)
-                      group_name=None,      # Plain group name (Math 6)
-                      user_filter=None,     # Which users: users, students, staff
-                      ):
+    def authenticate(self):
+        auth_resp = requests.get("https://clever.com/oauth/tokens", auth=(self.client_id, self.client_secret))
+        try:
+            self.access_token = json.loads(auth_resp.content)['data'][0]['access_token']
+        except JSONDecodeError:
+            self.logger.warning(" Failed to parse response, attemting regex search... ")
+            pattern = '(?<=access_tooooken(":"|\':\')).+[a-z0-9]{25,}'
+            p = re.search(pattern, auth_resp.text)
+            if not p:
+                raise LookupError("Authorization attempt failed...")
+            self.access_token = p.group()
 
+
+    def get_users_raw(self,
+                      group_filter=None,  # Type of group (class, course, school)
+                      group_name=None,  # Plain group name (Math 6)
+                      user_filter=None,  # Which users: users, students, staff
+                      ):
         calls = self.translate(group_filter=group_filter, user_filter=user_filter)
         results = []
         if group_filter:
@@ -196,12 +207,11 @@ class CleverConnector():
 
 
     def get_users(self,
-                  group_filter=None,    # Type of group (class, course, school)
-                  group_name=None,      # Plain group name (Math 6)
-                  user_filter=None,     # Which users: users, students, staff
+                  group_filter=None,  # Type of group (class, course, school)
+                  group_name=None,  # Plain group name (Math 6)
+                  user_filter=None,  # Which users: users, students, staff
                   **kwargs
                   ):
-
         user_list = self.get_users_raw(group_filter=group_filter,
                                        group_name=group_name,
                                        user_filter=user_filter)
@@ -218,9 +228,7 @@ class CleverConnector():
         return deserialized_users
 
 
-
     def make_call(self, call, users=False, **params):
-
         # :param async bool
         # :param int limit:
         # :param str starting_after:
@@ -244,6 +252,7 @@ class CleverConnector():
             except Exception as e:
                 raise e
         return collected_objects
+
 
     def get_primary_key(self, type, name):
         if self.match == 'id':
@@ -273,6 +282,7 @@ class CleverConnector():
             self.logger.warning("No objects found for " + type + ": " + name)
         return id_list
 
+
     def get_sections_for_course(self, name):
         id_list = self.get_primary_key('courses', name)
         sections = []
@@ -286,6 +296,7 @@ class CleverConnector():
         else:
             return map(lambda x: x.data.id, sections)
 
+
     def get_users_for_course(self, name, user_filter):
         calls = self.translate('sections', user_filter)
         sections = self.get_sections_for_course(name)
@@ -297,8 +308,8 @@ class CleverConnector():
             self.logger.warning("No users found for course '" + name + "'")
         return user_list
 
-    def translate(self, group_filter, user_filter):
 
+    def translate(self, group_filter, user_filter):
         group_filter = group_filter if group_filter else ''
         user_filter = user_filter if user_filter else ''
 
@@ -326,6 +337,7 @@ class CleverConnector():
         if not call:
             raise ValueError("Unrecognized method request: 'get_" + user_filter + "_for_" + group_filter + "'")
         return call
+
 
     def deserialize_object(self, obj, classkey=None):
         if isinstance(obj, dict):
