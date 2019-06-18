@@ -35,7 +35,7 @@ def test_get_users(get_teachers, get_students, clever_api, mock_many_students, m
     get_students.side_effect = mock_student_response
 
     # Get students
-    response = clever_api.get_users(user_filter='students')
+    response = clever_api.get_users_raw(user_filter='students')
     expected = [x['id'] for x in mock_many_students]
     actual = [x.id for x in response]
     assert collections.Counter(expected) == collections.Counter(actual)
@@ -43,7 +43,7 @@ def test_get_users(get_teachers, get_students, clever_api, mock_many_students, m
     # Reset data
     get_teachers.side_effect = mock_teacher_response
 
-    response = clever_api.get_users(user_filter='teachers')
+    response = clever_api.get_users_raw(user_filter='teachers')
     expected = [x['id'] for x in mock_teacher]
     actual = [x.id for x in response]
     assert collections.Counter(expected) == collections.Counter(actual)
@@ -53,7 +53,7 @@ def test_get_users(get_teachers, get_students, clever_api, mock_many_students, m
     get_teachers.side_effect = mock_teacher_response
 
     # Get all users
-    response = clever_api.get_users(user_filter='users')
+    response = clever_api.get_users_raw(user_filter='users')
     expected = [x['id'] for x in mock_many_students]
     expected.append(mock_teacher[0]['id'])
     actual = [x.id for x in response]
@@ -75,9 +75,9 @@ def test_get_users_for_section(get_key, get_teachers, get_students, clever_api, 
 
     # Get students
     get_students.side_effect = mock_student_response
-    response = clever_api.get_users(user_filter='students',
-                                    group_filter='sections',
-                                    group_name='Class 003, Homeroom - Stark - 0')
+    response = clever_api.get_users_raw(user_filter='students',
+                                        group_filter='sections',
+                                        group_name='Class 003, Homeroom - Stark - 0')
 
     expected = [x['id'] for x in mock_many_students]
     actual = [x.id for x in response]
@@ -85,9 +85,9 @@ def test_get_users_for_section(get_key, get_teachers, get_students, clever_api, 
 
     # Get students
     get_teachers.side_effect = mock_teacher_response
-    response = clever_api.get_users(user_filter='teachers',
-                                    group_filter='sections',
-                                    group_name='Class 003, Homeroom - Stark - 0')
+    response = clever_api.get_users_raw(user_filter='teachers',
+                                        group_filter='sections',
+                                        group_name='Class 003, Homeroom - Stark - 0')
 
     expected = [x['id'] for x in mock_teacher]
     actual = [x.id for x in response]
@@ -96,9 +96,9 @@ def test_get_users_for_section(get_key, get_teachers, get_students, clever_api, 
     # Get all users
     get_students.side_effect = mock_student_response
     get_teachers.side_effect = mock_teacher_response
-    response = clever_api.get_users(user_filter='users',
-                                    group_filter='sections',
-                                    group_name='Class 003, Homeroom - Stark - 0')
+    response = clever_api.get_users_raw(user_filter='users',
+                                        group_filter='sections',
+                                        group_name='Class 003, Homeroom - Stark - 0')
 
     expected = [x['id'] for x in mock_many_students]
     expected.append(mock_teacher[0]['id'])
@@ -205,6 +205,10 @@ def test_translate(clever_api):
     pytest.raises(ValueError, clever_api.translate, user_filter="x", group_filter="y")
 
 
+
+#def test_objectmapper(clever_api):
+
+
 def get_mock_api_response(data, status_code=200, headers=None):
     headers = urllib3.response.HTTPHeaderDict(headers)
     response_list = [MockResponse(MockEntry(**d)) for d in data]
@@ -230,11 +234,11 @@ class MockEntry():
         self.sis_id = kwargs.get('sis_id')
 
 
-# Not a real test - just for producing data
-# def test_data_generator(clever_api):
-#     res = clever_api.get_users(group_filter='sections',
-#                                user_filter='users',
-#                                group_name='Class 003, Homeroom - Stark - 0')
+#Not a real test - just for producing data
+def test_data_generator(clever_api):
+    res = clever_api.get_users(group_filter='sections',
+                                      user_filter='users',
+                                      group_name='Class 003, Homeroom - Stark - 0')
 #     mock_many = [
 #         {
 #             'id': x.id,

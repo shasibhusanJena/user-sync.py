@@ -177,15 +177,13 @@ class CleverConnector():
         configuration.access_token = 'TEST_TOKEN'
         self.clever_api = clever.DataApi(clever.ApiClient(configuration))
 
-    def get_users(self,
-                  group_filter=None,  # Type of group (class, course, school)
-                  group_name=None,  # Plain group name (Math 6)
-                  user_filter=None,  # Which users: users, students, staff
-                  **kwargs
-                  ):
+    def get_users_raw(self,
+                      group_filter=None,    # Type of group (class, course, school)
+                      group_name=None,      # Plain group name (Math 6)
+                      user_filter=None,     # Which users: users, students, staff
+                      ):
 
         calls = self.translate(group_filter=group_filter, user_filter=user_filter)
-
         results = []
         if group_filter:
             for c in calls:
@@ -193,9 +191,33 @@ class CleverConnector():
                     results.extend(self.make_call(c, users=True, id=i))
         else:
             [results.extend(self.make_call(c, users=True)) for c in calls]
-
         user_list = [x.data for x in results]
         return user_list
+
+
+    def get_users(self,
+                  group_filter=None,    # Type of group (class, course, school)
+                  group_name=None,      # Plain group name (Math 6)
+                  user_filter=None,     # Which users: users, students, staff
+                  **kwargs
+                  ):
+
+        user_list = self.get_users_raw(group_filter=group_filter,
+                                       group_name=group_name,
+                                       user_filter=user_filter)
+
+        deserialized_users = list()
+        for u in user_list:
+            new_user = dict(self.deserialize_object(u))
+
+            if 'name' in new_user:
+                new_user['firstname'] = new_user['name'].get('first')
+                new_user['lastname'] = new_user['name'].get('first')
+                new_user['middlename'] = new_user['name'].get('first')
+            deserialized_users.append(new_user)
+        return deserialized_users
+
+
 
     def make_call(self, call, users=False, **params):
 
@@ -304,3 +326,23 @@ class CleverConnector():
         if not call:
             raise ValueError("Unrecognized method request: 'get_" + user_filter + "_for_" + group_filter + "'")
         return call
+
+    def deserialize_object(self, obj, classkey=None):
+        if isinstance(obj, dict):
+            data = {}
+            for (k, v) in obj.items():
+                data[k.lstrip('_')] = self.deserialize_object(v, classkey)
+            return data
+        elif hasattr(obj, "_ast"):
+            return self.deserialize_object(obj._ast())
+        elif hasattr(obj, "__iter__") and not isinstance(obj, str):
+            return [self.deserialize_object(v, classkey) for v in obj]
+        elif hasattr(obj, "__dict__"):
+            data = dict([(key.lstrip('_'), self.deserialize_object(value, classkey))
+                         for key, value in obj.__dict__.items()
+                         if not callable(value)])
+            if classkey is not None and hasattr(obj, "__class__"):
+                data[classkey] = obj.__class__.__name__
+            return data
+        else:
+            return obj
