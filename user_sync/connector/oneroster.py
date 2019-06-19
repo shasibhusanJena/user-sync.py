@@ -177,16 +177,11 @@ class CleverConnector():
         self.auth_header = {"Authorization": "Bearer " + self.access_token}
 
     def authenticate(self):
-        auth_resp = requests.get("https://clever.com/oauth/tokens", auth=(self.client_id, self.client_secret))
         try:
+            auth_resp = requests.get("https://clever.com/oauth/tokens", auth=(self.client_id, self.client_secret))
             self.access_token = json.loads(auth_resp.content)['data'][0]['access_token']
         except ValueError:
-            self.logger.warning(" Failed to parse response, attemting regex search... ")
-            pattern = '(?<=access_token(":"|\':\')).+[a-z0-9]{25,}'
-            p = re.search(pattern, auth_resp.text)
-            if not p:
-                raise LookupError("Authorization attempt failed...")
-            self.access_token = p.group()
+            raise LookupError("Authorization attempt failed...")
 
     def get_users(self,
                   group_filter=None,  # Type of group (class, course, school)
