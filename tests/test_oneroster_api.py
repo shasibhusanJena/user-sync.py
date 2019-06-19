@@ -146,22 +146,17 @@ def test_get_sections_for_course(get_key, make_call, clever_api, mock_section_da
     assert reduce(data_1) == collections.Counter(response)
 
 
-# @mock.patch('user_sync.connector.oneroster.CleverConnector.make_call')
-# @mock.patch('user_sync.connector.oneroster.CleverConnector.get_sections_for_course')
-# def test_get_users_for_course(get_sections, make_call, clever_api, mock_user_data):
-#     mock_students = mock_user_data[0:2]
-#     mock_teachers = mock_user_data[2:4]
-#
-#     get_sections.return_value = ['12345']
-#     make_call.side_effect = [
-#         get_mock_api_response_dataonly(mock_students),
-#         get_mock_api_response_dataonly(mock_teachers)
-#     ]
-#
-#     response = clever_api.get_users_for_course("Math 9", "users")
-#     expected = [x['id'] for x in mock_user_data]
-#     actual = [x.data.id for x in response]
-#     assert collections.Counter(expected) == collections.Counter(actual)
+@mock.patch('user_sync.connector.oneroster.CleverConnector.make_call')
+@mock.patch('user_sync.connector.oneroster.CleverConnector.get_sections_for_course')
+def test_get_users_for_course(get_sections, make_call, clever_api, mock_user_data):
+    mock_students = mock_user_data[0:2]
+    mock_teachers = mock_user_data[2:4]
+
+    get_sections.return_value = ['12345']
+    make_call.side_effect = [mock_students, mock_teachers]
+
+    response = clever_api.get_users_for_course("Math 9", "users")
+    assert reduce(mock_user_data) == reduce(response)
 
 
 # def test_translate(clever_api):
