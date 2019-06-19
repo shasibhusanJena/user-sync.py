@@ -41,12 +41,12 @@ class ClasslinkConnector():
 
     def __init__(self, options):
         self.logger = logging.getLogger("classlink")
-        self.host_name = options['host']
-        self.client_id = options['client_id']
-        self.client_secret = options['client_secret']
-        self.key_identifier = options['key_identifier']
-        self.max_users = options['max_user_limit']
-        self.page_size = str(options['page_size'])
+        self.host_name = options.get('host')
+        self.client_id = options.get('client_id')
+        self.client_secret = options.get('client_secret')
+        self.key_identifier = options.get('key_identifier')
+        self.max_users = options.get('max_user_limit')
+        self.page_size = str(options.get('page_size'))
         self.classlink_api = classlink_oneroster.ClasslinkAPI(self.client_id, self.client_secret)
 
     def get_users(self,
@@ -156,14 +156,17 @@ class ClasslinkConnector():
 class CleverConnector():
 
     def __init__(self, options):
+
         self.logger = logging.getLogger("clever")
-        self.client_id = options['client_id']
-        self.client_secret = options['client_secret']
-        self.max_users = options['max_user_limit']
-        self.match = options['match'] or 'name'
-        self.page_size = options.get('page_size')
-        self.access_token = options['access_token']
+        self.client_id = options.get('client_id')
+        self.client_secret = options.get('client_secret')
+        self.max_users = options.get('max_user_limit')
+        self.match = options.get('match') or 'name'
+        self.page_size = options.get('page_size') or 10000
+        self.access_token = options.get('access_token')
         self.host = options.get('host') or 'https://api.clever.com/v2.1/'
+
+
 
         if self.max_users <= 0:
             self.max_users = None
