@@ -91,6 +91,7 @@ class OneRosterConnector(object):
         builder.set_string_value('match', 'name')
         builder.set_int_value('page_size', 1000)
         builder.set_int_value('max_user_limit', 0)
+        builder.set_dict_value('user_inclusive_filter_kwargs', {})
 
         return builder.get_options()
 
@@ -151,9 +152,11 @@ class OneRosterConnector(object):
                 group_filter, group_name, user_filter = text.lower().split("::")
 
                 if group_filter not in {'classes', 'courses', 'schools', 'sections'}:
-                    raise ValueError("Bad group type: " + group_filter + " for " + text + ", valid are: classes, courses, sections, schools")
+                    raise ValueError(
+                        "Bad group type: " + group_filter + " for " + text + ", valid are: classes, courses, sections, schools")
                 if user_filter not in {'students', 'teachers', 'users'}:
-                    raise ValueError("Bad user type: " + group_filter + " for " + text + ", valid are: students, teachers, or users")
+                    raise ValueError(
+                        "Bad user type: " + group_filter + " for " + text + ", valid are: students, teachers, or users")
 
                 if group_filter not in groups:
                     groups[group_filter] = {group_name: {}}
@@ -175,6 +178,7 @@ class OneRosterConnector(object):
 class RecordHandler:
     def __init__(self, logger, options):
         self.logger = logger
+        self.inclusions = options['user_inclusive_filter_kwargs']
         self.user_identity_type = user_sync.identity_type.parse_identity_type(options['user_identity_type'])
         self.user_identity_type_formatter = OneRosterValueFormatter(options['user_identity_type_format'])
         self.user_email_formatter = OneRosterValueFormatter(options['user_email_format'])
@@ -207,9 +211,15 @@ class RecordHandler:
         :type key_identifier: str()
         :rtype: formatted_user: dict(user object)
         """
+
+        if not self.filter_out_users(record):
+            return
+
         attribute_warning = "No %s attribute (%s) for user with key: %s, defaulting to %s"
         source_attributes = {}
+
         key = record.get(key_identifier)
+
         if key is None:
             return
         if 'status' in record and record.get('status') != 'active':
@@ -275,6 +285,28 @@ class RecordHandler:
                 source_attributes[extended_attribute] = extended_attribute_value
         user['source_attributes'] = source_attributes.copy()
         return user
+
+    def filter_out_users(self, record):
+
+        for key, value in self.inclusions.items():
+
+            try:
+                if self.decode_string(record.get(key)) not in self.decode_string(value[0]):
+                    return False
+            except:
+                self.logger.warning("No key for filtering attribute " + key + " for user " + record['email'])
+                return False
+
+        return True
+
+    def decode_string(self, string):
+        if not string:
+            return
+        try:
+            decoded = string.decode()
+        except:
+            decoded = str(string)
+        return decoded.lower().strip()
 
 
 class OneRosterValueFormatter(object):
