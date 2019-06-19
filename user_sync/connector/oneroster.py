@@ -195,9 +195,11 @@ class CleverConnector():
                   **kwargs
                   ):
 
-        calls = self.translate(group_filter=group_filter, user_filter=user_filter)
         results = []
-        if group_filter:
+        calls = self.translate(group_filter=group_filter, user_filter=user_filter)
+        if group_filter == 'courses':
+            results = self.get_users_for_course(name=group_name, user_filter=user_filter)
+        elif group_filter:
             for c in calls:
                 for i in self.get_primary_key(group_filter, group_name):
                     results.extend(self.make_call(c.format(i), users=True))
@@ -208,7 +210,6 @@ class CleverConnector():
             user['givenName'] = user['name'].get('first')
             user['familyName'] = user['name'].get('last')
             user['middleName'] = user['name'].get('middle')
-
         return results
 
     def make_call(self, url, users=False):
