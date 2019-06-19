@@ -155,6 +155,11 @@ def test_create_user_object(oneroster_connector, stub_api_response,stub_parse_re
     expected_result = stub_parse_results['18125']
     assert actual_result == expected_result
 
+    expected_result['source_attributes']['enabledUser'] = 'true'
+    actual_result = record_handler.create_user_object(record, 'sourcedId', ['enabledUser'])
+
+    assert expected_result == actual_result
+
     fail = record_handler.create_user_object(record, 'nothing', [])
 
 
