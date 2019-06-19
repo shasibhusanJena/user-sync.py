@@ -146,6 +146,18 @@ def test_load_users_and_groups(oneroster_connector, stub_api_response, stub_pars
             actual_result = list(oneroster_connector.load_users_and_groups(['xxx'], [], False))
             assert actual_result == expected
 
+def test_create_user_object(oneroster_connector, stub_api_response,stub_parse_results):
+    record_handler = RecordHandler(options=oneroster_connector.options, logger=oneroster_connector.logger)
+    record = stub_api_response[0]
+
+    actual_result = record_handler.create_user_object(record, 'sourcedId', [])
+
+    expected_result = stub_parse_results['18125']
+    assert actual_result == expected_result
+
+    fail = record_handler.create_user_object(record, 'nothing', [])
+
+
 
 def test_get_attr_values():
     attributes = {
