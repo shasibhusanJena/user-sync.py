@@ -32,7 +32,8 @@ match: 'name'
 
 # (optional, default value given below)
 # unique key used throughout One-Roster (sourcedId is commonly used)
-key_identifier: 'sourcedId'
+#key_identifier: 'sourcedId'
+key_identifier: 'id'
 
 # Simple Group Mapping
 # When simplifying user group mappings, you may choose the default values that are appended to your group_name

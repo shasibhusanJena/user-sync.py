@@ -1,11 +1,10 @@
 # from __future__ import print_function
-
 import json
 import logging
+import re
 
 import classlink_oneroster
-import clever
-from clever.rest import ApiException
+import requests
 
 
 # Github: https://github.com/vossen-adobe/classlink
@@ -18,7 +17,7 @@ def get_connector(options):
     elif platform == 'clever':
         return CleverConnector(options)
 
-    raise ModuleNotFoundError("No module for " + platform +
+    raise NotImplementedError("No module for " + platform +
                               " was found. Supported are: [classlink, clever]")
 
 
@@ -42,12 +41,12 @@ class ClasslinkConnector():
 
     def __init__(self, options):
         self.logger = logging.getLogger("classlink")
-        self.host_name = options['host']
-        self.client_id = options['client_id']
-        self.client_secret = options['client_secret']
-        self.key_identifier = options['key_identifier']
-        self.max_users = options['max_user_limit']
-        self.page_size = str(options['page_size'])
+        self.host_name = options.get('host')
+        self.client_id = options.get('client_id')
+        self.client_secret = options.get('client_secret')
+        self.key_identifier = options.get('key_identifier')
+        self.max_users = options.get('max_user_limit')
+        self.page_size = str(options.get('page_size'))
         self.classlink_api = classlink_oneroster.ClasslinkAPI(self.client_id, self.client_secret)
 
     def get_users(self,
@@ -157,25 +156,32 @@ class ClasslinkConnector():
 class CleverConnector():
 
     def __init__(self, options):
+
         self.logger = logging.getLogger("clever")
-        self.client_id = options['client_id']
-        self.client_secret = options['client_secret']
-        self.max_users = options['max_user_limit']
-        self.match = options['match']
-        self.page_size = options['page_size']
+        self.client_id = options.get('client_id')
+        self.client_secret = options.get('client_secret')
+        self.max_users = options.get('max_user_limit')
+        self.match = options.get('match') or 'name'
+        self.page_size = options.get('page_size') or 10000
+        self.access_token = options.get('access_token')
+        self.host = options.get('host') or 'https://api.clever.com/v2.1/'
 
-        if self.max_users <= 0: self.max_users = None
-        configuration = clever.Configuration()
 
-        # client_id: 5d8a7b5eff6cbe25bc6e
-        # client_secret: ec6d2c060987e32cbe785f7f1a58a307a04cf0a4
-        # Our token: 3d65011e5b5d02c9de5cd129442a3b539de57cf6
-        # configuration.username = self.client_id
-        # configuration.password = self.client_secret
-        # configuration.get_basic_auth_token()
 
-        configuration.access_token = 'TEST_TOKEN'
-        self.clever_api = clever.DataApi(clever.ApiClient(configuration))
+        if self.max_users <= 0:
+            self.max_users = None
+
+        if not self.access_token:
+            self.authenticate()
+
+        self.auth_header = {"Authorization": "Bearer " + self.access_token}
+
+    def authenticate(self):
+        try:
+            auth_resp = requests.get("https://clever.com/oauth/tokens", auth=(self.client_id, self.client_secret))
+            self.access_token = json.loads(auth_resp.content)['data'][0]['access_token']
+        except ValueError:
+            raise LookupError("Authorization attempt failed...")
 
     def get_users(self,
                   group_filter=None,  # Type of group (class, course, school)
@@ -184,66 +190,56 @@ class CleverConnector():
                   **kwargs
                   ):
 
-        calls = self.translate(group_filter=group_filter, user_filter=user_filter)
-
         results = []
-        if group_filter:
+        calls = self.translate(group_filter=group_filter, user_filter=user_filter)
+        if group_filter == 'courses':
+            results = self.get_users_for_course(name=group_name, user_filter=user_filter)
+        elif group_filter:
             for c in calls:
                 for i in self.get_primary_key(group_filter, group_name):
-                    results.extend(self.make_call(c, users=True, id=i))
+                    results.extend(self.make_call(c.format(i), users=True))
         else:
             [results.extend(self.make_call(c, users=True)) for c in calls]
 
-        user_list = [x.data for x in results]
-        return user_list
+        for user in results:
+            user['givenName'] = user['name'].get('first')
+            user['familyName'] = user['name'].get('last')
+            user['middleName'] = user['name'].get('middle')
+        return results
 
-    def make_call(self, call, users=False, **params):
+    def make_call(self, url, users=False):
 
-        # :param async bool
-        # :param int limit:
-        # :param str starting_after:
-        # :param str ending_before:
-
-        params['limit'] = self.page_size
+        next = ""
         collected_objects = []
         while True:
             try:
-                response = call(**params)
-                new_objects = response[0].data
+                response = requests.get(url + '?limit=' + str(self.page_size) + next, headers=self.auth_header)
+                new_objects = json.loads(response.content)['data']
                 if new_objects:
                     collected_objects.extend(new_objects)
+                    next = '&starting_after=' + new_objects[-1]['data']['id']
                     if self.max_users and users and len(collected_objects) > self.max_users:
                         return collected_objects[0:self.max_users]
-                    params['starting_after'] = new_objects[-1].data.id
                 else:
                     break
-            except ApiException as e:
-                raise e
             except Exception as e:
                 raise e
-        return collected_objects
+        extracted_objects = [o['data'] for o in collected_objects]
+        return extracted_objects
 
     def get_primary_key(self, type, name):
         if self.match == 'id':
             return name
 
-        call = {
-            'sections': self.clever_api.get_sections_with_http_info,
-            'courses': self.clever_api.get_sections_with_http_info,
-            'schools': self.clever_api.get_sections_with_http_info,
-        }.get(type)
-
-        if not call:
-            raise ValueError("Invalid group filter: " + type +
-                             " is not a valid type. [sections, courses, schools]")
-
-        objects = self.make_call(call)
+        url = self.translate(None, type)[0]
+        objects = self.make_call(url)
         id_list = []
+
         for o in objects:
             try:
-                if decode_string(getattr(o.data, self.match)) == decode_string(name):
-                    id_list.append(o.data.id)
-            except AttributeError:
+                if decode_string(o[self.match]) == decode_string(name):
+                    id_list.append(o['id'])
+            except KeyError:
                 self.logger.warning("No property: '" + self.match +
                                     "' was found on " + type.rstrip('s') + " for entity '" + name + "'")
                 break
@@ -254,53 +250,36 @@ class CleverConnector():
     def get_sections_for_course(self, name):
         id_list = self.get_primary_key('courses', name)
         sections = []
-
         for i in id_list:
-            sections.extend(
-                self.make_call(self.clever_api.get_sections_for_course_with_http_info, id=i))
+            call = self.translate('courses', 'sections')[0].format(i)
+            sections.extend(self.make_call(call))
         if not sections:
             self.logger.warning("No sections found for course '" + name + "'")
             return []
         else:
-            return map(lambda x: x.data.id, sections)
+            return [s['id'] for s in sections]
 
-    def get_users_for_course(self, name, user_filter):
-        calls = self.translate('sections', user_filter)
+    def get_users_for_course(self, name, user_filter='users'):
+        urls = self.translate('sections', user_filter)
         sections = self.get_sections_for_course(name)
         user_list = []
         for s in sections:
-            for c in calls:
-                user_list.extend(self.make_call(c, id=s))
+            for c in urls:
+                user_list.extend(self.make_call(c.format(s)))
         if not user_list:
             self.logger.warning("No users found for course '" + name + "'")
         return user_list
 
     def translate(self, group_filter, user_filter):
 
-        group_filter = group_filter if group_filter else ''
+        # if group_filter not in ['sections, courses, schools'] or user_filter not in ['students, users, teachers, sections']:
+        #     raise ValueError("Unrecognized method request: 'get_" + user_filter + "_for_" + group_filter + "'")
+
+        group_filter = group_filter + "/{}/" if group_filter else ''
         user_filter = user_filter if user_filter else ''
+        url = self.host + group_filter + user_filter
 
-        call = {
-            'sections_students': [self.clever_api.get_students_for_section_with_http_info],
-            'sections_teachers': [self.clever_api.get_teachers_for_section_with_http_info],
-            'sections_users': [self.clever_api.get_students_for_section_with_http_info,
-                               self.clever_api.get_teachers_for_section_with_http_info],
-
-            'courses_students': [self.get_users_for_course],
-            'courses_teachers': [self.get_users_for_course],
-            'courses_users': [self.get_users_for_course, self.get_users_for_course],
-
-            'schools_students': [self.clever_api.get_students_for_school_with_http_info],
-            'schools_teachers': [self.clever_api.get_teachers_for_school_with_http_info],
-            'schools_users': [self.clever_api.get_students_for_school_with_http_info,
-                              self.clever_api.get_teachers_for_school_with_http_info],
-
-            '_students': [self.clever_api.get_students_with_http_info],
-            '_teachers': [self.clever_api.get_teachers_with_http_info],
-            '_users': [self.clever_api.get_students_with_http_info,
-                       self.clever_api.get_teachers_with_http_info],
-        }.get(group_filter + "_" + user_filter)
-
-        if not call:
-            raise ValueError("Unrecognized method request: 'get_" + user_filter + "_for_" + group_filter + "'")
-        return call
+        if user_filter == 'users':
+            return [url.replace(user_filter, 'students'), url.replace(user_filter, 'teachers')]
+        else:
+            return [url]

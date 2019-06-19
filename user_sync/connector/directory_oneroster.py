@@ -87,6 +87,7 @@ class OneRosterConnector(object):
         builder.set_string_value('user_identity_type_format', None)
         builder.set_string_value('default_group_filter', 'classes')
         builder.set_string_value('default_user_filter', 'students')
+        builder.set_string_value('access_token', 'TEST_TOKEN')
         builder.set_string_value('match', 'name')
         builder.set_int_value('page_size', 1000)
         builder.set_int_value('max_user_limit', 0)
@@ -107,14 +108,10 @@ class OneRosterConnector(object):
         users_by_key = {}
 
         for group_filter in groups_from_yml:
-
             inner_dict = groups_from_yml[group_filter]
-
             for group_name in inner_dict:
                 for user_group in inner_dict[group_name]:
-
                     user_filter = inner_dict[group_name][user_group]
-
                     response = api.get_users(
                         group_filter=group_filter,
                         group_name=group_name,
@@ -129,9 +126,9 @@ class OneRosterConnector(object):
                         users_by_key[key]['groups'].add(user_group)
         if all_users:
             response = api.get_users(
-                        user_filter=self.options['all_users_filter'],
-                        request_type='all_users',
-                    )
+                user_filter=self.options['all_users_filter'],
+                request_type='all_users',
+            )
 
             new_all_users = rh.parse_results(response, self.options['key_identifier'], extended_attributes)
             for key, value in six.iteritems(new_all_users):
@@ -213,7 +210,9 @@ class RecordHandler:
         attribute_warning = "No %s attribute (%s) for user with key: %s, defaulting to %s"
         source_attributes = {}
         key = record.get(key_identifier)
-        if key is None or record.get('status') != 'active':
+        if key is None:
+            return
+        if 'status' in record and record.get('status') != 'active':
             return
         email, last_attribute_name = self.user_email_formatter.generate_value(record)
         email = email.strip() if email else None
