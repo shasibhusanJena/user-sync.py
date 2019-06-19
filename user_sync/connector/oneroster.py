@@ -165,11 +165,7 @@ class CleverConnector():
         self.page_size = options.get('page_size') or 10000
         self.access_token = options.get('access_token')
         self.host = options.get('host') or 'https://api.clever.com/v2.1/'
-
-
-
-        if self.max_users <= 0:
-            self.max_users = None
+        self.max_users = None if self.max_users <= 0 else self.max_users
 
         if not self.access_token:
             self.authenticate()
@@ -219,7 +215,8 @@ class CleverConnector():
                     collected_objects.extend(new_objects)
                     next = '&starting_after=' + new_objects[-1]['data']['id']
                     if self.max_users and users and len(collected_objects) > self.max_users:
-                        return collected_objects[0:self.max_users]
+                        collected_objects = collected_objects[0:self.max_users]
+                        break
                 else:
                     break
             except Exception as e:
