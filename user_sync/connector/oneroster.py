@@ -5,6 +5,7 @@ import re
 
 import classlink_oneroster
 import requests
+import math
 
 
 # Github: https://github.com/vossen-adobe/classlink
@@ -47,6 +48,9 @@ class ClasslinkConnector():
         self.key_identifier = options.get('key_identifier')
         self.max_users = options.get('max_user_limit')
         self.page_size = str(options.get('page_size'))
+        self.max_users = None if self.max_users <= 0 else self.max_users
+        self.user_count = 0
+        self.returned_user_count = 0
         self.classlink_api = classlink_oneroster.ClasslinkAPI(self.client_id, self.client_secret)
 
     def get_users(self,
@@ -71,7 +75,15 @@ class ClasslinkConnector():
             if key_id.__len__() == 0:
                 return results
             results.extend(self.execute_actions(group_filter, user_filter, key_id, 'mapped_users'))
-        return results
+
+        if self.max_users and self.returned_user_count > self.max_users:
+            return []
+        elif self.max_users:
+            remainder = self.max_users - self.returned_user_count
+            self.returned_user_count += min(remainder, len(results))
+            return results[0:remainder]
+        else:
+            return results
 
     def execute_actions(self, group_filter, user_filter, identifier, request_type):
         result = []
@@ -108,7 +120,10 @@ class ClasslinkConnector():
     def make_call(self, url, request_type, group_filter, group_name=None):
         user_list = []
         key = 'first'
+        count_users = '/users' in url or '/students' in url or '/teachers' in url
         while key is not None:
+            if self.max_users and self.user_count > self.max_users:
+                break
             if key == 'first':
                 response = self.classlink_api.make_roster_request(url)
             else:
@@ -137,9 +152,10 @@ class ClasslinkConnector():
                 break
             key = 'next' if 'next' in response.links else 'last'
 
-        if not user_list:
+        if not user_list and not self.max_users:
             self.logger.warning("No " + request_type + " for " + group_filter + "  " + group_name)
 
+        self.user_count += len(user_list) if count_users else 0
         return user_list
 
 
@@ -166,6 +182,8 @@ class CleverConnector():
         self.access_token = options.get('access_token')
         self.host = options.get('host') or 'https://api.clever.com/v2.1/'
         self.max_users = None if self.max_users <= 0 else self.max_users
+        self.user_count = 0
+        self.returned_user_count = 0
 
         if not self.access_token:
             self.authenticate()
@@ -193,30 +211,44 @@ class CleverConnector():
         elif group_filter:
             for c in calls:
                 for i in self.get_primary_key(group_filter, group_name):
-                    results.extend(self.make_call(c.format(i), users=True))
+                    results.extend(self.make_call(c.format(i)))
         else:
-            [results.extend(self.make_call(c, users=True)) for c in calls]
+            # All users
+            [results.extend(self.make_call(c)) for c in calls]
 
         for user in results:
             user['givenName'] = user['name'].get('first')
             user['familyName'] = user['name'].get('last')
             user['middleName'] = user['name'].get('middle')
-        return results
 
-    def make_call(self, url, users=False):
+        if self.max_users and self.returned_user_count > self.max_users:
+            return []
+        elif self.max_users:
+            remainder = self.max_users - self.returned_user_count
+            self.returned_user_count += min(remainder, len(results))
+            return results[0:remainder]
+        else:
+            return results
+
+    def get_all_users(self, calls):
+        return [self.make_call(c) for c in calls]
+
+    def make_call(self, url):
 
         next = ""
         collected_objects = []
+        count_users = '/users' in url or '/students' in url or '/teachers' in url
+
         while True:
+            if self.max_users and self.user_count > self.max_users:
+                break
             try:
                 response = requests.get(url + '?limit=' + str(self.page_size) + next, headers=self.auth_header)
                 new_objects = json.loads(response.content)['data']
                 if new_objects:
                     collected_objects.extend(new_objects)
                     next = '&starting_after=' + new_objects[-1]['data']['id']
-                    if self.max_users and users and len(collected_objects) > self.max_users:
-                        collected_objects = collected_objects[0:self.max_users]
-                        break
+                    self.user_count += len(new_objects) if count_users else 0
                 else:
                     break
             except Exception as e:
@@ -227,6 +259,8 @@ class CleverConnector():
     def get_primary_key(self, type, name):
         if self.match == 'id':
             return name
+        if self.max_users and self.user_count > self.max_users:
+            return []
 
         url = self.translate(None, type)[0]
         objects = self.make_call(url)
@@ -269,11 +303,35 @@ class CleverConnector():
 
     def translate(self, group_filter, user_filter):
 
-        # if group_filter not in ['sections, courses, schools'] or user_filter not in ['students, users, teachers, sections']:
-        #     raise ValueError("Unrecognized method request: 'get_" + user_filter + "_for_" + group_filter + "'")
+        group_filter = group_filter if group_filter else ''
+        user_filter = user_filter if user_filter else ''
+
+        allowed_calls = [
+            'sections_students',
+            'sections_teachers',
+            'sections_users',
+
+            'courses_students',
+            'courses_teachers',
+            'courses_users',
+            'courses_sections',
+
+            'schools_students',
+            'schools_teachers',
+            'schools_users',
+
+            '_students',
+            '_teachers',
+            '_users',
+            '_sections',
+            '_courses',
+            '_schools',
+        ]
+
+        if group_filter + "_" + user_filter not in allowed_calls:
+            raise ValueError("Unrecognized method request: 'get_" + user_filter + "_for_" + group_filter + "'")
 
         group_filter = group_filter + "/{}/" if group_filter else ''
-        user_filter = user_filter if user_filter else ''
         url = self.host + group_filter + user_filter
 
         if user_filter == 'users':

@@ -65,6 +65,7 @@ max_user_limit: 0
 # The default value is from "email" field in Okta user profile.
 # NOTE: for this and every format setting, the constant strings must be in
 # the encoding specified by the string_encoding setting, above.
+#user_email_format: "{givenName}.{familyName}@resistanceisfutile.net"
 user_email_format: "{email}"
 
 # (optional, no default) user_domain_format

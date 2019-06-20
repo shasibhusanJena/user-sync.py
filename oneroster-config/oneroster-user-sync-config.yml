@@ -178,11 +178,15 @@ directory_users:
     # [You will need to edit or remove these examples.]
 
 
-    # Clever
-    - directory_group: "sections::Class 003, Homeroom - Stark - 0::students"
-      adobe_groups:
-        - "Caves and Embers"
+#    # Clever
+#    - directory_group: "sections::Class 003, Homeroom - Stark - 0::users"
+#      adobe_groups:
+#        - "Caves and Embers"
 
+    # Clever
+#    - directory_group: "courses::Class 001, Homeroom::users"
+#      adobe_groups:
+#        - "Caves and Embers"
 
 
 #    - directory_group: "Algebra 2 (MAT315)"
