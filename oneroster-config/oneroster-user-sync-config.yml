@@ -200,10 +200,10 @@ directory_users:
 #    - directory_group: "schools::ClassLink HS::students"
 #      adobe_groups:
 #        - "All students"
-
-    #    - directory_group: "classes::Art ii -Spring::students"
-    #      adobe_groups:
-    #        - "Classlink"
+#
+#    - directory_group: "classes::Art ii -Spring::students"
+#      adobe_groups:
+#        - "Classlink"
     #
     #    - directory_group: "xxx"
     #      adobe_groups:

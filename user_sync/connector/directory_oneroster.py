@@ -21,7 +21,7 @@
 
 import re
 import string
-
+import itertools
 import six
 
 import user_sync.config
@@ -90,7 +90,7 @@ class OneRosterConnector(object):
         builder.set_string_value('access_token', 'TEST_TOKEN')
         builder.set_string_value('match', 'name')
         builder.set_int_value('page_size', 1000)
-        builder.set_int_value('max_user_limit', 0)
+        builder.set_int_value('max_user_count', 0)
         builder.set_dict_value('user_inclusive_filter_kwargs', {})
 
         return builder.get_options()
@@ -106,6 +106,7 @@ class OneRosterConnector(object):
         rh = RecordHandler(self.logger, self.options)
         api = user_sync.connector.oneroster.get_connector(self.options)
         groups_from_yml = self.parse_yaml_groups(groups)
+        max_user_count = self.options['max_user_count']
         users_by_key = {}
 
         for group_filter in groups_from_yml:
@@ -136,7 +137,10 @@ class OneRosterConnector(object):
                 if key not in users_by_key:
                     users_by_key[key] = value
 
-        return six.itervalues(users_by_key)
+        if max_user_count > 0:
+            return six.itervalues(dict(itertools.islice(users_by_key.items(), max_user_count)))
+        else:
+            return six.itervalues(users_by_key)
 
     def parse_yaml_groups(self, groups_list):
         """

@@ -55,7 +55,7 @@ all_users_filter: 'users'
 # (optional, default value given below)
 # api call page size.  Adjusting this will adjust the frequency of API calls made to the server
 page_size: 100
-max_user_limit: 0
+max_user_count: 20
 
 # # (optional, default value given below) user_email_format
 # user_email_format specifies how to construct a user's email address by
@@ -65,8 +65,8 @@ max_user_limit: 0
 # The default value is from "email" field in Okta user profile.
 # NOTE: for this and every format setting, the constant strings must be in
 # the encoding specified by the string_encoding setting, above.
-#user_email_format: "{givenName}.{familyName}@resistanceisfutile.net"
-user_email_format: "{email}"
+user_email_format: "{givenName}.{familyName}@resistanceisfutile.net"
+#user_email_format: "{email}"
 
 # (optional, no default) user_domain_format
 # user_domain_format is analogous to user_email_format in syntax, but it
