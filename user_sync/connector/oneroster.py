@@ -46,18 +46,15 @@ class ClasslinkConnector():
         self.client_id = options.get('client_id')
         self.client_secret = options.get('client_secret')
         self.key_identifier = options.get('key_identifier')
-        self.max_users = options.get('max_user_limit')
+        self.max_users = options.get('max_user_count') or 0
         self.page_size = str(options.get('page_size'))
-        self.max_users = None if self.max_users <= 0 else self.max_users
         self.user_count = 0
-        self.returned_user_count = 0
         self.classlink_api = classlink_oneroster.ClasslinkAPI(self.client_id, self.client_secret)
 
     def get_users(self,
                   group_filter=None,  # Type of group (class, course, school)
                   group_name=None,  # Plain group name (Math 6)
                   user_filter=None,  # Which users: users, students, staff
-                  request_type=None,  # Determines which logic is used (see below)
                   ):
 
         results = []
@@ -68,22 +65,14 @@ class ClasslinkConnector():
             list_classes = self.execute_actions(group_filter, user_filter, key_id, 'course_classlist')
             for each_class in list_classes:
                 results.extend(self.execute_actions('classes', user_filter, each_class, 'mapped_users'))
-        elif request_type == 'all_users':
+        elif not group_filter:
             results.extend(self.execute_actions(None, user_filter, None, 'all_users'))
         else:
             key_id = self.execute_actions(group_filter, None, group_name, 'key_identifier')
             if key_id.__len__() == 0:
                 return results
             results.extend(self.execute_actions(group_filter, user_filter, key_id, 'mapped_users'))
-
-        if self.max_users and self.returned_user_count > self.max_users:
-            return []
-        elif self.max_users:
-            remainder = self.max_users - self.returned_user_count
-            self.returned_user_count += min(remainder, len(results))
-            return results[0:remainder]
-        else:
-            return results
+        return results[0:self.max_users] if self.max_users > 0 else results
 
     def execute_actions(self, group_filter, user_filter, identifier, request_type):
         result = []
@@ -130,7 +119,8 @@ class ClasslinkConnector():
                 response = self.classlink_api.make_roster_request(response.links[key]['url'])
             if not response.ok:
                 raise ValueError('Non Successful Response'
-                                 + '  ' + 'status:' + str(response.status_code) + '  ' + 'message:' + str(response.reason))
+                                 + '  ' + 'status:' + str(response.status_code) + '  ' + 'message:' + str(
+                    response.reason))
             if request_type == 'key_identifier':
                 other = 'course' if group_filter == 'courses' else 'classes'
                 name_identifier, revised_key = ('name', 'orgs') if group_filter == 'schools' else ('title', other)
@@ -151,11 +141,11 @@ class ClasslinkConnector():
             if key == 'last' or int(response.headers._store['x-count'][1]) < int(self.page_size):
                 break
             key = 'next' if 'next' in response.links else 'last'
+            self.user_count += len(user_list) if count_users else 0
 
         if not user_list and not self.max_users:
             self.logger.warning("No " + request_type + " for " + group_filter + "  " + group_name)
 
-        self.user_count += len(user_list) if count_users else 0
         return user_list
 
 
@@ -176,19 +166,19 @@ class CleverConnector():
         self.logger = logging.getLogger("clever")
         self.client_id = options.get('client_id')
         self.client_secret = options.get('client_secret')
-        self.max_users = options.get('max_user_limit')
-        self.match = options.get('match') or 'name'
+        self.max_users = options.get('max_user_count') or 0
+        self.match_groups_by = options.get('match_groups_by') or 'name'
         self.page_size = options.get('page_size') or 10000
         self.access_token = options.get('access_token')
         self.host = options.get('host') or 'https://api.clever.com/v2.1/'
-        self.max_users = None if self.max_users <= 0 else self.max_users
         self.user_count = 0
-        self.returned_user_count = 0
+        self.calls_made = []
 
         if not self.access_token:
             self.authenticate()
 
-        self.auth_header = {"Authorization": "Bearer " + self.access_token}
+        self.auth_header = {
+            "Authorization": "Bearer " + self.access_token}
 
     def authenticate(self):
         try:
@@ -201,7 +191,6 @@ class CleverConnector():
                   group_filter=None,  # Type of group (class, course, school)
                   group_name=None,  # Plain group name (Math 6)
                   user_filter=None,  # Which users: users, students, staff
-                  **kwargs
                   ):
 
         results = []
@@ -210,7 +199,10 @@ class CleverConnector():
             results = self.get_users_for_course(name=group_name, user_filter=user_filter)
         elif group_filter:
             for c in calls:
-                for i in self.get_primary_key(group_filter, group_name):
+                keylist = self.get_primary_key(group_filter, group_name)
+                if not keylist:
+                    break
+                for i in keylist:
                     results.extend(self.make_call(c.format(i)))
         else:
             # All users
@@ -221,24 +213,19 @@ class CleverConnector():
             user['familyName'] = user['name'].get('last')
             user['middleName'] = user['name'].get('middle')
 
-        if self.max_users and self.returned_user_count > self.max_users:
-            return []
-        elif self.max_users:
-            remainder = self.max_users - self.returned_user_count
-            self.returned_user_count += min(remainder, len(results))
-            return results[0:remainder]
-        else:
-            return results
+        self.logger.info("Collected " + str(self.user_count) + " total users for calls:" + str(self.calls_made))
+        return results[0:self.max_users] if self.max_users > 0 else results
+
 
     def get_all_users(self, calls):
         return [self.make_call(c) for c in calls]
 
     def make_call(self, url):
-
         next = ""
         collected_objects = []
         count_users = '/users' in url or '/students' in url or '/teachers' in url
-
+        if count_users:
+            self.calls_made.append(url)
         while True:
             if self.max_users and self.user_count > self.max_users:
                 break
@@ -248,7 +235,9 @@ class CleverConnector():
                 if new_objects:
                     collected_objects.extend(new_objects)
                     next = '&starting_after=' + new_objects[-1]['data']['id']
-                    self.user_count += len(new_objects) if count_users else 0
+                    if count_users:
+                        self.user_count += len(new_objects)
+                        self.logger.info("Collected users: " + str(self.user_count))
                 else:
                     break
             except Exception as e:
@@ -257,9 +246,9 @@ class CleverConnector():
         return extracted_objects
 
     def get_primary_key(self, type, name):
-        if self.match == 'id':
+        if self.match_groups_by == 'id':
             return name
-        if self.max_users and self.user_count > self.max_users:
+        if self.max_users > 0  and self.user_count > self.max_users:
             return []
 
         url = self.translate(None, type)[0]
@@ -268,14 +257,14 @@ class CleverConnector():
 
         for o in objects:
             try:
-                if decode_string(o[self.match]) == decode_string(name):
+                if decode_string(o[self.match_groups_by]) == decode_string(name):
                     id_list.append(o['id'])
             except KeyError:
-                self.logger.warning("No property: '" + self.match +
+                self.logger.warning("No property: '" + self.match_groups_by +
                                     "' was found on " + type.rstrip('s') + " for entity '" + name + "'")
                 break
         if not id_list:
-            self.logger.warning("No objects found for " + type + ": " + name)
+            self.logger.warning("No objects found for " + type + ": '" + name + "'")
         return id_list
 
     def get_sections_for_course(self, name):

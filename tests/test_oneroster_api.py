@@ -109,19 +109,19 @@ def test_get_primary_key(mock_make_call, clever_api, log_stream, mock_section_da
     assert re.search('(No objects found for sections:).*(Fake class)', logs)
 
     stream.buf = ''
-    clever_api.match = 'bad'
+    clever_api.match_groups_by = 'bad'
     clever_api.get_primary_key("sections", "fake")
     stream.flush()
     logs = stream.getvalue()
     assert re.search("(No property: 'bad' was found on section for entity 'fake')", logs)
 
     # Get ID based on SIS ID
-    clever_api.match = "sis_id"
+    clever_api.match_groups_by = "sis_id"
     keys = clever_api.get_primary_key("sections", "161-875-2356")
     assert keys == ['58da8c6b894273be68000236']
 
     # Get ID based on course
-    clever_api.match = 'course'
+    clever_api.match_groups_by = 'course'
     keys = clever_api.get_primary_key("sections", "Math 101")
     assert keys == ['58da8c6b894273be680001fc']
 
