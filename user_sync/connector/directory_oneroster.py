@@ -83,7 +83,7 @@ class OneRosterConnector(object):
 
         schema_config = caller_config.get_dict_config('schema', True)
         schema_builder = user_sync.config.OptionsBuilder(schema_config)
-        schema_builder.set_string_value('match', 'name')
+        schema_builder.set_string_value('match_groups_by', 'name')
         schema_builder.set_string_value('key_identifier', 'sourcedId')
         schema_builder.set_string_value('all_users_filter', 'users')
         schema_builder.set_string_value('default_group_filter', 'classes')
@@ -132,7 +132,6 @@ class OneRosterConnector(object):
                         group_filter=group_filter,
                         group_name=group_name,
                         user_filter=user_filter,
-                        request_type='mapped_users',
                     )
 
                     new_users_by_key = rh.parse_results(response, self.options['schema']['key_identifier'], extended_attributes)
@@ -141,11 +140,7 @@ class OneRosterConnector(object):
                             users_by_key[key] = value
                         users_by_key[key]['groups'].add(user_group)
         if all_users:
-            response = api.get_users(
-                user_filter=self.options['schema']['all_users_filter'],
-                request_type='all_users',
-            )
-
+            response = api.get_users(user_filter=self.options['schema']['all_users_filter'])
             new_all_users = rh.parse_results(response, self.options['schema']['key_identifier'], extended_attributes)
             for key, value in six.iteritems(new_all_users):
                 if key not in users_by_key:

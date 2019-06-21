@@ -20,7 +20,7 @@ def caller_options():
     }
 
     schema = {
-        'match': 'name',
+        'match_groups_by': 'name',
         'key_identifier': 'id',
         'all_users_filter': 'users',
         'default_group_filter': 'classes',

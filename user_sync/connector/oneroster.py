@@ -55,7 +55,6 @@ class ClasslinkConnector():
                   group_filter=None,  # Type of group (class, course, school)
                   group_name=None,  # Plain group name (Math 6)
                   user_filter=None,  # Which users: users, students, staff
-                  request_type=None,  # Determines which logic is used (see below)
                   ):
 
         results = []
@@ -66,7 +65,7 @@ class ClasslinkConnector():
             list_classes = self.execute_actions(group_filter, user_filter, key_id, 'course_classlist')
             for each_class in list_classes:
                 results.extend(self.execute_actions('classes', user_filter, each_class, 'mapped_users'))
-        elif request_type == 'all_users':
+        elif not group_filter:
             results.extend(self.execute_actions(None, user_filter, None, 'all_users'))
         else:
             key_id = self.execute_actions(group_filter, None, group_name, 'key_identifier')
@@ -168,11 +167,12 @@ class CleverConnector():
         self.client_id = options.get('client_id')
         self.client_secret = options.get('client_secret')
         self.max_users = options.get('max_user_count') or 0
-        self.match = options.get('match') or 'name'
+        self.match_groups_by = options.get('match_groups_by') or 'name'
         self.page_size = options.get('page_size') or 10000
         self.access_token = options.get('access_token')
         self.host = options.get('host') or 'https://api.clever.com/v2.1/'
         self.user_count = 0
+        self.calls_made = []
 
         if not self.access_token:
             self.authenticate()
@@ -191,7 +191,6 @@ class CleverConnector():
                   group_filter=None,  # Type of group (class, course, school)
                   group_name=None,  # Plain group name (Math 6)
                   user_filter=None,  # Which users: users, students, staff
-                  **kwargs
                   ):
 
         results = []
@@ -200,7 +199,10 @@ class CleverConnector():
             results = self.get_users_for_course(name=group_name, user_filter=user_filter)
         elif group_filter:
             for c in calls:
-                for i in self.get_primary_key(group_filter, group_name):
+                keylist = self.get_primary_key(group_filter, group_name)
+                if not keylist:
+                    break
+                for i in keylist:
                     results.extend(self.make_call(c.format(i)))
         else:
             # All users
@@ -211,6 +213,7 @@ class CleverConnector():
             user['familyName'] = user['name'].get('last')
             user['middleName'] = user['name'].get('middle')
 
+        self.logger.info("Collected " + str(self.user_count) + " total users for calls:" + str(self.calls_made))
         return results[0:self.max_users] if self.max_users > 0 else results
 
 
@@ -218,11 +221,11 @@ class CleverConnector():
         return [self.make_call(c) for c in calls]
 
     def make_call(self, url):
-
         next = ""
         collected_objects = []
         count_users = '/users' in url or '/students' in url or '/teachers' in url
-
+        if count_users:
+            self.calls_made.append(url)
         while True:
             if self.max_users and self.user_count > self.max_users:
                 break
@@ -232,7 +235,9 @@ class CleverConnector():
                 if new_objects:
                     collected_objects.extend(new_objects)
                     next = '&starting_after=' + new_objects[-1]['data']['id']
-                    self.user_count += len(new_objects) if count_users else 0
+                    if count_users:
+                        self.user_count += len(new_objects)
+                        self.logger.info("Collected users: " + str(self.user_count))
                 else:
                     break
             except Exception as e:
@@ -241,7 +246,7 @@ class CleverConnector():
         return extracted_objects
 
     def get_primary_key(self, type, name):
-        if self.match == 'id':
+        if self.match_groups_by == 'id':
             return name
         if self.max_users > 0  and self.user_count > self.max_users:
             return []
@@ -252,14 +257,14 @@ class CleverConnector():
 
         for o in objects:
             try:
-                if decode_string(o[self.match]) == decode_string(name):
+                if decode_string(o[self.match_groups_by]) == decode_string(name):
                     id_list.append(o['id'])
             except KeyError:
-                self.logger.warning("No property: '" + self.match +
+                self.logger.warning("No property: '" + self.match_groups_by +
                                     "' was found on " + type.rstrip('s') + " for entity '" + name + "'")
                 break
         if not id_list:
-            self.logger.warning("No objects found for " + type + ": " + name)
+            self.logger.warning("No objects found for " + type + ": '" + name + "'")
         return id_list
 
     def get_sections_for_course(self, name):
