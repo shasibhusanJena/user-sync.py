@@ -124,10 +124,10 @@ class OneRosterConnector(object):
         users_by_key = {}
 
         for group_filter in groups_from_yml:
-            inner_dict = groups_from_yml[group_filter]
-            for group_name in inner_dict:
-                for user_group in inner_dict[group_name]:
-                    user_filter = inner_dict[group_name][user_group]
+            groups_names = groups_from_yml[group_filter]
+            for group_name in groups_names:
+                for user_group in groups_names[group_name]:
+                    user_filter = groups_names[group_name][user_group]
                     response = api.get_users(
                         group_filter=group_filter,
                         group_name=group_name,
@@ -174,10 +174,12 @@ class OneRosterConnector(object):
 
                 if group_filter not in {'classes', 'courses', 'schools', 'sections'}:
                     raise ValueError(
-                        "Bad group type: " + group_filter + " for " + text + ", valid are: classes, courses, sections, schools")
+                        "Bad group type: " + group_filter + " for " + text
+                        + ", valid are: classes, courses, sections, schools")
                 if user_filter not in {'students', 'teachers', 'users'}:
                     raise ValueError(
-                        "Bad user type: " + group_filter + " for " + text + ", valid are: students, teachers, or users")
+                        "Bad user type: " + group_filter + " for " + text
+                        + ", valid are: students, teachers, or users")
 
                 if group_filter not in groups:
                     groups[group_filter] = {group_name: {}}

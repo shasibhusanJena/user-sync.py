@@ -213,7 +213,7 @@ class CleverConnector():
             user['familyName'] = user['name'].get('last')
             user['middleName'] = user['name'].get('middle')
 
-        self.logger.info("Collected " + str(self.user_count) + " total users for calls:" + str(self.calls_made))
+        #self.logger.info("Collected " + str(self.user_count) + " total users for calls:" + str(self.calls_made))
         self.calls_made = []
         self.user_count = 0
         return results[0:self.max_users] if self.max_users > 0 else results
@@ -227,7 +227,7 @@ class CleverConnector():
         collected_objects = []
         count_users = '/users' in url or '/students' in url or '/teachers' in url
         if count_users:
-            self.calls_made.append(url)
+            self.logger.info("Getting users from: " + url)
         while True:
             if self.max_users and self.user_count > self.max_users:
                 break
