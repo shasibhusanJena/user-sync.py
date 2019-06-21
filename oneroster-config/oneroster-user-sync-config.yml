@@ -177,92 +177,48 @@ directory_users:
     # Adobe products, such as InDesign and InCopy.)
     # [You will need to edit or remove these examples.]
 
-    - directory_group: "Algebra 2 (MAT315)"
-      adobe_groups:
-        - "Caves and Embers"
 
-    - directory_group: "courses:: SS12 Participation in Gov't/Econ::students"
-      adobe_groups:
-        - "Caves and Embers"
 
-    - directory_group: "schools::ClassLink HS::students"
-      adobe_groups:
-        - "All students"
 
-    #    - directory_group: "classes::Art ii -Spring::students"
-    #      adobe_groups:
-    #        - "Classlink"
-    #
-    #    - directory_group: "xxx"
-    #      adobe_groups:
-    #        - "Classlink_dont_fill"
-    # Courses are working!!
-#    - directory_group: "courses::English 9::students"
-#      adobe_groups:
-#        - "Classlink_dont_fill"
-#
-#    - directory_group: "courses::English 9::teachers"
-#      adobe_groups:
-#        - "Classlink_dont_fill"
-###
-##    - directory_group: "classes::ELA 6 (6A ELA)::students"
-##      adobe_groups:
-##        - "Classlink_dont_fill"
-#
-#    - directory_group: "ELA 6 (6A ELA)"
-#      adobe_groups:
-#        - "Classlink_dont_fill"
-##
-#    - directory_group: "classes::ELA 6 (6A ELA)::teachers"
-#      adobe_groups:
-#        - "Classlink_dont_fill"
-##
-#    - directory_group: "schools::cLasslink Elementary schOOl::students"
-#      adobe_groups:
-#        - "Classlink_dont_fill"
-##
-##   #Won't work since a class does not have teachers associated to it
-#    - directory_group: "courses::Phy-102::teachers"
-#      adobe_groups:
-#        - "Classlink_dont_fill"
-###
-##
-#    - directory_group: "classes::Physics II - Spring::teachers"
-#      adobe_groups:
-#        - "Classlink"
-#
-#
-#    - directory_group: "classes::Geography I - Spring::students"
-#      adobe_groups:
-#        - "Classlink"
+############## Clever test information ###############
 
-#    - directory_group: "classes::Art I - Fall::students"
+#    - directory_group: "sections::Class 003, Homeroom - Stark - 0::users"
 #      adobe_groups:
-#        - "Classlink"
+#        - "Caves and Embers"
+#
+#    - directory_group: "courses::Class 001, Homeroom::users"
+#      adobe_groups:
+#        - "Caves and Embers"
+#    - directory_group: "schools::Rockaway Beach Middle School::users"
+#      adobe_groups:
+#        - "Caves and Embers"
 
-#    - directory_group: "classes::Art I - Fall::teachers"
+
+######################################################
+
+
+
+
+############## Clever test information ###############
+
+#    - directory_group: "Algebra 2 (MAT315)"
 #      adobe_groups:
-#        - "Classlink"
-##
-#    - directory_group: "courses::Alg-101::students"
-#      adobe_groups:
-#        - "Classlink"
-###
-#    - directory_group: "classes::Geography III - Spring::students"
-#      adobe_groups:
-#        - "Classlink"
+#        - "Caves and Embers"
 #
-#    - directory_group: "classes::Algebra I - Fall::students"
+#    - directory_group: "courses:: SS12 Participation in Gov't/Econ::students"
 #      adobe_groups:
-#        - "Classlink"
-##
-#    - directory_group: "schools::Spring Valley Elementary School::students"
-#      adobe_groups:
-#        - "Classlink"
+#        - "Caves and Embers"
 #
-#    - directory_group: "schools::Woodland Elementary School::students"
+#    - directory_group: "schools::ClassLink HS::students"
 #      adobe_groups:
-#        - "Classlink"
+#        - "All students"
+
+######################################################
+
+
+
+
+
 
 # The limits section provides processing limits which can help ensure that
 # User Sync jobs do not exceed expected guardrails in their operation

@@ -6,33 +6,29 @@
 # This sample file contains all of the settable options for this protocol.
 # It is recommended that you make a copy of this file and edit it for your needs.
 
-# Classlink
 
-#platform: 'classlink'
-#client_id: '0fc7e35773c1fffd32579507'
-#client_secret: '10332e330b2e364020179021'
-#host: "https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/"
 
-# Clever
-
-platform: 'clever'
-client_id: '5d8a7b5eff6cbe25bc6e'
-client_secret: 'ec6d2c060987e32cbe785f7f1a58a307a04cf0a4'
-match: 'name'
+# platform
 
 # Connection Settings
 #(required, no default)
 # Endpoint for organization's OneRoster implementation
-#host: "https://exampleschool-ca-v2.oneroster.com/ims/oneroster/v1p1/"
+# host: "https://exampleschool-ca-v2.oneroster.com/ims/oneroster/v1p1/"
 
 # (required, no default)
 # API credentials for classlink server
-#client_id: 'client id goes here'
-#client_secret: 'client secret goes here'
+# client_id: 'client id goes here'
+# client_secret: 'client secret goes here'
+
+# (optional, default value given below)
+# api call page size.  Adjusting this will adjust the frequency of API calls made to the server
+# page_size: 1000
+
+# max user limit
 
 # (optional, default value given below)
 # unique key used throughout One-Roster (sourcedId is commonly used)
-key_identifier: 'sourcedId'
+# key_identifier: 'sourcedId'
 
 # Simple Group Mapping
 # When simplifying user group mappings, you may choose the default values that are appended to your group_name
@@ -41,21 +37,67 @@ key_identifier: 'sourcedId'
 
 # (optional, default value given below)
 # the default filter applied to the prefix of a plain group name. eg: classes::name::user_filter
-default_group_filter: 'classes'
+#default_group_filter: 'classes'
 
 # (optional, default value given below)
 # the default filter applied to the suffix of a plain group name. eg: group_filter::name::students
-default_user_filter: 'students'
+#default_user_filter: 'students'
 
 # (optional, default value given below)
 # all users filter.  Use this with the --users all command line option to target all users
-all_users_filter: 'users'
+# all_users_filter: 'users'
 
-# (optional, default value given below)
-# api call page size.  Adjusting this will adjust the frequency of API calls made to the server
-page_size: 100
-max_user_limit: 0
 
+
+############# Clever test information #############
+#
+#connection:
+#  platform: 'clever'
+#  client_id: '5d8a7b5eff6cbe25bc6e'
+#  client_secret: 'ec6d2c060987e32cbe785f7f1a58a307a04cf0a4'
+#  host: 'https://api.clever.com/v2.1/'
+#
+#  access_token: 'TEST_TOKEN'
+#  page_size: 3000
+#  max_user_count: 0
+#
+#schema:
+#  match_groups_by: 'name'
+#  key_identifier: 'id'
+#  all_users_filter: 'users'
+#  default_group_filter: 'sections'
+#  default_user_filter: 'students'
+
+######################################################
+
+
+
+
+############# Classlink test information #############
+
+#connection:
+#  platform: 'classlink'
+#  client_id: '0fc7e35773c1fffd32579507'
+#  client_secret: '10332e330b2e364020179021'
+#  host: "https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/"
+#
+#  #access_token:
+#  page_size: 3000
+#  max_user_count: 0
+#
+#schema:
+#  match_groups_by: 'name'
+#  key_identifier: 'sourcedId'
+#  all_users_filter: 'users'
+#  default_group_filter: 'classes'
+#  default_user_filter: 'students'
+
+######################################################
+
+
+
+
+# fields below are all optional
 # # (optional, default value given below) user_email_format
 # user_email_format specifies how to construct a user's email address by
 # combining constant strings with the values of specific Okta profile attributes.
@@ -64,7 +106,8 @@ max_user_limit: 0
 # The default value is from "email" field in Okta user profile.
 # NOTE: for this and every format setting, the constant strings must be in
 # the encoding specified by the string_encoding setting, above.
-user_email_format: "{email}"
+#user_email_format: "{email}"
+user_email_format: "{familyName}.{givenName}@resistanceisfutile.net"
 
 # (optional, no default) user_domain_format
 # user_domain_format is analogous to user_email_format in syntax, but it

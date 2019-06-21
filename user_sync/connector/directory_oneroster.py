@@ -21,7 +21,7 @@
 
 import re
 import string
-
+import itertools
 import six
 
 import user_sync.config
@@ -48,7 +48,7 @@ def connector_initialize(options):
 
 def connector_load_users_and_groups(state, groups=None, extended_attributes=None, all_users=True):
     """
-    :type state: LDAPDirectoryConnector
+    :type state: OnerosterDirectoryConnector
     :type groups: Optional(list(str))
     :type extended_attributes: Optional(list(str))
     :type all_users: bool
@@ -69,13 +69,29 @@ class OneRosterConnector(object):
 
     @staticmethod
     def get_options(caller_config):
+
+        connection_config = caller_config.get_dict_config('connection', True)
+        connection_builder = user_sync.config.OptionsBuilder(connection_config)
+        connection_builder.require_string_value('client_id')
+        connection_builder.require_string_value('client_secret')
+        connection_builder.require_string_value('platform')
+        connection_builder.require_string_value('host')
+        connection_builder.set_int_value('page_size', 1000)
+        connection_builder.set_int_value('max_user_count', 0)
+        connection_builder.set_string_value('access_token', None)
+        connection_options = connection_builder.get_options()
+
+        schema_config = caller_config.get_dict_config('schema', True)
+        schema_builder = user_sync.config.OptionsBuilder(schema_config)
+        schema_builder.set_string_value('match_groups_by', 'name')
+        schema_builder.set_string_value('key_identifier', 'sourcedId')
+        schema_builder.set_string_value('all_users_filter', 'users')
+        schema_builder.set_string_value('default_group_filter', 'classes')
+        schema_builder.set_string_value('default_user_filter', 'students')
+        schema_builder.set_dict_value('user_inclusive_filter_kwargs', {})
+        schema_options = schema_builder.get_options()
+
         builder = user_sync.config.OptionsBuilder(caller_config)
-        builder.require_string_value('client_id')
-        builder.require_string_value('client_secret')
-        builder.require_string_value('platform')
-        builder.set_string_value('host', None)
-        builder.set_string_value('all_users_filter', 'users')
-        builder.set_string_value('key_identifier', 'sourcedId')
         builder.set_string_value('logger_name', 'oneroster')
         builder.set_string_value('user_email_format', six.text_type('{email}'))
         builder.set_string_value('user_given_name_format', six.text_type('{givenName}'))
@@ -85,13 +101,11 @@ class OneRosterConnector(object):
         builder.set_string_value('user_domain_format', None)
         builder.set_string_value('user_identity_type', None)
         builder.set_string_value('user_identity_type_format', None)
-        builder.set_string_value('default_group_filter', 'classes')
-        builder.set_string_value('default_user_filter', 'students')
-        builder.set_string_value('match', 'name')
-        builder.set_int_value('page_size', 1000)
-        builder.set_int_value('max_user_limit', 0)
+        options = builder.get_options()
 
-        return builder.get_options()
+        options['connection'] = connection_options
+        options['schema'] = schema_options
+        return options
 
     def load_users_and_groups(self, groups, extended_attributes, all_users):
         """
@@ -102,43 +116,40 @@ class OneRosterConnector(object):
         :rtype (bool, iterable(dict))
         """
         rh = RecordHandler(self.logger, self.options)
-        api = user_sync.connector.oneroster.get_connector(self.options)
+        api_options = self.options['connection']
+        api_options['key_identifier'] = self.options['schema']['key_identifier']
+        api = user_sync.connector.oneroster.get_connector(api_options)
         groups_from_yml = self.parse_yaml_groups(groups)
+        max_user_count = self.options['connection']['max_user_count']
         users_by_key = {}
 
         for group_filter in groups_from_yml:
-
             inner_dict = groups_from_yml[group_filter]
-
             for group_name in inner_dict:
                 for user_group in inner_dict[group_name]:
-
                     user_filter = inner_dict[group_name][user_group]
-
                     response = api.get_users(
                         group_filter=group_filter,
                         group_name=group_name,
                         user_filter=user_filter,
-                        request_type='mapped_users',
                     )
 
-                    new_users_by_key = rh.parse_results(response, self.options['key_identifier'], extended_attributes)
+                    new_users_by_key = rh.parse_results(response, self.options['schema']['key_identifier'], extended_attributes)
                     for key, value in six.iteritems(new_users_by_key):
                         if key not in users_by_key:
                             users_by_key[key] = value
                         users_by_key[key]['groups'].add(user_group)
         if all_users:
-            response = api.get_users(
-                        user_filter=self.options['all_users_filter'],
-                        request_type='all_users',
-                    )
-
-            new_all_users = rh.parse_results(response, self.options['key_identifier'], extended_attributes)
+            response = api.get_users(user_filter=self.options['schema']['all_users_filter'])
+            new_all_users = rh.parse_results(response, self.options['schema']['key_identifier'], extended_attributes)
             for key, value in six.iteritems(new_all_users):
                 if key not in users_by_key:
                     users_by_key[key] = value
 
-        return six.itervalues(users_by_key)
+        if max_user_count > 0:
+            return six.itervalues(dict(itertools.islice(users_by_key.items(), max_user_count)))
+        else:
+            return six.itervalues(users_by_key)
 
     def parse_yaml_groups(self, groups_list):
         """
@@ -150,13 +161,15 @@ class OneRosterConnector(object):
         """
         groups = {}
         for text in groups_list:
-            if re.search('.*(\:\:).*(\:\:).*', text):
+            if re.search('.*(::).*(::).*', text):
                 group_filter, group_name, user_filter = text.lower().split("::")
 
                 if group_filter not in {'classes', 'courses', 'schools', 'sections'}:
-                    raise ValueError("Bad group type: " + group_filter + " for " + text + ", valid are: classes, courses, sections, schools")
+                    raise ValueError(
+                        "Bad group type: " + group_filter + " for " + text + ", valid are: classes, courses, sections, schools")
                 if user_filter not in {'students', 'teachers', 'users'}:
-                    raise ValueError("Bad user type: " + group_filter + " for " + text + ", valid are: students, teachers, or users")
+                    raise ValueError(
+                        "Bad user type: " + group_filter + " for " + text + ", valid are: students, teachers, or users")
 
                 if group_filter not in groups:
                     groups[group_filter] = {group_name: {}}
@@ -164,20 +177,20 @@ class OneRosterConnector(object):
                     groups[group_filter][group_name] = {}
                 groups[group_filter][group_name].update({text: user_filter})
             else:
-                group_filter = self.options['default_group_filter']
-                user_filter = self.options['default_user_filter']
+                group_filter = self.options['schema']['default_group_filter']
+                user_filter = self.options['schema']['default_user_filter']
                 if group_filter not in groups:
                     groups[group_filter] = {text: {}}
                 elif text not in groups[group_filter]:
                     groups[group_filter][text] = {}
                 groups[group_filter][text].update({text: user_filter})
-
         return groups
 
 
 class RecordHandler:
     def __init__(self, logger, options):
         self.logger = logger
+        self.inclusions = options['schema']['user_inclusive_filter_kwargs']
         self.user_identity_type = user_sync.identity_type.parse_identity_type(options['user_identity_type'])
         self.user_identity_type_formatter = OneRosterValueFormatter(options['user_identity_type_format'])
         self.user_email_formatter = OneRosterValueFormatter(options['user_email_format'])
@@ -210,10 +223,18 @@ class RecordHandler:
         :type key_identifier: str()
         :rtype: formatted_user: dict(user object)
         """
+
+        if not self.filter_out_users(record):
+            return
+
         attribute_warning = "No %s attribute (%s) for user with key: %s, defaulting to %s"
         source_attributes = {}
+
         key = record.get(key_identifier)
-        if key is None or record.get('status') != 'active':
+
+        if key is None:
+            return
+        if 'status' in record and record.get('status') != 'active':
             return
         email, last_attribute_name = self.user_email_formatter.generate_value(record)
         email = email.strip() if email else None
@@ -276,6 +297,28 @@ class RecordHandler:
                 source_attributes[extended_attribute] = extended_attribute_value
         user['source_attributes'] = source_attributes.copy()
         return user
+
+    def filter_out_users(self, record):
+
+        for key, value in self.inclusions.items():
+
+            try:
+                if self.decode_string(record.get(key)) not in self.decode_string(value[0]):
+                    return False
+            except:
+                self.logger.warning("No key for filtering attribute " + key + " for user " + record['email'])
+                return False
+
+        return True
+
+    def decode_string(self, string):
+        if not string:
+            return
+        try:
+            decoded = string.decode()
+        except:
+            decoded = str(string)
+        return decoded.lower().strip()
 
 
 class OneRosterValueFormatter(object):

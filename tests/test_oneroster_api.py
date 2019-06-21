@@ -1,9 +1,10 @@
 import collections
+import json
 import re
 
 import mock
 import pytest
-import urllib3
+from requests import Response
 
 import user_sync.connector.oneroster as oneroster
 
@@ -16,55 +17,37 @@ def clever_api():
         'key_identifier': 'sourcedId',
         'page_size': 1000,
         'max_user_limit': 0,
-        'match': 'name'
+        'match': 'name',
+        'access_token': 'TEST_TOKEN'
     }
 
     return oneroster.CleverConnector(options)
 
 
-@mock.patch('clever.DataApi.get_students_with_http_info')
-@mock.patch('clever.DataApi.get_teachers_with_http_info')
-def test_get_users(get_teachers, get_students, clever_api, mock_many_students, mock_teacher):
-
-    # Empty response needed to end the make cap
+@mock.patch('user_sync.connector.oneroster.requests.get')
+def test_get_users(requests_get, mock_many_students, mock_teacher, clever_api):
     empty_repsonse = get_mock_api_response([])
     mock_student_response = [get_mock_api_response(mock_many_students), empty_repsonse]
     mock_teacher_response = [get_mock_api_response(mock_teacher), empty_repsonse]
 
-    # Reset data
-    get_students.side_effect = mock_student_response
-
-    # Get students
+    requests_get.side_effect = mock_student_response
     response = clever_api.get_users(user_filter='students')
-    expected = [x['id'] for x in mock_many_students]
-    actual = [x.id for x in response]
-    assert collections.Counter(expected) == collections.Counter(actual)
+    assert reduce(mock_many_students) == reduce(response)
 
-    # Reset data
-    get_teachers.side_effect = mock_teacher_response
-
+    requests_get.side_effect = mock_teacher_response
     response = clever_api.get_users(user_filter='teachers')
-    expected = [x['id'] for x in mock_teacher]
-    actual = [x.id for x in response]
-    assert collections.Counter(expected) == collections.Counter(actual)
+    assert reduce(mock_teacher) == reduce(response)
 
-    # Reset data
-    get_students.side_effect = mock_student_response
-    get_teachers.side_effect = mock_teacher_response
-
-    # Get all users
+    mock_many_students.extend(mock_teacher)
+    mock_student_response.extend(mock_teacher_response)
+    requests_get.side_effect = mock_student_response
     response = clever_api.get_users(user_filter='users')
-    expected = [x['id'] for x in mock_many_students]
-    expected.append(mock_teacher[0]['id'])
-    actual = [x.id for x in response]
-    assert collections.Counter(expected) == collections.Counter(actual)
+    assert reduce(mock_many_students) == reduce(response)
 
 
-@mock.patch('clever.DataApi.get_students_for_section_with_http_info')
-@mock.patch('clever.DataApi.get_teachers_for_section_with_http_info')
+@mock.patch('user_sync.connector.oneroster.requests.get')
 @mock.patch('user_sync.connector.oneroster.CleverConnector.get_primary_key')
-def test_get_users_for_section(get_key, get_teachers, get_students, clever_api, mock_many_students, mock_teacher):
-
+def test_get_users_for_section(get_key, requests_get, clever_api, mock_many_students, mock_teacher):
     # Empty response needed to end the make cap
     empty_repsonse = get_mock_api_response([])
     mock_student_response = [get_mock_api_response(mock_many_students), empty_repsonse]
@@ -74,57 +57,46 @@ def test_get_users_for_section(get_key, get_teachers, get_students, clever_api, 
     get_key.return_value = ['58da8c6b894273be680001fc']
 
     # Get students
-    get_students.side_effect = mock_student_response
+    requests_get.side_effect = mock_student_response
     response = clever_api.get_users(user_filter='students',
                                     group_filter='sections',
                                     group_name='Class 003, Homeroom - Stark - 0')
-
-    expected = [x['id'] for x in mock_many_students]
-    actual = [x.id for x in response]
-    assert collections.Counter(expected) == collections.Counter(actual)
+    assert reduce(mock_many_students) == reduce(response)
 
     # Get students
-    get_teachers.side_effect = mock_teacher_response
+    requests_get.side_effect = mock_teacher_response
     response = clever_api.get_users(user_filter='teachers',
                                     group_filter='sections',
                                     group_name='Class 003, Homeroom - Stark - 0')
+    assert reduce(mock_teacher) == reduce(response)
 
-    expected = [x['id'] for x in mock_teacher]
-    actual = [x.id for x in response]
-    assert collections.Counter(expected) == collections.Counter(actual)
-
-    # Get all users
-    get_students.side_effect = mock_student_response
-    get_teachers.side_effect = mock_teacher_response
+    mock_many_students.extend(mock_teacher)
+    mock_student_response.extend(mock_teacher_response)
+    requests_get.side_effect = mock_student_response
     response = clever_api.get_users(user_filter='users',
                                     group_filter='sections',
                                     group_name='Class 003, Homeroom - Stark - 0')
-
-    expected = [x['id'] for x in mock_many_students]
-    expected.append(mock_teacher[0]['id'])
-    actual = [x.id for x in response]
-    assert collections.Counter(expected) == collections.Counter(actual)
+    assert reduce(mock_many_students) == reduce(response)
 
 
-@mock.patch('clever.DataApi.get_students_with_http_info')
-def test_make_call(get_students, clever_api, mock_user_data):
+@mock.patch('user_sync.connector.oneroster.requests.get')
+def test_make_call(requests_get, clever_api, mock_user_data):
     page_1 = get_mock_api_response(mock_user_data[0:2])
     page_2 = get_mock_api_response(mock_user_data[2:4])
     page_3 = get_mock_api_response([])
 
-    get_students.side_effect = [page_1, page_2, page_3]
+    requests_get.side_effect = [page_1, page_2, page_3]
+    urls = clever_api.translate(None, 'students')[0]
 
-    results = clever_api.make_call(clever_api.clever_api.get_students_with_http_info)
-    expected = [x['id'] for x in mock_user_data]
-    actual = [x.data.id for x in results]
-    assert collections.Counter(expected) == collections.Counter(actual)
+    response = clever_api.make_call(url=urls)
+    assert reduce(mock_user_data) == reduce(response)
 
 
 @mock.patch('user_sync.connector.oneroster.CleverConnector.make_call')
 def test_get_primary_key(mock_make_call, clever_api, log_stream, mock_section_data):
     stream, logger = log_stream
     clever_api.logger = logger
-    mock_make_call.return_value = get_mock_api_response_dataonly(mock_section_data)
+    mock_make_call.return_value = mock_section_data
 
     keys = clever_api.get_primary_key("sections", "Class 202, Homeroom - Jones - 0")
     assert keys == ['58da8c6b894273be6800020a', '58da8c6b894273be5100020a']
@@ -137,23 +109,21 @@ def test_get_primary_key(mock_make_call, clever_api, log_stream, mock_section_da
     assert re.search('(No objects found for sections:).*(Fake class)', logs)
 
     stream.buf = ''
-    clever_api.match = 'bad'
+    clever_api.match_groups_by = 'bad'
     clever_api.get_primary_key("sections", "fake")
     stream.flush()
     logs = stream.getvalue()
     assert re.search("(No property: 'bad' was found on section for entity 'fake')", logs)
 
     # Get ID based on SIS ID
-    clever_api.match = "sis_id"
+    clever_api.match_groups_by = "sis_id"
     keys = clever_api.get_primary_key("sections", "161-875-2356")
     assert keys == ['58da8c6b894273be68000236']
 
     # Get ID based on course
-    clever_api.match = 'course'
+    clever_api.match_groups_by = 'course'
     keys = clever_api.get_primary_key("sections", "Math 101")
     assert keys == ['58da8c6b894273be680001fc']
-
-    pytest.raises(ValueError, clever_api.get_primary_key, type='bad', name='bad')
 
 
 @mock.patch('user_sync.connector.oneroster.CleverConnector.make_call')
@@ -169,15 +139,11 @@ def test_get_sections_for_course(get_key, make_call, clever_api, mock_section_da
     get_key.return_value = ['12345', '67892']
 
     # Each time we call, we get a response
-    make_call.side_effect = [get_mock_api_response_dataonly(data_1),
-                             get_mock_api_response_dataonly(data_2)]
+    make_call.side_effect = [data_1, data_2]
 
-    # Combine ID fields from data 1 and 2
-    expected = [map(lambda x: x['id'], data) for data in [data_1, data_2]]
-    expected = [y for x in expected for y in x]
-
-    result = clever_api.get_sections_for_course('Math 101')
-    assert collections.Counter(expected) == collections.Counter(result)
+    response = clever_api.get_sections_for_course('Math 101')
+    data_1.extend(data_2)
+    assert reduce(data_1) == collections.Counter(response)
 
 
 @mock.patch('user_sync.connector.oneroster.CleverConnector.make_call')
@@ -187,63 +153,48 @@ def test_get_users_for_course(get_sections, make_call, clever_api, mock_user_dat
     mock_teachers = mock_user_data[2:4]
 
     get_sections.return_value = ['12345']
-    make_call.side_effect = [
-        get_mock_api_response_dataonly(mock_students),
-        get_mock_api_response_dataonly(mock_teachers)
-    ]
+    make_call.side_effect = [mock_students, mock_teachers]
 
     response = clever_api.get_users_for_course("Math 9", "users")
-    expected = [x['id'] for x in mock_user_data]
-    actual = [x.data.id for x in response]
-    assert collections.Counter(expected) == collections.Counter(actual)
+    assert reduce(mock_user_data) == reduce(response)
 
 
-def test_translate(clever_api):
-    calls = clever_api.translate('sections', 'users')
-    assert calls[0] == clever_api.clever_api.get_students_for_section_with_http_info
-    assert calls[1] == clever_api.clever_api.get_teachers_for_section_with_http_info
-    pytest.raises(ValueError, clever_api.translate, user_filter="x", group_filter="y")
+# def test_translate(clever_api):
+#     calls = clever_api.translate('sections', 'users')
+#     assert calls[0] == clever_api.clever_api.get_students_for_section_with_http_info
+#     assert calls[1] == clever_api.clever_api.get_teachers_for_section_with_http_info
+#     pytest.raises(ValueError, clever_api.translate, user_filter="x", group_filter="y")
+
+def reduce(dictionary):
+    return collections.Counter([x['id'] for x in dictionary])
 
 
 def get_mock_api_response(data, status_code=200, headers=None):
-    headers = urllib3.response.HTTPHeaderDict(headers)
-    response_list = [MockResponse(MockEntry(**d)) for d in data]
-    return (MockResponse(response_list), status_code, headers)
+    formatted = []
+    [formatted.append({'data': u, 'uri': ''}) for u in data]
+
+    body = {'data': formatted, 'links': []}
+    response = Response()
+    response._content = json.dumps(body).encode()
+    response.status_code = status_code
+    response.headers = headers
+
+    return response
 
 
 def get_mock_api_response_dataonly(data):
     return get_mock_api_response(data)[0].data
 
 
-class MockResponse():
-    def __init__(self, data):
-        self.data = data
-
-
-class MockEntry():
-    def __init__(self, **kwargs):
-        self.id = kwargs.get('id')
-        self.name = kwargs.get('name')
-        self.course = kwargs.get('course')
-        self.email = kwargs.get('email')
-        self.school = kwargs.get('school')
-        self.sis_id = kwargs.get('sis_id')
-
-
 # Not a real test - just for producing data
 # def test_data_generator(clever_api):
-#     res = clever_api.get_users(group_filter='sections',
-#                                user_filter='users',
-#                                group_name='Class 003, Homeroom - Stark - 0')
-#     mock_many = [
-#         {
-#             'id': x.id,
-#             'name': x.name,
-#             'email': x.email,
-#             'sis_id': x.sis_id,
-#             'school': x.school
-#         } for x in res
-#     ]
+# res = clever_api.get_users(group_filter='sections',
+#                                   user_filter='users',
+#                                   group_name='Class 003, Homeroom - Stark - 0')
+
+# clever_api.get_users(user_filter='teachers')
+# clever_api.get_primary_key('sections', 'Class 003, Homeroom - Stark - 0')
+# clever_api.get_sections_for_course('Class 001, Homeroom')
 
 
 @pytest.fixture()

@@ -1,11 +1,11 @@
 # from __future__ import print_function
-
 import json
 import logging
+import re
 
 import classlink_oneroster
-import clever
-from clever.rest import ApiException
+import requests
+import math
 
 
 # Github: https://github.com/vossen-adobe/classlink
@@ -18,7 +18,7 @@ def get_connector(options):
     elif platform == 'clever':
         return CleverConnector(options)
 
-    raise ModuleNotFoundError("No module for " + platform +
+    raise NotImplementedError("No module for " + platform +
                               " was found. Supported are: [classlink, clever]")
 
 
@@ -42,19 +42,19 @@ class ClasslinkConnector():
 
     def __init__(self, options):
         self.logger = logging.getLogger("classlink")
-        self.host_name = options['host']
-        self.client_id = options['client_id']
-        self.client_secret = options['client_secret']
-        self.key_identifier = options['key_identifier']
-        self.max_users = options['max_user_limit']
-        self.page_size = str(options['page_size'])
+        self.host_name = options.get('host')
+        self.client_id = options.get('client_id')
+        self.client_secret = options.get('client_secret')
+        self.key_identifier = options.get('key_identifier')
+        self.max_users = options.get('max_user_count') or 0
+        self.page_size = str(options.get('page_size'))
+        self.user_count = 0
         self.classlink_api = classlink_oneroster.ClasslinkAPI(self.client_id, self.client_secret)
 
     def get_users(self,
                   group_filter=None,  # Type of group (class, course, school)
                   group_name=None,  # Plain group name (Math 6)
                   user_filter=None,  # Which users: users, students, staff
-                  request_type=None,  # Determines which logic is used (see below)
                   ):
 
         results = []
@@ -65,14 +65,14 @@ class ClasslinkConnector():
             list_classes = self.execute_actions(group_filter, user_filter, key_id, 'course_classlist')
             for each_class in list_classes:
                 results.extend(self.execute_actions('classes', user_filter, each_class, 'mapped_users'))
-        elif request_type == 'all_users':
+        elif not group_filter:
             results.extend(self.execute_actions(None, user_filter, None, 'all_users'))
         else:
             key_id = self.execute_actions(group_filter, None, group_name, 'key_identifier')
             if key_id.__len__() == 0:
                 return results
             results.extend(self.execute_actions(group_filter, user_filter, key_id, 'mapped_users'))
-        return results
+        return results[0:self.max_users] if self.max_users > 0 else results
 
     def execute_actions(self, group_filter, user_filter, identifier, request_type):
         result = []
@@ -109,14 +109,18 @@ class ClasslinkConnector():
     def make_call(self, url, request_type, group_filter, group_name=None):
         user_list = []
         key = 'first'
+        count_users = '/users' in url or '/students' in url or '/teachers' in url
         while key is not None:
+            if self.max_users and self.user_count > self.max_users:
+                break
             if key == 'first':
                 response = self.classlink_api.make_roster_request(url)
             else:
                 response = self.classlink_api.make_roster_request(response.links[key]['url'])
             if not response.ok:
                 raise ValueError('Non Successful Response'
-                                 + '  ' + 'status:' + str(response.status_code) + '  ' + 'message:' + str(response.reason))
+                                 + '  ' + 'status:' + str(response.status_code) + '  ' + 'message:' + str(
+                    response.reason))
             if request_type == 'key_identifier':
                 other = 'course' if group_filter == 'courses' else 'classes'
                 name_identifier, revised_key = ('name', 'orgs') if group_filter == 'schools' else ('title', other)
@@ -137,8 +141,9 @@ class ClasslinkConnector():
             if key == 'last' or int(response.headers._store['x-count'][1]) < int(self.page_size):
                 break
             key = 'next' if 'next' in response.links else 'last'
+            self.user_count += len(user_list) if count_users else 0
 
-        if not user_list:
+        if not user_list and not self.max_users:
             self.logger.warning("No " + request_type + " for " + group_filter + "  " + group_name)
 
         return user_list
@@ -157,120 +162,130 @@ class ClasslinkConnector():
 class CleverConnector():
 
     def __init__(self, options):
+
         self.logger = logging.getLogger("clever")
-        self.client_id = options['client_id']
-        self.client_secret = options['client_secret']
-        self.max_users = options['max_user_limit']
-        self.match = options['match']
-        self.page_size = options['page_size']
+        self.client_id = options.get('client_id')
+        self.client_secret = options.get('client_secret')
+        self.max_users = options.get('max_user_count') or 0
+        self.match_groups_by = options.get('match_groups_by') or 'name'
+        self.page_size = options.get('page_size') or 10000
+        self.access_token = options.get('access_token')
+        self.host = options.get('host') or 'https://api.clever.com/v2.1/'
+        self.user_count = 0
+        self.calls_made = []
 
-        if self.max_users <= 0: self.max_users = None
-        configuration = clever.Configuration()
+        if not self.access_token:
+            self.authenticate()
 
-        # client_id: 5d8a7b5eff6cbe25bc6e
-        # client_secret: ec6d2c060987e32cbe785f7f1a58a307a04cf0a4
-        # Our token: 3d65011e5b5d02c9de5cd129442a3b539de57cf6
-        # configuration.username = self.client_id
-        # configuration.password = self.client_secret
-        # configuration.get_basic_auth_token()
+        self.auth_header = {
+            "Authorization": "Bearer " + self.access_token}
 
-        configuration.access_token = 'TEST_TOKEN'
-        self.clever_api = clever.DataApi(clever.ApiClient(configuration))
+    def authenticate(self):
+        try:
+            auth_resp = requests.get("https://clever.com/oauth/tokens", auth=(self.client_id, self.client_secret))
+            self.access_token = json.loads(auth_resp.content)['data'][0]['access_token']
+        except ValueError:
+            raise LookupError("Authorization attempt failed...")
 
     def get_users(self,
                   group_filter=None,  # Type of group (class, course, school)
                   group_name=None,  # Plain group name (Math 6)
                   user_filter=None,  # Which users: users, students, staff
-                  **kwargs
                   ):
 
-        calls = self.translate(group_filter=group_filter, user_filter=user_filter)
-
         results = []
-        if group_filter:
+        calls = self.translate(group_filter=group_filter, user_filter=user_filter)
+        if group_filter == 'courses':
+            results = self.get_users_for_course(name=group_name, user_filter=user_filter)
+        elif group_filter:
             for c in calls:
-                for i in self.get_primary_key(group_filter, group_name):
-                    results.extend(self.make_call(c, users=True, id=i))
+                keylist = self.get_primary_key(group_filter, group_name)
+                if not keylist:
+                    break
+                for i in keylist:
+                    results.extend(self.make_call(c.format(i)))
         else:
-            [results.extend(self.make_call(c, users=True)) for c in calls]
+            # All users
+            [results.extend(self.make_call(c)) for c in calls]
 
-        user_list = [x.data for x in results]
-        return user_list
+        for user in results:
+            user['givenName'] = user['name'].get('first')
+            user['familyName'] = user['name'].get('last')
+            user['middleName'] = user['name'].get('middle')
 
-    def make_call(self, call, users=False, **params):
+        self.logger.info("Collected " + str(self.user_count) + " total users for calls:" + str(self.calls_made))
+        return results[0:self.max_users] if self.max_users > 0 else results
 
-        # :param async bool
-        # :param int limit:
-        # :param str starting_after:
-        # :param str ending_before:
 
-        params['limit'] = self.page_size
+    def get_all_users(self, calls):
+        return [self.make_call(c) for c in calls]
+
+    def make_call(self, url):
+        next = ""
         collected_objects = []
+        count_users = '/users' in url or '/students' in url or '/teachers' in url
+        if count_users:
+            self.calls_made.append(url)
         while True:
+            if self.max_users and self.user_count > self.max_users:
+                break
             try:
-                response = call(**params)
-                new_objects = response[0].data
+                response = requests.get(url + '?limit=' + str(self.page_size) + next, headers=self.auth_header)
+                new_objects = json.loads(response.content)['data']
                 if new_objects:
                     collected_objects.extend(new_objects)
-                    if self.max_users and users and len(collected_objects) > self.max_users:
-                        return collected_objects[0:self.max_users]
-                    params['starting_after'] = new_objects[-1].data.id
+                    next = '&starting_after=' + new_objects[-1]['data']['id']
+                    if count_users:
+                        self.user_count += len(new_objects)
+                        self.logger.info("Collected users: " + str(self.user_count))
                 else:
                     break
-            except ApiException as e:
-                raise e
             except Exception as e:
                 raise e
-        return collected_objects
+        extracted_objects = [o['data'] for o in collected_objects]
+        return extracted_objects
 
     def get_primary_key(self, type, name):
-        if self.match == 'id':
+        if self.match_groups_by == 'id':
             return name
+        if self.max_users > 0  and self.user_count > self.max_users:
+            return []
 
-        call = {
-            'sections': self.clever_api.get_sections_with_http_info,
-            'courses': self.clever_api.get_sections_with_http_info,
-            'schools': self.clever_api.get_sections_with_http_info,
-        }.get(type)
-
-        if not call:
-            raise ValueError("Invalid group filter: " + type +
-                             " is not a valid type. [sections, courses, schools]")
-
-        objects = self.make_call(call)
+        url = self.translate(None, type)[0]
+        objects = self.make_call(url)
         id_list = []
+
         for o in objects:
             try:
-                if decode_string(getattr(o.data, self.match)) == decode_string(name):
-                    id_list.append(o.data.id)
-            except AttributeError:
-                self.logger.warning("No property: '" + self.match +
+                if decode_string(o[self.match_groups_by]) == decode_string(name):
+                    id_list.append(o['id'])
+            except KeyError:
+                self.logger.warning("No property: '" + self.match_groups_by +
                                     "' was found on " + type.rstrip('s') + " for entity '" + name + "'")
                 break
         if not id_list:
-            self.logger.warning("No objects found for " + type + ": " + name)
+            self.logger.warning("No objects found for " + type + ": '" + name + "'")
         return id_list
 
     def get_sections_for_course(self, name):
         id_list = self.get_primary_key('courses', name)
         sections = []
-
         for i in id_list:
-            sections.extend(
-                self.make_call(self.clever_api.get_sections_for_course_with_http_info, id=i))
+            call = self.translate('courses', 'sections')[0].format(i)
+            sections.extend(self.make_call(call))
         if not sections:
             self.logger.warning("No sections found for course '" + name + "'")
             return []
         else:
-            return map(lambda x: x.data.id, sections)
+            return [s['id'] for s in sections]
 
-    def get_users_for_course(self, name, user_filter):
-        calls = self.translate('sections', user_filter)
+    def get_users_for_course(self, name, user_filter='users'):
+        urls = self.translate('sections', user_filter)
         sections = self.get_sections_for_course(name)
         user_list = []
         for s in sections:
-            for c in calls:
-                user_list.extend(self.make_call(c, id=s))
+            for c in urls:
+                user_list.extend(self.make_call(c.format(s)))
         if not user_list:
             self.logger.warning("No users found for course '" + name + "'")
         return user_list
@@ -280,27 +295,35 @@ class CleverConnector():
         group_filter = group_filter if group_filter else ''
         user_filter = user_filter if user_filter else ''
 
-        call = {
-            'sections_students': [self.clever_api.get_students_for_section_with_http_info],
-            'sections_teachers': [self.clever_api.get_teachers_for_section_with_http_info],
-            'sections_users': [self.clever_api.get_students_for_section_with_http_info,
-                               self.clever_api.get_teachers_for_section_with_http_info],
+        allowed_calls = [
+            'sections_students',
+            'sections_teachers',
+            'sections_users',
 
-            'courses_students': [self.get_users_for_course],
-            'courses_teachers': [self.get_users_for_course],
-            'courses_users': [self.get_users_for_course, self.get_users_for_course],
+            'courses_students',
+            'courses_teachers',
+            'courses_users',
+            'courses_sections',
 
-            'schools_students': [self.clever_api.get_students_for_school_with_http_info],
-            'schools_teachers': [self.clever_api.get_teachers_for_school_with_http_info],
-            'schools_users': [self.clever_api.get_students_for_school_with_http_info,
-                              self.clever_api.get_teachers_for_school_with_http_info],
+            'schools_students',
+            'schools_teachers',
+            'schools_users',
 
-            '_students': [self.clever_api.get_students_with_http_info],
-            '_teachers': [self.clever_api.get_teachers_with_http_info],
-            '_users': [self.clever_api.get_students_with_http_info,
-                       self.clever_api.get_teachers_with_http_info],
-        }.get(group_filter + "_" + user_filter)
+            '_students',
+            '_teachers',
+            '_users',
+            '_sections',
+            '_courses',
+            '_schools',
+        ]
 
-        if not call:
+        if group_filter + "_" + user_filter not in allowed_calls:
             raise ValueError("Unrecognized method request: 'get_" + user_filter + "_for_" + group_filter + "'")
-        return call
+
+        group_filter = group_filter + "/{}/" if group_filter else ''
+        url = self.host + group_filter + user_filter
+
+        if user_filter == 'users':
+            return [url.replace(user_filter, 'students'), url.replace(user_filter, 'teachers')]
+        else:
+            return [url]
