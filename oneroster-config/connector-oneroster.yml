@@ -81,7 +81,7 @@
 #  client_secret: '10332e330b2e364020179021'
 #  host: "https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/"
 #
-#  #access_token: 
+#  #access_token:
 #  page_size: 3000
 #  max_user_count: 0
 #

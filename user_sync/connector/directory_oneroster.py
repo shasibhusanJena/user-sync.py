@@ -184,7 +184,6 @@ class OneRosterConnector(object):
                 elif text not in groups[group_filter]:
                     groups[group_filter][text] = {}
                 groups[group_filter][text].update({text: user_filter})
-
         return groups
 
 
