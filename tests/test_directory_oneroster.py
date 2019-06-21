@@ -17,7 +17,7 @@ def caller_options():
         'host': 'https://example.oneroster.com/ims/oneroster/v1p1/',
         'all_users_filter': 'users',
         'page_size': 100,
-        'max_user_limit': 0,
+        'max_user_count': 0,
         'key_identifier': 'sourcedId',
         'logger_name': 'oneroster',
         'user_email_format': '{email}',

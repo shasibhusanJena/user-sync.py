@@ -152,7 +152,7 @@ class OneRosterConnector(object):
         """
         groups = {}
         for text in groups_list:
-            if re.search('.*(\:\:).*(\:\:).*', text):
+            if re.search('.*(::).*(::).*', text):
                 group_filter, group_name, user_filter = text.lower().split("::")
 
                 if group_filter not in {'classes', 'courses', 'schools', 'sections'}:
