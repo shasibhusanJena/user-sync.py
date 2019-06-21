@@ -214,6 +214,8 @@ class CleverConnector():
             user['middleName'] = user['name'].get('middle')
 
         self.logger.info("Collected " + str(self.user_count) + " total users for calls:" + str(self.calls_made))
+        self.calls_made = []
+        self.user_count = 0
         return results[0:self.max_users] if self.max_users > 0 else results
 
 

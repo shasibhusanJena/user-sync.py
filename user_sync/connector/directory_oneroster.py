@@ -146,7 +146,9 @@ class OneRosterConnector(object):
                 if key not in users_by_key:
                     users_by_key[key] = value
 
+        self.logger.info("Found " + str(len(users_by_key)) + " total users")
         if max_user_count > 0:
+            self.logger.info("Enforcing user limit of: " + str(max_user_count) + " users")
             return six.itervalues(dict(itertools.islice(users_by_key.items(), max_user_count)))
         else:
             return six.itervalues(users_by_key)
@@ -163,6 +165,12 @@ class OneRosterConnector(object):
         for text in groups_list:
             if re.search('.*(::).*(::).*', text):
                 group_filter, group_name, user_filter = text.lower().split("::")
+
+                if self.options['connection']['platform'] == 'clever':
+                    group_filter = group_filter.replace('classes', 'sections')
+                elif self.options['connection']['platform'] == 'classlink':
+                    group_filter = group_filter.replace('sections', 'classes')
+                group_filter = group_filter.replace('orgs','schools')
 
                 if group_filter not in {'classes', 'courses', 'schools', 'sections'}:
                     raise ValueError(
