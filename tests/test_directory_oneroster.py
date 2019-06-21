@@ -34,7 +34,6 @@ def caller_options():
 
 
 def test_parse_results_valid(oneroster_connector, stub_api_response, stub_parse_results):
-
     expected_result = stub_parse_results
     record_handler = RecordHandler(options=oneroster_connector.options, logger=oneroster_connector.logger)
     actual_result = record_handler.parse_results(stub_api_response, 'sourcedId', [])
@@ -146,22 +145,32 @@ def test_load_users_and_groups(oneroster_connector, stub_api_response, stub_pars
             actual_result = list(oneroster_connector.load_users_and_groups(['xxx'], [], False))
             assert actual_result == expected
 
-def test_create_user_object(oneroster_connector, stub_api_response,stub_parse_results):
+
+def test_create_user_object(oneroster_connector, stub_api_response, stub_parse_results):
     record_handler = RecordHandler(options=oneroster_connector.options, logger=oneroster_connector.logger)
     record = stub_api_response[0]
 
     actual_result = record_handler.create_user_object(record, 'sourcedId', [])
-
     expected_result = stub_parse_results['18125']
     assert actual_result == expected_result
 
     expected_result['source_attributes']['enabledUser'] = 'true'
-    actual_result = record_handler.create_user_object(record, 'sourcedId', ['enabledUser'])
-
+    expected_result['source_attributes']['sms'] = '(666) 666-6666'
+    actual_result = record_handler.create_user_object(record, 'sourcedId', ['enabledUser', 'sms'])
     assert expected_result == actual_result
 
-    fail = record_handler.create_user_object(record, 'nothing', [])
+    expected_result = stub_parse_results['18317']
+    expected_result['source_attributes']['bad'] = None
+    actual_result = record_handler.create_user_object(stub_api_response[1], 'sourcedId', ['bad'])
+    assert expected_result == actual_result
 
+    expected_result['source_attributes']['orgs'] = {
+        'href': 'https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/orgs/2',
+        'sourcedId': '2',
+        'type': 'org'
+    }
+    actual_result = record_handler.create_user_object(stub_api_response[1], 'sourcedId', ['orgs', 'bad'])
+    assert expected_result == actual_result
 
 
 def test_get_attr_values():
