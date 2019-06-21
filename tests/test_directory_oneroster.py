@@ -10,31 +10,54 @@ def oneroster_connector(caller_options):
 
 @pytest.fixture()
 def caller_options():
-    return {
+    connection = {
         'platform': 'classlink',
-        'client_id': '000000000',
-        'client_secret': '111111111',
+        'client_id': 'client_id',
+        'client_secret': 'client_secret',
         'host': 'https://example.oneroster.com/ims/oneroster/v1p1/',
+        'page_size': 1000,
+        'max_user_count': 0
+    }
+
+    schema = {
+        'match': 'name',
+        'key_identifier': 'id',
         'all_users_filter': 'users',
-        'page_size': 100,
-        'max_user_count': 0,
-        'key_identifier': 'sourcedId',
-        'logger_name': 'oneroster',
-        'user_email_format': '{email}',
-        'user_given_name_format': '{givenName}',
-        'user_surname_format': '{familyName}',
-        'user_country_code_format': '{countryCode}',
-        'user_identity_type': 'federatedID',
         'default_group_filter': 'classes',
         'default_user_filter': 'students'
-        #  'user_username_format': None,
-        #  'user_domain_format': None,
-        #  'user_identity_type_format': None,
     }
+
+    options = {'user_identity_type': 'federatedID'}
+    options['connection'] = connection
+    options['schema'] = schema
+    return options
+
+    # return {'connection': 'schema': {'match': 'name', 'key_identifier': 'id', 'all_users_filter': 'users', 'default_group_filter': 'courses', 'default_user_filter': 'students'}, 'user_identity_type': 'federatedID'}
+
+    # return {
+    #     'platform': 'classlink',
+    #     'client_id': '000000000',
+    #     'client_secret': '111111111',
+    #     'host': 'https://example.oneroster.com/ims/oneroster/v1p1/',
+    #     'all_users_filter': 'users',
+    #     'page_size': 100,
+    #     'max_user_count': 0,
+    #     'key_identifier': 'sourcedId',
+    #     'logger_name': 'oneroster',
+    #     'user_email_format': '{email}',
+    #     'user_given_name_format': '{givenName}',
+    #     'user_surname_format': '{familyName}',
+    #     'user_country_code_format': '{countryCode}',
+    #     'user_identity_type': 'federatedID',
+    #     'default_group_filter': 'classes',
+    #     'default_user_filter': 'students'
+    #     #  'user_username_format': None,
+    #  'user_domain_format': None,
+    #  'user_identity_type_format': None,
+    # }
 
 
 def test_parse_results_valid(oneroster_connector, stub_api_response, stub_parse_results):
-
     expected_result = stub_parse_results
     record_handler = RecordHandler(options=oneroster_connector.options, logger=oneroster_connector.logger)
     actual_result = record_handler.parse_results(stub_api_response, 'sourcedId', [])
