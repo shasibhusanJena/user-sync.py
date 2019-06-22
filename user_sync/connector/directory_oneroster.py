@@ -26,7 +26,7 @@ import six
 
 import user_sync.config
 import user_sync.connector.helper
-import user_sync.connector.oneroster
+import oneroster
 import user_sync.helper
 import user_sync.identity_type
 from user_sync.error import AssertionException
@@ -118,16 +118,16 @@ class OneRosterConnector(object):
         rh = RecordHandler(self.logger, self.options)
         api_options = self.options['connection']
         api_options['key_identifier'] = self.options['schema']['key_identifier']
-        api = user_sync.connector.oneroster.get_connector(api_options)
+        api = oneroster.get_connector(api_options)
         groups_from_yml = self.parse_yaml_groups(groups)
         max_user_count = self.options['connection']['max_user_count']
         users_by_key = {}
 
         for group_filter in groups_from_yml:
-            inner_dict = groups_from_yml[group_filter]
-            for group_name in inner_dict:
-                for user_group in inner_dict[group_name]:
-                    user_filter = inner_dict[group_name][user_group]
+            groups_names = groups_from_yml[group_filter]
+            for group_name in groups_names:
+                for user_group in groups_names[group_name]:
+                    user_filter = groups_names[group_name][user_group]
                     response = api.get_users(
                         group_filter=group_filter,
                         group_name=group_name,
@@ -146,7 +146,9 @@ class OneRosterConnector(object):
                 if key not in users_by_key:
                     users_by_key[key] = value
 
+        self.logger.info("Found " + str(len(users_by_key)) + " total users")
         if max_user_count > 0:
+            self.logger.info("Enforcing user limit of: " + str(max_user_count) + " users")
             return six.itervalues(dict(itertools.islice(users_by_key.items(), max_user_count)))
         else:
             return six.itervalues(users_by_key)
@@ -164,12 +166,20 @@ class OneRosterConnector(object):
             if re.search('.*(::).*(::).*', text):
                 group_filter, group_name, user_filter = text.lower().split("::")
 
+                if self.options['connection']['platform'] == 'clever':
+                    group_filter = group_filter.replace('classes', 'sections')
+                elif self.options['connection']['platform'] == 'classlink':
+                    group_filter = group_filter.replace('sections', 'classes')
+                group_filter = group_filter.replace('orgs','schools')
+
                 if group_filter not in {'classes', 'courses', 'schools', 'sections'}:
                     raise ValueError(
-                        "Bad group type: " + group_filter + " for " + text + ", valid are: classes, courses, sections, schools")
+                        "Bad group type: " + group_filter + " for " + text
+                        + ", valid are: classes, courses, sections, schools")
                 if user_filter not in {'students', 'teachers', 'users'}:
                     raise ValueError(
-                        "Bad user type: " + group_filter + " for " + text + ", valid are: students, teachers, or users")
+                        "Bad user type: " + group_filter + " for " + text
+                        + ", valid are: students, teachers, or users")
 
                 if group_filter not in groups:
                     groups[group_filter] = {group_name: {}}
