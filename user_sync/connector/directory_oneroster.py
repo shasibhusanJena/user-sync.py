@@ -26,7 +26,7 @@ import six
 
 import user_sync.config
 import user_sync.connector.helper
-import user_sync.connector.oneroster
+import oneroster
 import user_sync.helper
 import user_sync.identity_type
 from user_sync.error import AssertionException
@@ -118,7 +118,7 @@ class OneRosterConnector(object):
         rh = RecordHandler(self.logger, self.options)
         api_options = self.options['connection']
         api_options['key_identifier'] = self.options['schema']['key_identifier']
-        api = user_sync.connector.oneroster.get_connector(api_options)
+        api = oneroster.get_connector(api_options)
         groups_from_yml = self.parse_yaml_groups(groups)
         max_user_count = self.options['connection']['max_user_count']
         users_by_key = {}
