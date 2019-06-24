@@ -51,24 +51,33 @@
 
 ############# Clever test information #############
 #
-#connection:
-#  platform: 'clever'
-#  client_id: '5d8a7b5eff6cbe25bc6e'
-#  client_secret: 'ec6d2c060987e32cbe785f7f1a58a307a04cf0a4'
-#  host: 'https://api.clever.com/v2.1/'
-#
-#  access_token: 'TEST_TOKEN'
-#  page_size: 3000
-#  max_user_count: 0
-#
-#schema:
-#  match_groups_by: 'name'
-#  key_identifier: 'id'
-#  all_users_filter: 'users'
-#  default_group_filter: 'sections'
-#  default_user_filter: 'students'
+connection:
+  platform: 'clever'
+  client_id: '5d8a7b5eff6cbe25bc6e'
+  client_secret: 'ec6d2c060987e32cbe785f7f1a58a307a04cf0a4'
+  host: 'https://api.clever.com/v2.1/'
+
+  access_token: 'TEST_TOKEN'
+  page_size: 3000
+  max_user_count: 0
+
+schema:
+  match_groups_by: 'name'
+  key_identifier: 'id'
+  all_users_filter: 'users'
+  default_group_filter: 'sections'
+  default_user_filter: 'students'
+  user_inclusive_filter_kwargs:
+    gender: "F, M"
+    grade: "Kindergarten"
 
 ######################################################
+
+
+
+
+
+
 
 
 
@@ -91,6 +100,9 @@
 #  all_users_filter: 'users'
 #  default_group_filter: 'classes'
 #  default_user_filter: 'students'
+#  user_inclusive_filter_kwargs:
+#    gender: "F"
+#    grade: "Kindergarten"
 
 ######################################################
 

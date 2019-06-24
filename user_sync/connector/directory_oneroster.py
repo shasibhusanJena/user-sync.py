@@ -313,7 +313,7 @@ class RecordHandler:
         for key, value in self.inclusions.items():
 
             try:
-                if self.decode_string(record.get(key)) not in self.decode_string(value[0]):
+                if self.decode_string(record.get(key)) not in self.decode_string(value):
                     return False
             except:
                 self.logger.warning("No key for filtering attribute " + key + " for user " + record['email'])
