@@ -28,34 +28,11 @@ def caller_options():
         'user_inclusive_filter_kwargs': {}
     }
 
-    options = {'user_identity_type': 'federatedID'}
-    options['connection'] = connection
-    options['schema'] = schema
+    options = {'user_identity_type': 'federatedID',
+               'connection': connection,
+               'schema': schema}
+
     return options
-
-    # return {'connection': 'schema': {'match': 'name', 'key_identifier': 'id', 'all_users_filter': 'users', 'default_group_filter': 'courses', 'default_user_filter': 'students'}, 'user_identity_type': 'federatedID'}
-
-    # return {
-    #     'platform': 'classlink',
-    #     'client_id': '000000000',
-    #     'client_secret': '111111111',
-    #     'host': 'https://example.oneroster.com/ims/oneroster/v1p1/',
-    #     'all_users_filter': 'users',
-    #     'page_size': 100,
-    #     'max_user_count': 0,
-    #     'key_identifier': 'sourcedId',
-    #     'logger_name': 'oneroster',
-    #     'user_email_format': '{email}',
-    #     'user_given_name_format': '{givenName}',
-    #     'user_surname_format': '{familyName}',
-    #     'user_country_code_format': '{countryCode}',
-    #     'user_identity_type': 'federatedID',
-    #     'default_group_filter': 'classes',
-    #     'default_user_filter': 'students'
-    #     #  'user_username_format': None,
-    #  'user_domain_format': None,
-    #  'user_identity_type_format': None,
-    # }
 
 
 def test_parse_results_valid(oneroster_connector, stub_api_response, stub_parse_results):
