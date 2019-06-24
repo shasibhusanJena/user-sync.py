@@ -24,7 +24,8 @@ def caller_options():
         'key_identifier': 'id',
         'all_users_filter': 'users',
         'default_group_filter': 'classes',
-        'default_user_filter': 'students'
+        'default_user_filter': 'students',
+        'user_inclusive_filter_kwargs': {}
     }
 
     options = {'user_identity_type': 'federatedID'}
@@ -79,6 +80,51 @@ def test_parse_results_valid(oneroster_connector, stub_api_response, stub_parse_
     expected_result['18317']['source_attributes']['fake'] = None
     actual_result = record_handler.parse_results(stub_api_response, 'sourcedId', ['sms', 'identifier', 'fake'])
     assert expected_result == actual_result
+
+    # Testing filter_out_users
+
+    record_handler.inclusions = {'givenName': "Billy"}
+    actual_result = record_handler.parse_results(stub_api_response, 'sourcedId', [])
+    length_of_actual_result = len(actual_result)
+    assert length_of_actual_result == 1
+
+
+def test_filter_out_users(oneroster_connector, stub_api_response):
+    oneroster_connector.options['schema']['user_inclusive_filter_kwargs'] = {'givenName': "Billy"}
+    record_handler = RecordHandler(options=oneroster_connector.options, logger=oneroster_connector.logger)
+
+    actual_result = record_handler.filter_out_users(stub_api_response[0])
+    assert actual_result is True
+
+    actual_result = record_handler.filter_out_users(stub_api_response[1])
+    assert actual_result is False
+
+
+def test_filter_out_users_complex(oneroster_connector, stub_api_response, stub_parse_results):
+    oneroster_connector.options['schema']['user_inclusive_filter_kwargs'] = {'familyName': "Houston",
+                                                                             'enabledUser': 'true',
+                                                                             'role': 'student'}
+    record_handler = RecordHandler(options=oneroster_connector.options, logger=oneroster_connector.logger)
+
+    actual_result = record_handler.filter_out_users(stub_api_response[0])
+    assert actual_result is False
+
+    actual_result = record_handler.filter_out_users(stub_api_response[1])
+    assert actual_result is True
+
+
+def test_filter_out_users_failures(oneroster_connector, log_stream, stub_api_response):
+    stream, logger = log_stream
+    oneroster_connector.options['schema']['user_inclusive_filter_kwargs'] = {'xxx': "Billy"}
+    record_handler = RecordHandler(options=oneroster_connector.options, logger=logger)
+    record_handler.filter_out_users(stub_api_response[0])
+    stream.flush()
+
+    expected_logger_output = 'No key for filtering attribute xxx for user'
+
+    actual_logger_output = stream.getvalue()
+
+    assert expected_logger_output in actual_logger_output
 
 
 def test_parse_yml_groups_valid(oneroster_connector):

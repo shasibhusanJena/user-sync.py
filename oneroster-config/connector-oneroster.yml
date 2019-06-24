@@ -47,7 +47,10 @@
 # all users filter.  Use this with the --users all command line option to target all users
 # all_users_filter: 'users'
 
-
+# (optional, user_inclusive_filter_kwargs)
+# default value: {}
+# Provide attributes(key) and expected values (value) within the schema section of your implementation.
+# All users that do not meet the specified criteria will be removed from the sync process
 
 ############# Clever test information #############
 #
