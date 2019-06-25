@@ -192,6 +192,12 @@ def test_load_users_and_groups(oneroster_connector, stub_api_response, stub_pars
             actual_result = list(oneroster_connector.load_users_and_groups(['xxx'], [], False))
             assert actual_result == expected
 
+            # testing max_user_count functionality
+            oneroster_connector.options['connection']['max_user_count'] = 1
+            actual_result = list(oneroster_connector.load_users_and_groups(['xxx'], [], False))
+            actual_result_length = len(actual_result)
+            assert actual_result_length == 1
+
 
 def test_create_user_object(oneroster_connector, stub_api_response, stub_parse_results):
     record_handler = RecordHandler(options=oneroster_connector.options, logger=oneroster_connector.logger)
