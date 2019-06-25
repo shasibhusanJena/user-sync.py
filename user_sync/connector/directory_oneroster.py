@@ -118,6 +118,7 @@ class OneRosterConnector(object):
         rh = RecordHandler(self.logger, self.options)
         api_options = self.options['connection']
         api_options['key_identifier'] = self.options['schema']['key_identifier']
+        api_options['match_groups_by'] = self.options['schema']['match_groups_by']
         api = oneroster.get_connector(api_options)
         groups_from_yml = self.parse_yaml_groups(groups)
         max_user_count = self.options['connection']['max_user_count']
