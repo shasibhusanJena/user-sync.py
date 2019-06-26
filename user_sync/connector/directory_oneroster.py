@@ -134,7 +134,6 @@ class OneRosterConnector(object):
                         group_name=group_name,
                         user_filter=user_filter,
                     )
-
                     new_users_by_key = rh.parse_results(response, self.options['schema']['key_identifier'], extended_attributes)
                     for key, value in six.iteritems(new_users_by_key):
                         if key not in users_by_key:

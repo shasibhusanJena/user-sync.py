@@ -225,6 +225,25 @@ def test_create_user_object(oneroster_connector, stub_api_response, stub_parse_r
     actual_result = record_handler.create_user_object(stub_api_response[1], 'sourcedId', ['orgs', 'bad'])
     assert expected_result == actual_result
 
+def test_generate_value(stub_api_response):
+
+    formatter = OneRosterValueFormatter(None)
+    formatter.attribute_names = ['givenName', 'familyName']
+    formatter.string_format = '{givenName}.{familyName}@xxx.com'
+
+    # Integration test
+
+    actual_result, actual_value = formatter.generate_value(stub_api_response[0])
+    assert actual_result == 'BILLY.FLORES@xxx.com'
+
+    # Unit test
+
+    with mock.patch("user_sync.connector.directory_oneroster.OneRosterValueFormatter.get_attribute_value") as first_mock_attribute_value:
+        first_mock_attribute_value.side_effect = ['BILLY', 'FLORES']
+
+        actual_result, actual_value = formatter.generate_value(stub_api_response[0])
+        assert actual_result == 'BILLY.FLORES@xxx.com'
+
 
 def test_get_attr_values():
     attributes = {
