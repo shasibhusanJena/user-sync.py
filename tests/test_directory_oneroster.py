@@ -70,10 +70,10 @@ def test_filter_out_users(oneroster_connector, stub_api_response):
     oneroster_connector.options['schema']['user_inclusive_filter_kwargs'] = {'givenName': "Billy"}
     record_handler = RecordHandler(options=oneroster_connector.options, logger=oneroster_connector.logger)
 
-    actual_result = record_handler.filter_out_users(stub_api_response[0])
+    actual_result = record_handler.exclude_user(stub_api_response[0])
     assert actual_result is True
 
-    actual_result = record_handler.filter_out_users(stub_api_response[1])
+    actual_result = record_handler.exclude_user(stub_api_response[1])
     assert actual_result is False
 
 
@@ -83,10 +83,10 @@ def test_filter_out_users_complex(oneroster_connector, stub_api_response, stub_p
                                                                              'role': 'student'}
     record_handler = RecordHandler(options=oneroster_connector.options, logger=oneroster_connector.logger)
 
-    actual_result = record_handler.filter_out_users(stub_api_response[0])
+    actual_result = record_handler.exclude_user(stub_api_response[0])
     assert actual_result is False
 
-    actual_result = record_handler.filter_out_users(stub_api_response[1])
+    actual_result = record_handler.exclude_user(stub_api_response[1])
     assert actual_result is True
 
 
@@ -94,7 +94,7 @@ def test_filter_out_users_failures(oneroster_connector, log_stream, stub_api_res
     stream, logger = log_stream
     oneroster_connector.options['schema']['user_inclusive_filter_kwargs'] = {'xxx': "Billy"}
     record_handler = RecordHandler(options=oneroster_connector.options, logger=logger)
-    record_handler.filter_out_users(stub_api_response[0])
+    record_handler.exclude_user(stub_api_response[0])
     stream.flush()
 
     expected_logger_output = 'No key for filtering attribute xxx for user'
