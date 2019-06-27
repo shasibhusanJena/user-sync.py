@@ -8,7 +8,7 @@ nav_order: 80
 ---  
 
 
-# Oneroster and Student Information Systems  
+# Oneroster and Student Information Systems  (SIS)
 
 ---
 
@@ -28,8 +28,6 @@ According to IMS, the big picture features of the standard include the following
 - Improves data exchange among multiple systems with roster and gradebook information, thus eliminating problems before they happen
 - Transmit scored results between applications, such as student scores from the LMS back to the SIS.
 
-[![](https://www.imsglobal.org/sites/default/files/developers/integrateddigitalcurriuclumflow.png)](https://www.imsglobal.org/sites/default/files/developers/integrateddigitalcurriuclumflow.png)
-
 The Oneroster API is open source by definition, which means that all information regarding endpoints and data models is freely available in the actual specification.  The specification provides detailed guidance as to API structure.  Since all the major SIS players adopt the standard and provide similar access to it, the Oneroster connector enables flexibility to do rostering based provisioning - a highly desirable feature!  Adobe works with a great deal of educational organizations.  Most, if not all of these organizations already leverage SIS that include the Oneroster API/CSV implementation.  Some examples of these SIS are:
 
 - Classlink
@@ -44,15 +42,30 @@ Before the creation of this connector, the only option for EDU was to use the sy
 
 The Oneroster connector for UST now offers a better approach, by utilizing a direct interface with the SIS platforms, which means that the sync tool is able to leverage the full rostering information the institution is used to using with other services.  The decisions as to which  way to group users (i.e., based on class, course, school, etc) are flexible enough to allow a wide range of potential configurations in an easy to use fashion.
 
+&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;
+<br/>
+<br/>
+<br/>
+<br/>
+
+<br/>&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;
+<br/>TO BE WRITTEN (Below)
+<br/>&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;
+
 ## Prerequisites
+Prereqs should include creating and registering the UST application on the SIS console.  This depends on the platform - i.e., Clever vs Classlink.  Once this is done, API credentials should be secured for use with UST connector.
 ## Installation
+This will focus on the steps of installing the sync tool as normal, and modifying the configuration and batch files to utilize the oneroster connector.
 ## Configuration
+The big one on configuring the connector and user-sync-config
 ## Testing and first sync
+Not sure - probably utilize max user limit to sync just a few test users
 ## Running the full sync
+TBD for this one
 
-
-
-TO BE MODIFIED LATER:
+<br/>&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;
+<br/>TO BE USED (Below)
+<br/>&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;
 
 ```yaml
 - directory_group: "Faculty"
@@ -107,7 +120,7 @@ Could be reduced to:
 	adobe_groups:
 		- "All apps"
 ```
-
+&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;
 <br/>
 <br/>
 <br/>
