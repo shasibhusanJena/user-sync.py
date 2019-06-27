@@ -69,30 +69,30 @@ TBD for this one
 
 ```yaml
 - directory_group: "Faculty"
-	 adobe_groups:
- 		- "All apps"
+    adobe_groups:
+        - "All apps"
 ```
 
 The Oneroster specific format looks more like the following:
 
 ```yaml
 - directory_group: "classes::ELA 6 (6A ELA)::teachers"
-	 adobe_groups:
-		 - "All apps"
+    adobe_groups:
+        - "All apps"
 ```
 
 This indicates that we want to map all teachers for the class named ELA 6 to the "All apps" group.  At first this appears unecessary - but consider the following scenario:
 
 ```yaml
 - directory_group: "classes::ELA 6 (6A ELA)::students"
-	adobe_groups:
-		- "All apps"
+    adobe_groups:
+        - "All apps"
 - directory_group: "courses::ART 101::teachers"
-	 adobe_groups:
- 		- "All apps"
+    adobe_groups:
+        - "All apps"
 - directory_group: "schools::Spring Valley::users"
-	 adobe_groups:
-		 - "Spark"
+    adobe_groups:
+        - "Spark"
 ```
 
 Now, we are able to say: all ART 101 teachers get cce for the school year, but students only get access if they are ELA 6 and only for that semester.  If instead, we were to follow the default convention of name only, these mappings could not coexist in the same sync tool.  The reasons for allowing this flexibility become clear considering that wile we technically could get away with only allowing classes, it may become quickly complex when we consider that schools typically might need to map hundreds of classes at any given time.  This approach allows for granular mapping as well as high level mapping for maximum configurability.  In a general sense, this strategy looks like the following; 
@@ -109,16 +109,16 @@ The bottom line of this mapping strategy yields a situtation where the ust can b
 
 ```yaml
 - directory_group: "classes::ELA 6 (6A ELA)::students"
-	adobe_groups:
- 		- "All apps"
+    adobe_groups:
+        - "All apps"
 ```
 
 Could be reduced to:
 
 ```yaml
 - directory_group: "ELA 6 (6A ELA)"
-	adobe_groups:
-		- "All apps"
+    adobe_groups:
+        - "All apps"
 ```
 &lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;
 <br/>
