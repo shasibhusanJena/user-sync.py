@@ -156,8 +156,9 @@ class OneRosterConnector(object):
     def parse_yaml_groups(self, groups_list):
         """
         description: parses group options from user-sync.config file into a nested dict
-         with Key: group_filter for the outter dict, Value: being the nested
-        dict {Key: group_name, Value: user_filter}
+        {{Key (group_filter):
+            (Value) {Key (group_name):
+                            (Value) user_filter}}
         :type groups_list: set(str) from user-sync-config-ldap.yml
         :rtype: iterable(dict)
         """
@@ -231,7 +232,7 @@ class RecordHandler:
         :type record: dict()
         :type extended_attributes: list(str)
         :type key_identifier: str()
-        :rtype: formatted_user: dict(user object)
+        :rtype: user: dict(user object)
         """
 
         if self.exclude_user(record):
@@ -309,6 +310,11 @@ class RecordHandler:
         return user
 
     def exclude_user(self, record):
+        """
+        desciption: filters out users according to the include_only values provided on connector-oneroster.yml
+        :type record: dict()
+        :rtype: bool
+        """
 
         for key, value in self.inclusions.items():
 
