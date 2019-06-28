@@ -56,17 +56,87 @@ The Oneroster connector for UST now offers a better approach, by utilizing a dir
 
     ```yaml
     enterprise:
-            org_id: "Org ID goes here"
-            api_key: "API key goes here"
-            client_secret: "Client secret goes here"
-            tech_acct: "Tech account ID goes here (NOT tech account email!)"
-            priv_key_path: "private.key"
+        org_id: "Org ID goes here"
+        api_key: "API key goes here"
+        client_secret: "Client secret goes here"
+        tech_acct: "Tech account ID goes here (NOT tech account email!)"
+        priv_key_path: "private.key"
     ```
 5. Edit the file called **user-sync-config.yml**.  Comment out the field `ldap: "connector-ldap.yml"` near line 132 by adding a '#' symbol before it.  Next, uncomment the field: `    oneroster: "connector-oneroster.yml"`. You can also open up both of the .bat files (Run test and Run live), and append: "--connector oneroster". E.g:
 
     `python user-sync.pex --process-groups --users mapped --connector oneroster`
 
     Once these steps are complete, UST is configured to use the Oneroster connector as its identity source, and you can proceed to the configuration section.
+
+
+## Configuration
+
+1. Edit the file named **connector-oneroster.yml**.  The required settings are shown below. You can find some default values for these fields in the connector. (NOTE: there are additional optional settings available.  Please read the comments in the connector to learn more about them).  
+
+    ```yaml
+    connection:
+        platform: 'clever or classlink'	#Only clever and classlink are supported for now
+        client_id: 'api client id here'	#From your SIS dashboard
+        client_secret: 'api client secret here'	#From your SIS dashboard
+        host: 'https://api.clever.com/v2.1/ for clever or your oneroster URL for classlink'
+    
+        #access_token: 'api token (clever only)'  #Optional - if added, the client id and secret fields are not needed. Uncomment to use'
+        page_size: 3000		#API page size - limited by what the platform allows.  Leave as high as possible for faster sync.
+        max_user_count: 0	#limits the number of users returned by the API (useful for testing)
+    
+    schema:
+        match_groups_by: 'name'		# which oneroster field to use for matching group names to sections, classes, courses or schools
+        key_identifier: 'id'	# Field by which objects are identified in Oneroster - typically sourcedId or id
+        all_users_filter: 'users'	# When using --users all, this option determines what user types are fetched (can be students, teachers, or users)
+        default_group_filter: 'sections'	# Default choice for group filter if none specified
+        default_user_filter: 'students'		# Default choice for user filter if none specified
+    ```
+2. Fill out the connection settings.  You MUST enter either 'clever' or 'classlink' for the platform type, though additional platforms may be supported in the future.  The client ID and secret should come from your SIS dashboard (see the prerequisites section above).  These keys enable UST to connect to your Oneroster instance.  The hostname can be set as noted above for clever, or as your classlink URL for classlink.  This may look like:  `https://example-ca-v2.oneroster.com/ims/oneroster/v1p1/` or similar.
+
+	The page size and max user count can be ignored and set to default (see the comment above if you want to use them).  Likewise, the access token field can also be ignored.  This  field is only valid for clever - and, if set, will override the client id and secret paramters.  This provides and alternative configuration that doesn't require the API credentials.
+
+3. In the schema section, you can configure the default settings for your API.  Please read the comments above for a description of these fields.  The two which should be considered carefully are the match groups and key identifier settings.  If these are not set according to your platform (classlink vs clever) and group name conventions, you will not be able to sync users.
+
+4. For information on available configuration options, please see the documentation (NOT ADDED YET).  Instead, we provide some examples of what this file might look like for the cases of clever and classlink:
+
+	For **Clever**: 
+    ```yaml
+    connection:
+        platform: 'clever'
+        client_id: 'api client id here'
+        client_secret: 'api client secret here'
+        host: 'https://api.clever.com/v2.1/'
+    
+        access_token: 'TEST_TOKEN'
+        page_size: 3000
+        max_user_count: 0
+    
+    schema:
+        match_groups_by: 'name'
+        key_identifier: 'id'
+        all_users_filter: 'users'
+        default_group_filter: 'sections'
+        default_user_filter: 'students'
+    ```
+	For **Classlinkr**: 
+    ```yaml
+    connection:
+        platform: 'classlink'
+        client_id: 'api client id here'
+        client_secret: 'api client secret here'
+        host: 'https://example-ca-v2.oneroster.com/ims/oneroster/v1p1/'
+    
+        page_size: 3000
+        max_user_count: 0
+    
+    schema:
+        match_groups_by: 'title'
+        key_identifier: 'sourcedId'
+        all_users_filter: 'users'
+        default_group_filter: 'classes'
+        default_user_filter: 'students'
+    ```
+
 
 ## UMAPI Integration
 1.  Sign into the [Adobe I/O Console](https://console.adobe.io "Adobe I/O Console"), select your organization from the drop-down list, and click New Integration. <br/><br/>
