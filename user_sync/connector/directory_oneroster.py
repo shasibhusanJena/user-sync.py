@@ -88,7 +88,7 @@ class OneRosterConnector(object):
         schema_builder.set_string_value('all_users_filter', 'users')
         schema_builder.set_string_value('default_group_filter', 'classes')
         schema_builder.set_string_value('default_user_filter', 'students')
-        schema_builder.set_dict_value('user_inclusive_filter_kwargs', {})
+        schema_builder.set_dict_value('include_only', {})
         schema_options = schema_builder.get_options()
 
         builder = user_sync.config.OptionsBuilder(caller_config)
@@ -118,6 +118,7 @@ class OneRosterConnector(object):
         rh = RecordHandler(self.logger, self.options)
         api_options = self.options['connection']
         api_options['key_identifier'] = self.options['schema']['key_identifier']
+        api_options['match_groups_by'] = self.options['schema']['match_groups_by']
         api = oneroster.get_connector(api_options)
         groups_from_yml = self.parse_yaml_groups(groups)
         max_user_count = self.options['connection']['max_user_count']
@@ -133,7 +134,6 @@ class OneRosterConnector(object):
                         group_name=group_name,
                         user_filter=user_filter,
                     )
-
                     new_users_by_key = rh.parse_results(response, self.options['schema']['key_identifier'], extended_attributes)
                     for key, value in six.iteritems(new_users_by_key):
                         if key not in users_by_key:
@@ -156,8 +156,9 @@ class OneRosterConnector(object):
     def parse_yaml_groups(self, groups_list):
         """
         description: parses group options from user-sync.config file into a nested dict
-         with Key: group_filter for the outter dict, Value: being the nested
-        dict {Key: group_name, Value: user_filter}
+        {{Key (group_filter):
+            (Value) {Key (group_name):
+                            (Value) user_filter}}
         :type groups_list: set(str) from user-sync-config-ldap.yml
         :rtype: iterable(dict)
         """
@@ -200,7 +201,7 @@ class OneRosterConnector(object):
 class RecordHandler:
     def __init__(self, logger, options):
         self.logger = logger
-        self.inclusions = options['schema']['user_inclusive_filter_kwargs']
+        self.inclusions = options['schema']['include_only']
         self.user_identity_type = user_sync.identity_type.parse_identity_type(options['user_identity_type'])
         self.user_identity_type_formatter = OneRosterValueFormatter(options['user_identity_type_format'])
         self.user_email_formatter = OneRosterValueFormatter(options['user_email_format'])
@@ -231,10 +232,10 @@ class RecordHandler:
         :type record: dict()
         :type extended_attributes: list(str)
         :type key_identifier: str()
-        :rtype: formatted_user: dict(user object)
+        :rtype: user: dict(user object)
         """
 
-        if not self.filter_out_users(record):
+        if self.exclude_user(record):
             return
 
         attribute_warning = "No %s attribute (%s) for user with key: %s, defaulting to %s"
@@ -308,18 +309,23 @@ class RecordHandler:
         user['source_attributes'] = source_attributes.copy()
         return user
 
-    def filter_out_users(self, record):
+    def exclude_user(self, record):
+        """
+        desciption: filters out users according to the include_only values provided on connector-oneroster.yml
+        :type record: dict()
+        :rtype: bool
+        """
 
         for key, value in self.inclusions.items():
 
             try:
-                if self.decode_string(record.get(key)) not in self.decode_string(value[0]):
-                    return False
+                if self.decode_string(record.get(key)) not in self.decode_string(value):
+                    return True
             except:
                 self.logger.warning("No key for filtering attribute " + key + " for user " + record['email'])
-                return False
+                return True
 
-        return True
+        return False
 
     def decode_string(self, string):
         if not string:

@@ -215,6 +215,12 @@ directory_users:
 
 ######################################################
 
+############### Classlink test information #############
+
+    - directory_group: "schools::ClassLink HS::students"
+      adobe_groups:
+        - "All Students"
+
 
 
 
