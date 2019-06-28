@@ -25,7 +25,7 @@ def caller_options():
         'all_users_filter': 'users',
         'default_group_filter': 'classes',
         'default_user_filter': 'students',
-        'user_inclusive_filter_kwargs': {}
+        'include_only': {}
     }
 
     options = {'user_identity_type': 'federatedID',
@@ -67,32 +67,32 @@ def test_parse_results_valid(oneroster_connector, stub_api_response, stub_parse_
 
 
 def test_filter_out_users(oneroster_connector, stub_api_response):
-    oneroster_connector.options['schema']['user_inclusive_filter_kwargs'] = {'givenName': "Billy"}
+    oneroster_connector.options['schema']['include_only'] = {'givenName': "Billy"}
     record_handler = RecordHandler(options=oneroster_connector.options, logger=oneroster_connector.logger)
 
     actual_result = record_handler.exclude_user(stub_api_response[0])
-    assert actual_result is True
+    assert actual_result is False
 
     actual_result = record_handler.exclude_user(stub_api_response[1])
-    assert actual_result is False
+    assert actual_result is True
 
 
 def test_filter_out_users_complex(oneroster_connector, stub_api_response, stub_parse_results):
-    oneroster_connector.options['schema']['user_inclusive_filter_kwargs'] = {'familyName': "Houston",
+    oneroster_connector.options['schema']['include_only'] = {'familyName': "Houston",
                                                                              'enabledUser': 'true',
                                                                              'role': 'student'}
     record_handler = RecordHandler(options=oneroster_connector.options, logger=oneroster_connector.logger)
 
     actual_result = record_handler.exclude_user(stub_api_response[0])
-    assert actual_result is False
+    assert actual_result is True
 
     actual_result = record_handler.exclude_user(stub_api_response[1])
-    assert actual_result is True
+    assert actual_result is False
 
 
 def test_filter_out_users_failures(oneroster_connector, log_stream, stub_api_response):
     stream, logger = log_stream
-    oneroster_connector.options['schema']['user_inclusive_filter_kwargs'] = {'xxx': "Billy"}
+    oneroster_connector.options['schema']['include_only'] = {'xxx': "Billy"}
     record_handler = RecordHandler(options=oneroster_connector.options, logger=logger)
     record_handler.exclude_user(stub_api_response[0])
     stream.flush()

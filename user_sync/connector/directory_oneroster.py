@@ -88,7 +88,7 @@ class OneRosterConnector(object):
         schema_builder.set_string_value('all_users_filter', 'users')
         schema_builder.set_string_value('default_group_filter', 'classes')
         schema_builder.set_string_value('default_user_filter', 'students')
-        schema_builder.set_dict_value('user_inclusive_filter_kwargs', {})
+        schema_builder.set_dict_value('include_only', {})
         schema_options = schema_builder.get_options()
 
         builder = user_sync.config.OptionsBuilder(caller_config)
@@ -200,7 +200,7 @@ class OneRosterConnector(object):
 class RecordHandler:
     def __init__(self, logger, options):
         self.logger = logger
-        self.inclusions = options['schema']['user_inclusive_filter_kwargs']
+        self.inclusions = options['schema']['include_only']
         self.user_identity_type = user_sync.identity_type.parse_identity_type(options['user_identity_type'])
         self.user_identity_type_formatter = OneRosterValueFormatter(options['user_identity_type_format'])
         self.user_email_formatter = OneRosterValueFormatter(options['user_email_format'])
