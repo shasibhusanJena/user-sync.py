@@ -71,10 +71,10 @@ def test_filter_out_users(oneroster_connector, stub_api_response):
     record_handler = RecordHandler(options=oneroster_connector.options, logger=oneroster_connector.logger)
 
     actual_result = record_handler.exclude_user(stub_api_response[0])
-    assert actual_result is True
+    assert actual_result is False
 
     actual_result = record_handler.exclude_user(stub_api_response[1])
-    assert actual_result is False
+    assert actual_result is True
 
 
 def test_filter_out_users_complex(oneroster_connector, stub_api_response, stub_parse_results):
@@ -84,10 +84,10 @@ def test_filter_out_users_complex(oneroster_connector, stub_api_response, stub_p
     record_handler = RecordHandler(options=oneroster_connector.options, logger=oneroster_connector.logger)
 
     actual_result = record_handler.exclude_user(stub_api_response[0])
-    assert actual_result is False
+    assert actual_result is True
 
     actual_result = record_handler.exclude_user(stub_api_response[1])
-    assert actual_result is True
+    assert actual_result is False
 
 
 def test_filter_out_users_failures(oneroster_connector, log_stream, stub_api_response):
