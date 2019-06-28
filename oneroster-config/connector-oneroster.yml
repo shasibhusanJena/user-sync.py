@@ -47,7 +47,10 @@
 # all users filter.  Use this with the --users all command line option to target all users
 # all_users_filter: 'users'
 
-
+# (optional, user_inclusive_filter_kwargs)
+# default value: {}
+# Provide attributes(key) and expected values (value) within the schema section of your implementation.
+# All users that do not meet the specified criteria will be removed from the sync process
 
 ############# Clever test information #############
 #
@@ -67,30 +70,42 @@
 #  all_users_filter: 'users'
 #  default_group_filter: 'sections'
 #  default_user_filter: 'students'
+#  user_inclusive_filter_kwargs:
+#    gender: "F, M"
+#    grade: "Kindergarten"
 
 ######################################################
 
 
 
 
+
+
+
+
+
+
 ############# Classlink test information #############
 
-#connection:
-#  platform: 'classlink'
-#  client_id: '0fc7e35773c1fffd32579507'
-#  client_secret: '10332e330b2e364020179021'
-#  host: "https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/"
-#
-#  #access_token:
-#  page_size: 3000
-#  max_user_count: 0
-#
-#schema:
-#  match_groups_by: 'name'
-#  key_identifier: 'sourcedId'
-#  all_users_filter: 'users'
-#  default_group_filter: 'classes'
-#  default_user_filter: 'students'
+connection:
+  platform: 'classlink'
+  client_id: '0fc7e35773c1fffd32579507'
+  client_secret: '10332e330b2e364020179021'
+  host: "https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/"
+
+  #access_token:
+  page_size: 3000
+  max_user_count: 0
+
+schema:
+  match_groups_by: 'status'
+  key_identifier: 'sourcedId'
+  all_users_filter: 'users'
+  default_group_filter: 'classes'
+  default_user_filter: 'students'
+#  user_inclusive_filter_kwargs:
+#    gender: "F"
+#    grade: "Kindergarten"
 
 ######################################################
 
