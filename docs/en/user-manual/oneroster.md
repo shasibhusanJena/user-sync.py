@@ -64,26 +64,26 @@ The Oneroster connector for UST now offers a better approach, by utilizing a dir
     ```
 5. Edit the file called **user-sync-config.yml**.  Comment out the field `ldap: "connector-ldap.yml"` near line 132 by adding a '#' symbol before it.  Next, uncomment the field: `    oneroster: "connector-oneroster.yml"`. Also, change connector near the bottom in the invocation defaults section from "ldap" to "oneroster".  Once these steps are complete, UST is configured to use the Oneroster connector as its identity source, and you can proceed to the configuration section.  When you're finished, your configuration file should include the following (some areas have been omitted as they are defaults).
 
-  ```yaml
-  directory_users:
-        user_identity_type: federatedID
-        default_country_code: US
-        connectors:
-            # ldap: "connector-ldap.yml"
-            oneroster: "connector-oneroster.yml"
-        groups: "[Omitted for clarity]"
+    ```yaml
+    directory_users:
+          user_identity_type: federatedID
+          default_country_code: US
+          connectors:
+              # ldap: "connector-ldap.yml"
+              oneroster: "connector-oneroster.yml"
+          groups: "[Omitted for clarity]"
 
-  invocation_defaults:
-        adobe_only_user_action: preserve
-        adobe_only_user_list:
-        connector: oneroster
-        process_groups: Yes
-        strategy: sync
-        test_mode: No
-        update_user_info: No
-        user_filter:
-        users: mapped
-  ```
+    invocation_defaults:
+          adobe_only_user_action: preserve
+          adobe_only_user_list:
+          connector: oneroster
+          process_groups: Yes
+          strategy: sync
+          test_mode: No
+          update_user_info: No
+          user_filter:
+          users: mapped
+    ```
 
 
 ## Configuration
@@ -177,19 +177,6 @@ TBD for this one
 <br/>TO BE USED (Below)
 <br/>&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;
 
-```yaml
-- directory_group: "Faculty"
-    adobe_groups:
-        - "All apps"
-```
-
-The Oneroster specific format looks more like the following:
-
-```yaml
-- directory_group: "classes::ELA 6 (6A ELA)::teachers"
-    adobe_groups:
-        - "All apps"
-```
 
 This indicates that we want to map all teachers for the class named ELA 6 to the "All apps" group.  At first this appears unecessary - but consider the following scenario:
 
