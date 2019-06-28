@@ -42,7 +42,44 @@ Before the creation of this connector, the only option for EDU was to use the sy
 
 The Oneroster connector for UST now offers a better approach, by utilizing a direct interface with the SIS platforms, which means that the sync tool is able to leverage the full rostering information the institution is used to using with other services.  The decisions as to which  way to group users (i.e., based on class, course, school, etc) are flexible enough to allow a wide range of potential configurations in an easy to use fashion.
 
-&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;
+
+## Installation
+1. First, download the MSI installer for UST (if you are on windows).  If you are not using windows, you can run the python install script to get the sync tool in place.  Both of these can be found on the [UST Installation page](https://github.com/adobe/UST-Install-Scripts "UST Installation page").  Once you've done this, you should have a folder as shown below.  Please ignore the **"Configure UST"** application - this wizard is for LDAP configuration, and will work with the Oneroster connector!
+
+     ![](https://github.com/adobe-dmeservices/user-sync.py/blob/oneroster_documentation/docs/en/user-manual/media/ust_directory.png?raw=true)
+
+2. Go into the examples\basic folder, and copy the file named **connector-oneroster.yml** to the root directory.  You can also go ahead and delete **connector-ldap.yml** as you will not need it.  This will help to avoid confusion by future users.  To edit the YAML files, just run **"Edit YAML"** - this will open them with the embedded Notepad++ editor.  You should now be able to edit **connector-umapi.yml**, **connector-oneroster.yml**, and **user-sync-config.yml**.
+
+2. Follow the directions for the UMAPI integration below using the certificate created during the installation process. (This file will be in your install directory, named **certificate_pub.crt**).  If the certificate is missing or you need to recreate it, just run the **Adobe.IO Certgen** application.  On linux, you can run **ssl_certgen.sh**.
+
+3. Once you have the credentials created on the UMAPI page, go ahead and enter them into the server section of **connector-umapi.yml**.  NOTE - you do not need the field from the UMAPI entitled **"technical account email"**.  The tech_acct field shown below should be populated with the **"technical account ID"** instead!
+
+    ```yaml
+    enterprise:
+            org_id: "Org ID goes here"
+            api_key: "API key goes here"
+            client_secret: "Client secret goes here"
+            tech_acct: "Tech account ID goes here (NOT tech account email!)"
+            priv_key_path: "private.key"
+    ```
+5. Edit the file called **user-sync-config.yml**.  Comment out the field `ldap: "connector-ldap.yml"` near line 132 by adding a '#' symbol before it.  Next, uncomment the field: `    oneroster: "connector-oneroster.yml"`. You can also open up both of the .bat files (Run test and Run live), and append: "--connector oneroster". E.g:
+
+    `python user-sync.pex --process-groups --users mapped --connector oneroster`
+
+    Once these steps are complete, UST is configured to use the Oneroster connector as its identity source, and you can proceed to the configuration section.
+
+## UMAPI Integration
+1.  Sign into the [Adobe I/O Console](https://console.adobe.io "Adobe I/O Console"), select your organization from the drop-down list, and click New Integration. <br/><br/>
+![](https://github.com/adobe-dmeservices/user-sync.py/blob/oneroster_documentation/docs/en/user-manual/media/umapi/step_1.gif?raw=true)
+<br/><br/>2. In the Create a New Integration wizard, select Access an API, and click Continue.<br/><br/>
+![](https://github.com/adobe-dmeservices/user-sync.py/blob/oneroster_documentation/docs/en/user-manual/media/umapi/step_2.png?raw=true)
+<br/><br/>3. Select User Management API under Adobe Services, and click Continue. On the screen that appears next, click Continue again.<br/><br/>
+![](https://github.com/adobe-dmeservices/user-sync.py/blob/oneroster_documentation/docs/en/user-manual/media/umapi/step_3.gif?raw=true)
+<br/><br/>4. Enter a name and description for the integration, and upload the Public key certificate file. Click Create integration.<br/><br/>
+![](https://github.com/adobe-dmeservices/user-sync.py/blob/oneroster_documentation/docs/en/user-manual/media/umapi/step_4.png?raw=true)
+<br/><br/>5. To view the integration details, click Continue to Integration Details.<br/><br/>
+![](https://github.com/adobe-dmeservices/user-sync.py/blob/oneroster_documentation/docs/en/user-manual/media/umapi/step_5.png?raw=true)
+
 <br/>
 <br/>
 <br/>
@@ -54,8 +91,7 @@ The Oneroster connector for UST now offers a better approach, by utilizing a dir
 
 ## Prerequisites
 Prereqs should include creating and registering the UST application on the SIS console.  This depends on the platform - i.e., Clever vs Classlink.  Once this is done, API credentials should be secured for use with UST connector.
-## Installation
-This will focus on the steps of installing the sync tool as normal, and modifying the configuration and batch files to utilize the oneroster connector.
+
 ## Configuration
 The big one on configuring the connector and user-sync-config
 ## Testing and first sync
