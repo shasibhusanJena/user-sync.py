@@ -98,9 +98,7 @@ def test_filter_out_users_failures(oneroster_connector, log_stream, stub_api_res
     stream.flush()
 
     expected_logger_output = 'No key for filtering attribute xxx for user'
-
     actual_logger_output = stream.getvalue()
-
     assert expected_logger_output in actual_logger_output
 
 
