@@ -125,11 +125,9 @@ The Oneroster connector for UST now offers a better approach, by utilizing a dir
     ```yaml
     connection:
         platform: 'clever'
-        client_id: 'api client id here'
-        client_secret: 'api client secret here'
-        host: 'https://api.clever.com/v2.1/'
-    
         access_token: 'TEST_TOKEN'
+        host: 'https://api.clever.com/v2.1/'    
+        
         page_size: 3000
         max_user_count: 0
     
@@ -247,6 +245,53 @@ Or simply, if we are using the simplified notation:
 At this time, it is only possible to specify a global match parameter -- e.g., using sourcedId means ALL group mappings must match by this - you can't use sourcedId for one and name for another.  This flexibility may be added down the line as an additional :: delimited field.
 
 
+## Testing and first sync
+
+If all has gone well so far, you're ready to do a test sync.  Identify which users you are comfortable pushing to the console.  This could be a small class, or just the teacher of some classes.  Because it is more difficult to manage testing with Oneroster (since you cannot create or manage the groups), we have included a useful feature called max_user_count.   Setting this to a positive, nonzero integer will cause the API calls to cutoff early, and the number of returned users will never exceed this setting.  
+
+Add the class/course/section/school into **user-sync-config.yml** as per the notation above, using either the fully qualified "::" syntax, or in the simplified format using the default filters.  If you intend to sync "all", then make sure you have set --users **all** in the batch files (mapped is default).  When you are ready, execute **Run_UST_test_mode.bat**.  This will run UST using the standard default parameters.  Barring any errors, you should see something similar to the below.  In this example, 4 students and 1 teacher were found and processed (but not pushed to the console, as it was run in test mode).  If all looks good, you are ready to configure the rest of your groups and start syncing! 
+
+```plain
+INFO config - Using main config file: ..\oneroster-config\oneroster-user-sync-config.yml (encoding utf8)
+INFO main - ========== Start Run (User Sync version: 2.5.0rc2) =========
+INFO main - Python version: 3.6.8 on win32
+INFO main - ------- Command line arguments -------
+INFO main - -c ..\oneroster-config\oneroster-user-sync-config.yml -t --process-groups --users mapped
+INFO main - -------------------------------------
+INFO processor - ---------- Start Load from Directory -----------------------
+INFO clever - Getting users from: https://api.clever.com/v2.1/sections/58da8c6b894273be680001fc/students
+INFO clever - Collected users: 4
+INFO clever - Getting users from: https://api.clever.com/v2.1/sections/58da8c6b894273be680001fc/teachers
+INFO clever - Collected users: 1
+INFO oneroster - Found 21 total users
+INFO processor - ---------- End Load from Directory (Total time: 0:00:05) ---
+INFO processor - ---------- Start Sync with UMAPI ---------------------------
+INFO processor - Creating user with user key: federatedID,harvey.karen@resistanceisfutile.net,
+INFO processor - Creating user with user key: federatedID,sawayn.adrianna@resistanceisfutile.net,
+INFO processor - Creating user with user key: federatedID,dietrich.jonathan@resistanceisfutile.net,
+INFO processor - Creating user with user key: federatedID,o'connell.george@resistanceisfutile.net,
+INFO processor - Creating user with user key: federatedID,herman.kevin@resistanceisfutile.net,
+INFO processor - ---------- End Sync with UMAPI (Total time: 0:00:09) -------
+INFO processor - ---------------------------- Action Summary (TEST MODE) ----------------------------
+INFO processor -                         Number of directory users read: 5
+INFO processor -           Number of directory users selected for input: 5
+INFO processor -                             Number of Adobe users read: 22
+INFO processor -            Number of Adobe users excluded from updates: 2
+INFO processor -     Number of non-excluded Adobe users with no changes: 0
+INFO processor -                        Number of new Adobe users added: 5
+INFO processor -                 Number of matching Adobe users updated: 0
+INFO processor -                    Number of Adobe user-groups created: 0
+INFO processor -       Number of Adobe-only users with groups processed: 20
+INFO processor -   Number of UMAPI actions sent (total, success, error): (5, 5, 0)
+INFO processor - ------------------------------------------------------------------------------------
+INFO main - ========== End Run (User Sync version: 2.5.0rc2) (Total time: 0:00:16) 
+```
+
+# Reference
+
+## Errors and definitions
+Compiled errors from testing..?
+
 ## Table of parameters and descriptions
 
 |Field                    |Type                                    |Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |Example                                                                                          |
@@ -274,23 +319,6 @@ At this time, it is only possible to specify a global match parameter -- e.g., u
 |user_surname_format      |optional (default: {familyName})        |specifies the field to user for a users last name                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |{familyName}, any other attribute                                                                |
 |user_country_code_format |optional (no default)                   |specifies the field to user for a users country code.  Normally, Oneroster does not provide this information.                                                                                                                                                                                                                                                                                                                                                                                                                                                          |N/A (not typically used for Oneroster)                                                           |
 |user_identity_type_format|optional (no default)                   |specifies the field to user for a users identity type.  Oneroster does not provide this information.                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |N/A (not typically used for Oneroster)                                                           |
-
-<br/>
-<br/>
-<br/>
-<br/>
-
-<br/>&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;
-<br/>TO BE WRITTEN (Below)
-<br/>&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;
-
-## Prerequisites
-Prereqs should include creating and registering the UST application on the SIS console.  This depends on the platform - i.e., Clever vs Classlink.  Once this is done, API credentials should be secured for use with UST connector.
-## Testing and first sync
-Not sure - probably utilize max user limit to sync just a few test users
-## Running the full sync
-TBD for this one
-
 
 
 [Previous Section](deployment_best_practices.md)
