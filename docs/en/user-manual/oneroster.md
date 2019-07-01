@@ -125,11 +125,9 @@ The Oneroster connector for UST now offers a better approach, by utilizing a dir
     ```yaml
     connection:
         platform: 'clever'
-        client_id: 'api client id here'
-        client_secret: 'api client secret here'
-        host: 'https://api.clever.com/v2.1/'
-    
         access_token: 'TEST_TOKEN'
+        host: 'https://api.clever.com/v2.1/'    
+        
         page_size: 3000
         max_user_count: 0
     
