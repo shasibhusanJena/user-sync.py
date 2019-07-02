@@ -1,0 +1,144 @@
+# This is a sample configuration file for the oneroster connector type.
+#
+# Oneroster is the standard specification for securely sharing class rosters and related data,
+# between a student information system (SIS) and any other system.
+#
+# This sample file contains all of the settable options for this protocol.
+# It is recommended that you make a copy of this file and edit it for your needs.
+# Uncomment ONE of the below sections to get started
+
+
+############# Clever Example ##########################
+
+connection:
+  platform: 'clever'
+  access_token: 'TEST_TOKEN'
+  host: 'https://api.clever.com/v2.1/'
+  page_size: 3000
+  max_user_count: 0
+
+schema:
+  match_groups_by: 'name'
+  key_identifier: 'id'
+  all_users_filter: 'users'
+  default_group_filter: 'sections'
+  default_user_filter: 'students'
+  include_only:
+
+######################################################
+
+
+############# Classlink Example ######################
+
+#connection:
+#  platform: 'classlink'
+#  client_id: 'client id here'
+#  client_secret: 'client secret here'
+#  host: "https://example.oneroster.com/ims/oneroster/v1p1/"
+#  page_size: 3000
+#  max_user_count: 0
+#
+#schema:
+#  match_groups_by: 'title'
+#  key_identifier: 'sourcedId'
+#  all_users_filter: 'users'
+#  default_group_filter: 'classes'
+#  default_user_filter: 'students'
+#  include_only:
+
+######################################################
+
+
+
+# Connection
+
+# platform               |  specifies which platform to use.  Can ONLY be one of: [classlink, clever]
+# host                   |  endpoint for organization's OneRoster implementation
+#                        |  normally [clever: https://api.clever.com/v2.1/,
+#                        |  classlink: https://example.oneroster.com/ims/oneroster/v1p1/]
+# client_id              |  client id - optional for Clever  if token specified
+# client_secret          |  client secret - optional for Clever if token specified
+# access_token           |  clever access token.  Use instead of id and secret.  This field has no effect on classlink.
+# page_size              |  api call page size.  Default is 1000.  Bigger = faster
+# max_user_count         |  api calls will cutoff after this many users. Set to 0 by default for unlimited.
+#                        |  useful when doing test runs to avoid pulling very large user counts.  results tend to be
+#                        |  in random orders, so do not count on this for expected values
+
+# Schema
+
+# key_identifier         |  unique key used throughout One-Roster (sourcedId is commonly used) and is default
+# match_groups_by        |  refers to the attribute on which a group is matched. (see below for examples)
+# default_user_filter    |  the default filter applied to the suffix of a plain group name. eg: classes::name::user_filter
+# default_group_filter   |  the default filter applied to the prefix of a plain group name. eg: group_filter::name::students
+# all_users_filter       |  all users filter.  Use this with the --users all command line option to target all users
+# include_only           |  provide attributes(key) and expected values (value) within the schema section of your implementation.
+#                        |  all users that do not meet the specified criteria will be removed from the sync process
+#                        |  (See below for examples)
+
+
+# Group matching is a requirement that comes from the loose specification of groups for Oneroster.  In Oneroster,
+# all objects have a key identifier such as sourced ID.  The "real" identity of an object is given by this, and
+# it is by this ID alone which we can fetch users for classes, courses, etc.  Thus, we MUST know the ID of the
+# object we seek!  However, it's more convenient to say "I want to sync all users in Math 101" as opposed to
+# "I want to sync all users in 6ab699cf831".
+
+# To accommodate this, we allow for a translation to take place based on a user specified field.
+# The field "match_groups_by" explicitly states "Treat the group name in user-sync-config.yml as this attribute".
+# The default is "name", meaning that any class/course/school will be selected for input only
+# if the value of its "name" attribute matches the group name in user-sync-config.yml.  You might instead match on
+# sourcedId if you want to provide that value instead of a name, or on any other arbitrary attribute like identifier,
+# title (for classlink), SIS_ID (clever), etc.  To further illustrate,
+
+# With match_groups_by =  name, the following will find all classes named "Math 101" regardless of ID
+# - directory_group: "Math 101"
+
+# With match_groups_by =  sourcedId, the following will find all classes having sourcedId = "6ab699cf831"
+# - directory_group: 6ab699cf831"
+
+# With match_groups_by =  SIS_ID, the following will find all classes having SIS_ID = "13579" regardless of name
+# - directory_group: 13579"
+
+
+# The inclusion filter is specified as a list of key value pairs.  The value of the key is fetched for each user
+# and compared to the specified value.  If the user attribute is contained in the specified value, it is
+# considered a match.  A user is only selected if all of the attributes are matched.  In the future, this will
+# support regex mating as well.  For now, this is a simple match.  Given the below filter, only females in
+# kindergarten would be selected for input.
+
+# include_only:
+#   gender: "F"
+#   grade: "Kindergarten"
+
+
+
+# Attribute formatters
+
+# Any names in curly braces are taken as attribute names, and everything including the braces will be replaced
+# on a per-user basis with the values of the attributes.  The fields can be concatenated with any strings, outside
+# of the curly braces.  e.g.,
+
+# user_email_format: {email} will set the email field equal to the user's 'email' field
+# user_email_format: {familyName}.{givenName}@example.com will make it equal to 'firstname.lastname@example.com'
+
+# Note: ALL of these fields are optional - default values are indicated below
+
+# user_email_format           |   sets user email field
+# user_domain_format          |   sets domain field -- needed when setting username with different domain from mail
+# user_username_format        |   sets username.  Needed for "username" SSO config on the Admin console
+# user_given_name_format      |   sets first name for user on the admin console
+# user_surname_format         |   sets last name for user on admin console
+# user_identity_type_format   |   if specified, users will take this id type [adobeID, enterpriseID, federatedID]
+# user_country_code_format    |   sets country code for user in adobe.  User data storage location based on this.
+#                                 Normally, Oneroster does not provide this information. [US, CA, etc]
+
+
+# Optional attribute fields with defaults
+#user_email_format: "{email}"
+#user_username_format: "{identifier}"
+#user_given_name_format: "{givenName}"
+#user_surname_format: "{familyName}"
+
+# Optional attribute fields with no defaults
+#user_domain_format:
+#user_country_code_format:
+#user_identity_type_format:
