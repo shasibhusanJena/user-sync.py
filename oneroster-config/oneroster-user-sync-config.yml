@@ -182,16 +182,16 @@ directory_users:
 
 ############## Clever test information ###############
 
-#    - directory_group: "sections::Class 003, Homeroom - Stark - 0::users"
-#      adobe_groups:
-#        - "Caves and Embers"
-#
-#    - directory_group: "courses::Class 001, Homeroom::users"
-#      adobe_groups:
-#        - "Caves and Embers"
-#    - directory_group: "schools::Rockaway Beach Middle School::users"
-#      adobe_groups:
-#        - "Caves and Embers"
+    - directory_group: "sections::Class 003, Homeroom - Stark - 0::users"
+      adobe_groups:
+        - "Caves and Embers"
+
+    - directory_group: "courses::Class 001, Homeroom::users"
+      adobe_groups:
+        - "Caves and Embers"
+    - directory_group: "schools::Rockaway Beach Middle School::users"
+      adobe_groups:
+        - "Caves and Embers"
 
 
 ######################################################
@@ -199,17 +199,17 @@ directory_users:
 
 ############# Classlink test information ###############
 
-    - directory_group: "ELA 6 (6A ELA)"
-      adobe_groups:
-        - "Caves and Embers"
-
-    - directory_group: "courses::Algebra 2::students"
-      adobe_groups:
-        - "Caves and Embers"
-
-    - directory_group: "schools::ClassLink HS::students"
-      adobe_groups:
-        - "All students"
+#    - directory_group: "ELA 6 (6A ELA)"
+#      adobe_groups:
+#        - "Caves and Embers"
+#
+#    - directory_group: "courses::Algebra 2::students"
+#      adobe_groups:
+#        - "Caves and Embers"
+#
+#    - directory_group: "schools::ClassLink HS::students"
+#      adobe_groups:
+#        - "All students"
 
 #####################################################
 

@@ -43,7 +43,7 @@ schema:
   all_users_filter: 'users'
   default_group_filter: 'sections'        # Sections means classes
   default_user_filter: 'students'
-  include_only:
+  # include_only:
 
 ############# Classlink Example ######################
 
@@ -54,14 +54,14 @@ schema:
 #  host: "https://example.oneroster.com/ims/oneroster/v1p1/"    # You WILL need to update this to your URL
 #  page_size: 1000
 #  max_user_count: 0
-
+#
 #schema:
 #  match_groups_by: 'title'                # For Classlink, 'title' works for class/course.  Use 'name' for schools
 #  key_identifier: 'sourcedId'             # Root ID for Classlink is 'sourcedId'
 #  all_users_filter: 'users'
 #  default_group_filter: 'classes'
 #  default_user_filter: 'students'
-#  include_only:
+#  # include_only:
 
 ######################################################
 
