@@ -243,10 +243,9 @@ class RecordHandler:
 
         key = record.get(key_identifier)
 
-        if key is None:
+        if not key:
             return
-        if 'status' in record and record.get('status') != 'active':
-            return
+
         email, last_attribute_name = self.user_email_formatter.generate_value(record)
         email = email.strip() if email else None
         if not email:

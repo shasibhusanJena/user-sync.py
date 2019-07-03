@@ -197,32 +197,21 @@ directory_users:
 ######################################################
 
 
+############# Classlink test information ###############
 
+    - directory_group: "ELA 6 (6A ELA)"
+      adobe_groups:
+        - "Caves and Embers"
 
-############## Clever test information ###############
-
-#    - directory_group: "Algebra 2 (MAT315)"
-#      adobe_groups:
-#        - "Caves and Embers"
-#
-#    - directory_group: "courses:: SS12 Participation in Gov't/Econ::students"
-#      adobe_groups:
-#        - "Caves and Embers"
-#
-#    - directory_group: "schools::ClassLink HS::students"
-#      adobe_groups:
-#        - "All students"
-
-######################################################
-
-############### Classlink test information #############
+    - directory_group: "courses::Algebra 2::students"
+      adobe_groups:
+        - "Caves and Embers"
 
     - directory_group: "schools::ClassLink HS::students"
       adobe_groups:
-        - "All Students"
+        - "All students"
 
-
-
+#####################################################
 
 
 

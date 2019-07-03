@@ -1,56 +1,6 @@
-# This is a sample configuration file for the oneroster connector type.
-#
-# OneRoster is the standard specification for securely sharing class rosters and related data,
-# between a student information system (SIS) and any other system.
-#
-# This sample file contains all of the settable options for this protocol.
-# It is recommended that you make a copy of this file and edit it for your needs.
 
 
 
-# platform
-
-# Connection Settings
-#(required, no default)
-# Endpoint for organization's OneRoster implementation
-# host: "https://exampleschool-ca-v2.oneroster.com/ims/oneroster/v1p1/"
-
-# (required, no default)
-# API credentials for classlink server
-# client_id: 'client id goes here'
-# client_secret: 'client secret goes here'
-
-# (optional, default value given below)
-# api call page size.  Adjusting this will adjust the frequency of API calls made to the server
-# page_size: 1000
-
-# max user limit
-
-# (optional, default value given below)
-# unique key used throughout One-Roster (sourcedId is commonly used)
-# key_identifier: 'sourcedId'
-
-# Simple Group Mapping
-# When simplifying user group mappings, you may choose the default values that are appended to your group_name
-# ie: When an English class is specified within the group mappings, after default values below are applied,
-# "English" will be {default_group_filter}::English::{default_user_filter}
-
-# (optional, default value given below)
-# the default filter applied to the prefix of a plain group name. eg: classes::name::user_filter
-#default_group_filter: 'classes'
-
-# (optional, default value given below)
-# the default filter applied to the suffix of a plain group name. eg: group_filter::name::students
-#default_user_filter: 'students'
-
-# (optional, default value given below)
-# all users filter.  Use this with the --users all command line option to target all users
-# all_users_filter: 'users'
-
-# (optional, include_only)
-# default value: {}
-# Provide attributes(key) and expected values (value) within the schema section of your implementation.
-# All users that do not meet the specified criteria will be removed from the sync process
 
 ############# Clever test information #############
 
@@ -71,117 +21,30 @@
 #  default_group_filter: 'sections'
 #  default_user_filter: 'students'
 #  include_only:
-#    gender: "F, M"
-#    grade: "Kindergarten"
+
 
 ######################################################
-
-
-
-
-
-
-
-
 
 
 ############# Classlink test information #############
 
-#connection:
-#  platform: 'classlink'
-#  client_id: '0fc7e35773c1fffd32579507'
-#  client_secret: '10332e330b2e364020179021'
-#  host: "https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/"
-#
-#  #access_token:
-#  page_size: 3000
-#  max_user_count: 0
-#
-#schema:
-#  match_groups_by: 'status'
-#  key_identifier: 'sourcedId'
-#  all_users_filter: 'users'
-#  default_group_filter: 'classes'
-#  default_user_filter: 'students'
-#  include_only:
-#    gender: "F"
-#    grade: "Kindergarten"
+connection:
+  platform: 'classlink'
+  client_id: '0fc7e35773c1fffd32579507'
+  client_secret: '10332e330b2e364020179021'
+  host: "https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/"
+  page_size: 3000
+  max_user_count: 0
+
+schema:
+  match_groups_by: 'title'
+  key_identifier: 'sourcedId'
+  all_users_filter: 'users'
+  default_group_filter: 'classes'
+  default_user_filter: 'students'
+  include_only:
 
 ######################################################
 
 
-
-
-# fields below are all optional
-# # (optional, default value given below) user_email_format
-# user_email_format specifies how to construct a user's email address by
-# combining constant strings with the values of specific Okta profile attributes.
-# Any names in curly braces are taken as attribute names, and everything including
-# the braces will be replaced on a per-user basis with the values of the attributes.
-# The default value is from "email" field in Okta user profile.
-# NOTE: for this and every format setting, the constant strings must be in
-# the encoding specified by the string_encoding setting, above.
-#user_email_format: "{email}"
 user_email_format: "{familyName}.{givenName}@resistanceisfutile.net"
-
-# (optional, no default) user_domain_format
-# user_domain_format is analogous to user_email_format in syntax, but it
-# is used to discover the domain for a given user.  If not specified, the
-# domain is taken from the domain part of the user's email address.
-#user_domain_format: "{domain}"
-
-# (optional, no default) user_username_format
-# user_username_format specifies how to construct a user's username on the
-# Adobe side by combining constant strings with attribute values.
-# Any names in curly braces are taken as attribute names, and everything including
-# the braces will be replaced on a per-user basis with the values of the attributes.
-# This setting should only be used when you are using federatedID and your
-# federation configuration specifies username-based login.  In all other cases,
-# make sure this is not set or returns an empty value, and the user's username
-# will be taken from the user's email.
-# This example supposes that the department and user_id are concatenated to
-# produce a unique username for each user.
-#user_username_format: "{username}"
-
-# (optional, default value given below) user_given_name_format
-# user_given_name_format specifies how to construct a user's given name by
-# combining constant strings with the values of specific Okta profile attributes.
-# Any names in curly braces are taken as attribute names, and everything including
-# the braces will be replaced on a per-user basis with the values of the attributes.
-# The default value is from "firstName" field in Okta user profile..
-# NOTE: for this and every format setting, the constant strings must be in
-# the encoding specified by the string_encoding setting, above.
-#user_given_name_format: "{givenName}"
-
-# (optional, default value given below) user_surname_format
-# user_surname_format specifies how to construct a user's surname by
-# combining constant strings with the values of specific Okta profile attributes.
-# Any names in curly braces are taken as attribute names, and everything including
-# the braces will be replaced on a per-user basis with the values of the attributes.
-# The default value is from "lastName" field in Okta user profile.
-# NOTE: for this and every format setting, the constant strings must be in
-# the encoding specified by the string_encoding setting, above.
-#user_surname_format: "{familyName}"
-
-# (optional, default value given below) user_country_code_format
-# user_country_code_format specifies how to construct a user's country code by
-# combining constant strings with the values of specific Okta profile attributes.
-# Any names in curly braces are taken as attribute names, and everything including
-# the braces will be replaced on a per-user basis with the values of the attributes.
-# The default value is from "countryCode" field in Okta user profile.
-# NOTE: for this and every format setting, the constant strings must be in
-# the encoding specified by the string_encoding setting, above.
-# user_country_code_format: "{country}"
-
-# (optional, no default) user_identity_type_format
-# user_identity_type_format specifies how to construct a user's desired identity
-# type on the Adobe side by combining constant strings with attribute values.
-# Any names in curly braces are take as attribute names, and everything including
-# the braces will be replaced on a per-user basis with the values of the attributes.
-# There is no default value for this setting, because most directories don't contain
-# users with different identity types (so setting the default identity type suffices).
-# If your directory contains users of different identity types, you should define
-# this field to look at the value of an appropriate attribute in your directory.
-# For example, if your directory attribute "idType" had one of the values
-# adobe, enterprise, or federated in it for each user, you could use:
-#user_identity_type_format: "{idType}ID"
