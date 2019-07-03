@@ -38,7 +38,7 @@ The Oneroster API is open source by definition, which means that all information
 
 ## SIS and User Sync
 
-Before the creation of this connector, the only option for EDU was to use the sync tool via active directory for synchronization (the standard approach outlined in the [setup and success guide](../success-guide/index.md).  This allowed some limited ability to assign permanent licenses to faculty/staff, but there wass no way to provision licenses based on actual rostering data - e.g., students in Art 101 should have access to CCE products, but ONLY for one semester.  Another alternative was to use the Oneroster compliant CSV exports to modify the admin console directly - a tedious and difficult to manage process.
+Before the creation of this connector, the only option for EDU was to use the sync tool via active directory for synchronization (the standard approach outlined in the [setup and success guide](../success-guide/index.md)).  This allowed some limited ability to assign permanent licenses to faculty/staff, but there wass no way to provision licenses based on actual rostering data - e.g., students in Art 101 should have access to CCE products, but ONLY for one semester.  Another alternative was to use the Oneroster compliant CSV exports to modify the admin console directly - a tedious and difficult to manage process.
 
 The Oneroster connector for UST now offers a better approach, by utilizing a direct interface with the SIS platforms, which means that the sync tool is able to leverage the full rostering information the institution is used to using with other services.  The decisions as to which  way to group users (i.e., based on class, course, school, etc) are flexible enough to allow a wide range of potential configurations in an easy to use fashion.
 
@@ -242,7 +242,55 @@ Or simply, if we are using the simplified notation:
 - directory_group: "5cfb063268d44802ad7b2fb8"
 ```
 
-At this time, it is only possible to specify a global match parameter -- e.g., using sourcedId means ALL group mappings must match by this - you can't use sourcedId for one and name for another.  This flexibility may be added down the line as an additional :: delimited field.
+ Now, consider the following configuration examples for further clarity:
+
+```yaml
+ match_groups_on: 'name'
+ 
+- directory_group: "classes::Math 101::students"
+        adobe_groups:
+              - "Spark"
+```
+
+ For the above case, the connector will return all students in the class whose 'name' is 'Math 101'.   Now, modify the above as follows:
+
+```yaml
+ match_groups_on: 'sourcedId'
+ 
+- directory_group: "classes::6ab699cf831::students"
+        adobe_groups:
+              - "Spark"
+```
+
+ For the above case, the connector will return all students in the class whose 'sourcedId' is '6ab699cf831'.   We can generalize do this for any field on classes we want.  For Clever, we might use the SIS_ID:
+
+```yaml
+ match_groups_on: 'SIS_ID'
+ 
+- directory_group: "classes:89571::students"
+        adobe_groups:
+              - "Spark"
+```
+
+ For the above case, the connector will return all students in the class whose 'SIS_ID' is '89571'.  The pattern shows that 'match_groups_on' should be set according to how you wish to identify a group in user-sync-config.yml, in the groups section.  The default for this field is 'name', which is the a good choice for Clever, since most objects have a 'name'.  For Classlink, you might consider setting this to 'title' for classes or courses, and 'name' for schools.
+
+
+### Inclusion filter
+
+ The inclusion filter is specified as a list of key value pairs.  The value of the key is fetched for each user and compared to the specified value.  If the user attribute is contained in the specified value, it is considered a match.  A user is only selected if all of the attributes are matched.  In the future, this will support regex mating as well.  For now, this is a simple case insensitive match.  For example, given the below filter, only females in kindergarten would be selected for input.  Check the schema for your platform's user fields.  You can choose anything for this:
+
+```yaml
+include_only:
+        gender: "F"
+        grade: "Kindergarten"
+```
+ OR, try:
+
+```yaml
+include_only:
+       status: "active"
+```
+ which will filter out all non-active users.  At this time, it is only possible to specify a global match parameter -- e.g., using sourcedId means ALL group mappings must match by this - you can't use sourcedId for one and name for another.  This flexibility may be added down the line as an additional :: delimited field.
 
 
 ## Testing and first sync
