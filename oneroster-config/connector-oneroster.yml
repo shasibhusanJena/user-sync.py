@@ -20,7 +20,8 @@ schema:
   all_users_filter: 'users'
   default_group_filter: 'sections'
   default_user_filter: 'students'
-  # include_only:
+#  include_only:
+#    status: 'active'
 
 ######################################################
 
@@ -41,7 +42,8 @@ schema:
 #  all_users_filter: 'users'
 #  default_group_filter: 'classes'
 #  default_user_filter: 'students'
-#  include_only: {}
+#  include_only:
+#    status: 'active'
 
 ######################################################
 

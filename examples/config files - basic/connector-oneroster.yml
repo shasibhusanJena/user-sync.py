@@ -43,7 +43,8 @@ schema:
   all_users_filter: 'users'
   default_group_filter: 'sections'        # Sections means classes
   default_user_filter: 'students'
-  # include_only:
+#  include_only:
+#    district: 'district #'
 
 ############# Classlink Example ######################
 
@@ -61,7 +62,8 @@ schema:
 #  all_users_filter: 'users'
 #  default_group_filter: 'classes'
 #  default_user_filter: 'students'
-#  # include_only:
+#  include_only:
+#    status: 'active'
 
 ######################################################
 
