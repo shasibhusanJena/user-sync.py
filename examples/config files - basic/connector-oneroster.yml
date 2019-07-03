@@ -134,7 +134,7 @@ schema:
 
 # The extended documentation on the match process is beyond the scope of these comments. Please refer to the full
 # documentation for a deeper understanding. Here, some examples are given as a visual alternative.
-# The documentation can found on the github page:
+# The documentation can found on the Github page:
 # https://github.com/adobe-dmeservices/user-sync.py/blob/oneroster/docs/en/user-manual/oneroster.md#groups-configuration
 
 # Now, consider the following configuration:
@@ -183,7 +183,7 @@ schema:
 # considered a match.  A user is only selected if all of the attributes are matched.  In the future, this will
 # support regex mating as well.  For now, this is a simple case insensitive match.  For example, given the below
 # filter, only females in kindergarten would be selected for input.  Check the schema for your platform's user
-# fields.  You can choose anything for this
+# fields.  You can choose anything for this:
 
 # include_only:
 #   gender: "F"

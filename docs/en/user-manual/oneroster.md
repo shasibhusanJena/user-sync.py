@@ -242,7 +242,55 @@ Or simply, if we are using the simplified notation:
 - directory_group: "5cfb063268d44802ad7b2fb8"
 ```
 
-At this time, it is only possible to specify a global match parameter -- e.g., using sourcedId means ALL group mappings must match by this - you can't use sourcedId for one and name for another.  This flexibility may be added down the line as an additional :: delimited field.
+ Now, consider the following configuration examples for further clarity:
+
+```yaml
+ match_groups_on: 'name'
+ 
+- directory_group: "classes::Math 101::students"
+        adobe_groups:
+              - "Spark"
+```
+
+ For the above case, the connector will return all students in the class whose 'name' is 'Math 101'.   Now, modify the above as follows:
+
+```yaml
+ match_groups_on: 'sourcedId'
+ 
+- directory_group: "classes::6ab699cf831::students"
+        adobe_groups:
+              - "Spark"
+```
+
+ For the above case, the connector will return all students in the class whose 'sourcedId' is '6ab699cf831'.   We can generalize do this for any field on classes we want.  For Clever, we might use the SIS_ID:
+
+```yaml
+ match_groups_on: 'SIS_ID'
+ 
+- directory_group: "classes:89571::students"
+        adobe_groups:
+              - "Spark"
+```
+
+ For the above case, the connector will return all students in the class whose 'SIS_ID' is '89571'.  The pattern shows that 'match_groups_on' should be set according to how you wish to identify a group in user-sync-config.yml, in the groups section.  The default for this field is 'name', which is the a good choice for Clever, since most objects have a 'name'.  For Classlink, you might consider setting this to 'title' for classes or courses, and 'name' for schools.
+
+
+### Inclusion filter
+
+ The inclusion filter is specified as a list of key value pairs.  The value of the key is fetched for each user and compared to the specified value.  If the user attribute is contained in the specified value, it is considered a match.  A user is only selected if all of the attributes are matched.  In the future, this will support regex mating as well.  For now, this is a simple case insensitive match.  For example, given the below filter, only females in kindergarten would be selected for input.  Check the schema for your platform's user fields.  You can choose anything for this:
+
+```yaml
+include_only:
+        gender: "F"
+        grade: "Kindergarten"
+```
+ OR, try:
+
+```yaml
+include_only:
+       status: "active"
+```
+ which will filter out all non-active users.  At this time, it is only possible to specify a global match parameter -- e.g., using sourcedId means ALL group mappings must match by this - you can't use sourcedId for one and name for another.  This flexibility may be added down the line as an additional :: delimited field.
 
 
 ## Testing and first sync
