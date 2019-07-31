@@ -83,7 +83,7 @@ class OneRosterConnector(object):
 
         schema_config = caller_config.get_dict_config('schema', True)
         schema_builder = user_sync.config.OptionsBuilder(schema_config)
-        schema_builder.set_string_value('match_groups_by', 'name')
+        schema_builder.set_value('match_groups_by',(str, list) ,'name')
         schema_builder.set_string_value('key_identifier', 'sourcedId')
         schema_builder.set_string_value('all_users_filter', 'users')
         schema_builder.set_string_value('default_group_filter', 'classes')
@@ -122,6 +122,7 @@ class OneRosterConnector(object):
         api = oneroster.get_connector(api_options)
         groups_from_yml = self.parse_yaml_groups(groups)
         max_user_count = self.options['connection']['max_user_count']
+        limit_users = max_user_count > 0
         users_by_key = {}
 
         for group_filter in groups_from_yml:
@@ -146,8 +147,9 @@ class OneRosterConnector(object):
                 if key not in users_by_key:
                     users_by_key[key] = value
 
-        self.logger.info("Found " + str(len(users_by_key)) + " total users")
-        if max_user_count > 0:
+        limited_msg = "(limit applied)" if limit_users else ""
+        self.logger.info("Api returns " + str(len(users_by_key)) + " total users " + limited_msg)
+        if limit_users:
             self.logger.info("Enforcing user limit of: " + str(max_user_count) + " users")
             return six.itervalues(dict(itertools.islice(users_by_key.items(), max_user_count)))
         else:
