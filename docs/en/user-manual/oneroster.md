@@ -98,8 +98,8 @@ The Oneroster connector for UST now offers a better approach, by utilizing a dir
             client_secret: 'api client secret here'	#From your SIS dashboard
             host: 'https://api.clever.com/v2.1/ for clever or your oneroster URL for classlink'
         
-            #access_token: 'api token (clever only)'  #Optional - if added, the client id and secret fields are not needed. Uncomment to use'
-            page_size: 3000		#API page size - limited by what the platform allows.  Leave as high as possible for faster sync.
+            #access_token: 'api token (clever only).  No client_id or secret needed.'
+            page_size: 1000		#API page size - limited by what the platform allows.  Leave as high as possible for faster sync.
             max_user_count: 0	#limits the number of users returned by the API (useful for testing)
         
         schema:
@@ -110,9 +110,8 @@ The Oneroster connector for UST now offers a better approach, by utilizing a dir
             default_user_filter: 'students'		# Default choice for user filter if none specified
      ```
 
-2. Fill out the connection settings.  You MUST enter either 'clever' or 'classlink' for the platform type, though additional platforms may be supported in the future.  The client ID and secret should come from your SIS dashboard (see the prerequisites section above).  These keys enable UST to connect to your Oneroster instance.  The hostname can be set as noted above for clever, or as your classlink URL for classlink.  This may look like:  `https://example-ca-v2.oneroster.com/ims/oneroster/v1p1/` or similar.
-
-	The page size and max user count can be ignored and set to default (see the comment above if you want to use them).  Likewise, the access token field can also be ignored.  This  field is only valid for clever - and, if set, will override the client id and secret paramters.  This provides and alternative configuration that doesn't require the API credentials.
+2. Fill out the connection settings.  You MUST enter either 'clever' or 'classlink' for the platform type, though additional platforms may be supported in the future.  The client ID and secret should come from your SIS dashboard (see the prerequisites section above).  These keys enable UST to connect to your Oneroster instance.  The hostname can be set as noted above for clever, or as your classlink URL for classlink.  This may look like:  `https://example-ca-v2.oneroster.com/ims/oneroster/v1p1/` or similar.	The page size and max user count can be ignored and set to default (see the comment above if you want to use them).  Likewise, the access token field can also be ignored.  This  field is only valid for clever. 
+	## **To use clever you must have a district token or use TEST_TOKEN for testing.**
 
 3. In the schema section, you can configure the default settings for your API.  The two which should be considered carefully are the match groups and key identifier settings.  If these are not set according to your platform (classlink vs clever) and group name conventions, you will not be able to sync users. The other options are filters that determine what kind of data can be fetched.  The default group and user filters will be explained in the next section as they apply directly to the group mapping configuration.  
 
@@ -231,7 +230,7 @@ By doing so, we have reduced the mappings back to being simple.  Furthermore, we
 In this way we provide maximum flexibility with the options for standard simple group mappings.
 
 ### The group matching definition
-In the above discussion, we did leave out a key piece of information - we have implicitly assumed that all of our target objects have a "name" filed that we can match (like "Class 003...").  But, what if we need to match on a unique identifier instead (like SIS_ID, id, sourced id) or on some other custom field (course number, etc).  Why should we be forced to use the name?  Answer: we are not!  The field named "match_groups_on" in connector-oneroster.yml allows you to specify exactly what you want to match with your group name.  This can be set to any available field on the target object (according to the api schema).  In the default configuration, it is set to "name" for clever and "title" for classlink.  This could just as easily be "sourcedId" or some other field.  Assuming for the moment that we have set "match_groups_on" to **sourcedId**, we could write our groups query as follows (assuming that "5cfb063268d44802ad7b2fb8" is the sourcedId for the section of interest):
+In the above discussion, we did leave out a key piece of information - we have implicitly assumed that all of our target objects have a "name" filed that we can match (like "Class 003...").  But, what if we need to match on a unique identifier instead (like SIS_ID, id, sourced id) or on some other custom field (course number, etc).  Why should we be forced to use the name?  Answer: we are not!  The field named "match_groups_by" in connector-oneroster.yml allows you to specify exactly what you want to match with your group name.  This can be set to any available field on the target object (according to the api schema).  In the default configuration, it is set to "name" for clever and "title" for classlink.  This could just as easily be "sourcedId" or some other field.  Assuming for the moment that we have set "match_groups_by" to **sourcedId**, we could write our groups query as follows (assuming that "5cfb063268d44802ad7b2fb8" is the sourcedId for the section of interest):
 
 ```yaml
 - directory_group: "sections::5cfb063268d44802ad7b2fb8::students"
@@ -245,7 +244,7 @@ Or simply, if we are using the simplified notation:
  Now, consider the following configuration examples for further clarity:
 
 ```yaml
- match_groups_on: 'name'
+ match_groups_by: 'name'
  
 - directory_group: "classes::Math 101::students"
         adobe_groups:
@@ -255,7 +254,7 @@ Or simply, if we are using the simplified notation:
  For the above case, the connector will return all students in the class whose 'name' is 'Math 101'.   Now, modify the above as follows:
 
 ```yaml
- match_groups_on: 'sourcedId'
+ match_groups_by: 'sourcedId'
  
 - directory_group: "classes::6ab699cf831::students"
         adobe_groups:
@@ -265,15 +264,42 @@ Or simply, if we are using the simplified notation:
  For the above case, the connector will return all students in the class whose 'sourcedId' is '6ab699cf831'.   We can generalize do this for any field on classes we want.  For Clever, we might use the SIS_ID:
 
 ```yaml
- match_groups_on: 'SIS_ID'
+ match_groups_by: 'SIS_ID'
  
 - directory_group: "classes:89571::students"
         adobe_groups:
               - "Spark"
 ```
 
- For the above case, the connector will return all students in the class whose 'SIS_ID' is '89571'.  The pattern shows that 'match_groups_on' should be set according to how you wish to identify a group in user-sync-config.yml, in the groups section.  The default for this field is 'name', which is the a good choice for Clever, since most objects have a 'name'.  For Classlink, you might consider setting this to 'title' for classes or courses, and 'name' for schools.
+For the above case, the connector will return all students in the class whose 'SIS_ID' is '89571'.  The pattern shows that 'match_groups_by' should be set according to how you wish to identify a group in user-sync-config.yml, in the groups section.  The default for this field is 'name', which is the a good choice for Clever, since most objects have a 'name'.  For Classlink, you might consider setting this to 'title' for classes or courses, and 'name' for schools.
 
+### Using multiple matchers
+You can use an array to specify which fields to match against.  This is helpful when you want to select one group based on ID, and another based on name.  In Classlink, schools and classes have different name fields: name and title, so you can use this feature to fetch from both at once.  All you need to do is change the match_groups_by field to be a list, like so:
+
+
+```yaml
+ match_groups_by: ['id', 'name', 'title']
+ 
+- directory_group: "classes::Math 101::students"
+        adobe_groups:
+              - "Spark"
+- directory_group: "classes::381759192::students"
+        adobe_groups:
+              - "Spark"
+```
+
+
+### Overriding the default (::) delimiter
+If you need to, you can also override the default '::' delimiter (for example, if :: appears in your group name).  To do this, set the group_delimiter option in the schema section of connector-oneroster.yml, e.g.:
+```yaml
+schema:
+        match_groups_by: 'name'
+        key_identifier: 'id'
+        all_users_filter: 'users'
+        default_group_filter: 'sections'
+        default_user_filter: 'students'
+        group_delimiter: '###'
+```
 
 ### Inclusion filter
 
@@ -290,8 +316,7 @@ include_only:
 include_only:
        status: "active"
 ```
- which will filter out all non-active users.  At this time, it is only possible to specify a global match parameter -- e.g., using sourcedId means ALL group mappings must match by this - you can't use sourcedId for one and name for another.  This flexibility may be added down the line as an additional :: delimited field.
-
+ which will filter out all non-active users.  
 
 ## Testing and first sync
 
@@ -352,12 +377,14 @@ Compiled errors from testing..?
 |access_token             |optional (no default)                   |Allows to bypass API authentication for Clever.  Mainly useful for testing (use 'TEST_TOKEN') or to avoid putting credentials into the file.                                                                                                                                                                                                                                                                                                                                                                                                                           |TEST_TOKEN                                                                                       |
 |page_size                |optional (default: 1000)                | api call page size.  Adjusting this will adjust the frequency of API calls made to the server                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |3000                                                                                             |
 |max_user_count           |optional (default: 0)                   |API calls will cutoff after this many users.  Set to 0 for unlimited.  Useful when doing test runs to avoid pulling very large user counts.                                                                                                                                                                                                                                                                                                                                                                                                                            |0, 10, 50, 4000, etc…                                                                            |
+|max_user_count           |optional (default: 0)                   |API calls will cutoff after this many users.  Set to 0 for unlimited.  Useful when doing test runs to avoid pulling very large user counts.                                                                                                                                                                                                                                                                                                                                                                                                                            |0, 10, 50, 4000, etc…                                                                            |
 |**Schema**                   |                                        |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |                                                                                                 |
 |match_groups_by          |required (default: name)                |Attribute corresponding to the group name in user-sync-config.yml.  UST will match the desired value to this field (e.g., name, sourcedId, etc…).  For clever, "name" will suffice for schools, courses and sections.  For classlink, you can user "title" for classes/courses, and "name" for schools.                                                                                                                                                                                                                                                                                                                                                                                                                       |title, name, SIS_ID, sourceId, subject                                                           |
 |key_identifier           |required (default: sourcedId)           | unique key used throughout One-Roster (sourcedId or id commonly used).  This may not be an arbitrary value, since it is used in the URL of the API calls.  It must exist and be the base ID for your platform.                                                                                                                                                                                                                                                                                                                                                        |sourcedId, id                                                                                    |
 |all_users_filter         |required (default: users)               |all users filter.  Use this with the --users all command line option to target all users.  Available choices are [students, teachers, users]                                                                                                                                                                                                                                                                                                                                                                                                                           |users, students, teachers                                                                        |
 |default_group_filter     |optional (default: classes)             |the default filter applied to the prefix of a plain group name                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |schools, courses, sections, classes                                                              |
 |default_user_filter      |optional (default: students)            |the default filter applied to the suffix of a plain group name                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |users, students, teachers                                                                        |
+|group_delimiter          |optional (default: '::')                  | use if you need to override the default delimiter (::) for user-sync-config.yml groups                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |users, students, teachers                                                                        |
 |include_only             |optional (no default)                   | Provide attributes(key) and expected values (value) within the schema section of your implementation.  All users that do not meet the specified criteria will be removed from the sync process                                                                                                                                                                                                                                                                                                                                                                        | gender: "F"  grade: "Kindergarten"                                                              |
 |**Other**                    |                                        |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |                                                                                                 |
 |user_email_format        |optional (default: {email})             |specifies how to construct a user's email address by  combining constant strings with the values of specific Okta profile attributes.  Any names in curly braces are taken as attribute names, and everything including  the braces will be replaced on a per-user basis with the values of the attributes.  The default value is from "email" field in Oneroster.                                                                                                                                                                                                     |{email},{id}@{domain}                                                                            |

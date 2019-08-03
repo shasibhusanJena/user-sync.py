@@ -67,6 +67,7 @@ class OneRosterConnector(object):
         caller_config.report_unused_values(self.logger)
         self.logger.debug('%s initialized with options: %s', self.name, self.options)
 
+
     @staticmethod
     def get_options(caller_config):
 
@@ -83,11 +84,12 @@ class OneRosterConnector(object):
 
         schema_config = caller_config.get_dict_config('schema', True)
         schema_builder = user_sync.config.OptionsBuilder(schema_config)
-        schema_builder.set_value('match_groups_by',(str, list) ,'name')
-        schema_builder.set_string_value('key_identifier', 'sourcedId')
+        schema_builder.set_value('match_groups_by', (str, list), 'name')
+        schema_builder.set_string_value('key_identifier', None)
         schema_builder.set_string_value('all_users_filter', 'users')
         schema_builder.set_string_value('default_group_filter', 'classes')
         schema_builder.set_string_value('default_user_filter', 'students')
+        schema_builder.set_string_value('group_delimiter', '::')
         schema_builder.set_dict_value('include_only', {})
         schema_options = schema_builder.get_options()
 
@@ -155,6 +157,17 @@ class OneRosterConnector(object):
         else:
             return six.itervalues(users_by_key)
 
+    def validate_group_string(self, string, delim):
+
+        if delim not in string:
+            return False
+
+        if len(string.split(delim)) != 3 or re.search('.*(:::).*', string):
+            msg = "Invalid group syntax: {0}\n" \
+                  "Syntax should be of form 'group_filter{1}group_name{1}user_filter'"
+            raise ValueError(msg.format(string, delim))
+        return True
+
     def parse_yaml_groups(self, groups_list):
         """
         description: parses group options from user-sync.config file into a nested dict
@@ -164,25 +177,28 @@ class OneRosterConnector(object):
         :type groups_list: set(str) from user-sync-config-ldap.yml
         :rtype: iterable(dict)
         """
+        allowed_groups = ['classes', 'courses', 'schools', 'sections']
+        allowed_users = ['students', 'teachers', 'users']
+        delim = self.options['schema']['group_delimiter']
         groups = {}
         for text in groups_list:
-            if re.search('.*(::).*(::).*', text):
-                group_filter, group_name, user_filter = text.lower().split("::")
+            if self.validate_group_string(text, delim):
+                group_filter, group_name, user_filter = text.lower().split(delim)
 
                 if self.options['connection']['platform'] == 'clever':
                     group_filter = group_filter.replace('classes', 'sections')
                 elif self.options['connection']['platform'] == 'classlink':
                     group_filter = group_filter.replace('sections', 'classes')
-                group_filter = group_filter.replace('orgs','schools')
+                group_filter = group_filter.replace('orgs', 'schools')
 
-                if group_filter not in {'classes', 'courses', 'schools', 'sections'}:
+                if group_filter not in allowed_groups:
                     raise ValueError(
                         "Bad group type: " + group_filter + " for " + text
-                        + ", valid are: classes, courses, sections, schools")
-                if user_filter not in {'students', 'teachers', 'users'}:
+                        + ", valid are: " + ', '.join(allowed_groups))
+                if user_filter not in allowed_users:
                     raise ValueError(
                         "Bad user type: " + group_filter + " for " + text
-                        + ", valid are: students, teachers, or users")
+                        + ", valid are: " + ', '.join(allowed_users))
 
                 if group_filter not in groups:
                     groups[group_filter] = {group_name: {}}
@@ -212,6 +228,9 @@ class RecordHandler:
         self.user_given_name_formatter = OneRosterValueFormatter(options['user_given_name_format'])
         self.user_surname_formatter = OneRosterValueFormatter(options['user_surname_format'])
         self.user_country_code_formatter = OneRosterValueFormatter(options['user_country_code_format'])
+
+        if self.inclusions != {}:
+            self.logger.info("Note: inclusion filters are applied: " + str(self.inclusions))
 
     def parse_results(self, result_set, key_identifier, extended_attributes):
         """
@@ -318,7 +337,6 @@ class RecordHandler:
         """
 
         for key, value in self.inclusions.items():
-
             try:
                 if self.decode_string(record.get(key)) not in self.decode_string(value):
                     return True

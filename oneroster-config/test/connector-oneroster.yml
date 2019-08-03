@@ -31,24 +31,25 @@
 ############# Clever Example ##########################
 
 connection:
-  platform: 'clever'
-  access_token: 'TEST_TOKEN'              # TEST_TOKEN is provided by Clever for sample date -- Try it out!
-  host: 'https://api.clever.com/v2.1/'    # Host doesn't change for Clever, unless you need a different API version
-  page_size: 1000
-  max_user_count: 0
+    platform: clever
+    access_token: TEST_TOKEN              # TEST_TOKEN is provided by Clever for sample date -- Try it out!
+    host: https://api.clever.com/v2.1/    # Host doesn't change for Clever, unless you need a different API version
+    page_size: 1000
+    max_user_count: 0
 
 schema:
-  match_groups_by: 'name'                 # Name is a good default for Clever
-  key_identifier: 'id'                    # Clever uses 'id' instead of 'sourcedId'
-  all_users_filter: 'users'
-  default_group_filter: 'sections'        # Sections means classes
-  default_user_filter: 'students'
-#  group_delimiter: '::'
-#  include_only:
-#    grade: '6'
+    match_groups_by: name                 # Name is a good default for Clever
+    key_identifier: id                   # Clever uses 'id' instead of 'sourcedId'
+    all_users_filter: users
+    default_group_filter: sections        # Sections means classes
+    default_user_filter: students
+#    group_delimiter: '::'
+#    include_only:
+#      grade: Kindergarten
 
 ############# Classlink Example ######################
 
+user_email_format: '{familyName}.{givenName}@bonesofether.com'
 #connection:
 #  platform: 'classlink'
 #  client_id: 'client id here'             # There is no test equivalent to TEST_TOKEN as for Clever
@@ -108,7 +109,6 @@ schema:
 # default_user_filter    |  the default filter applied to the suffix of a group name. eg: classes::name::user_filter
 # default_group_filter   |  the default filter applied to the prefix of a group name. eg: group_filter::name::students
 # all_users_filter       |  all users filter.  Use this with the --users all command line option to target all users
-# group_delimiter        |  use if you need to override the default delimiter (::) for user-sync-config.yml groups
 # include_only           |  provide attributes(key) and expected values (value) within the schema section.
 #                        |  all users that do not meet the specified criteria will be skipped (See below for examples)
 
@@ -179,9 +179,6 @@ schema:
 # a good choice for Clever, since most objects have a 'name'.  For Classlink, you might consider setting
 # this to 'title' for classes or courses, and 'name' for schools.
 
-# If you need to, you can also override the default '::' delimiter (for example, if :: appears in your
-# group name).  To do this, set the group_delimiter option as described above.
-
 
 ######  Inclusion filter ######
 
@@ -202,4 +199,3 @@ schema:
 #   status: "active"
 
 # which will filter out all non-active users
-
