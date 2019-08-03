@@ -31,7 +31,7 @@ connection:
   platform: 'classlink'
   client_id: '0fc7e35773c1fffd32579507'
   client_secret: '10332e330b2e364020179021'
-  host: "https://adobe-ca-v2.oneroster.com/ims/oneroster/v1p1/"
+  host: "https://BAD"
   page_size: 3000
   max_user_count: 10
 
@@ -47,4 +47,4 @@ schema:
 ######################################################
 
 
-user_email_format: "{familyName}.{givenName}@resistanceisfutile.net"
+user_email_format: "{sourcedId}@resistanceisfutile.net"

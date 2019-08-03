@@ -30,44 +30,49 @@
 
 ############# Clever Example ##########################
 
-connection:
-    platform: clever
-    access_token: TEST_TOKEN              # TEST_TOKEN is provided by Clever for sample date -- Try it out!
-    host: https://api.clever.com/v2.1/    # Host doesn't change for Clever, unless you need a different API version
-    page_size: 1000
-    max_user_count: 0
-
-schema:
-    match_groups_by: name                 # Name is a good default for Clever
-    key_identifier: id                   # Clever uses 'id' instead of 'sourcedId'
-    all_users_filter: users
-    default_group_filter: sections        # Sections means classes
-    default_user_filter: students
+#connection:
+#    platform: clever
+#    access_token: TEST_TOKEN              # TEST_TOKEN is provided by Clever for sample date -- Try it out!
+#    host: https://api.clever.com/v2.1/    # Host doesn't change for Clever, unless you need a different API version
+#    page_size: 1000
+#    max_user_count: 0
+#
+#schema:
+#    match_groups_by: name                 # Name is a good default for Clever
+#    key_identifier: id                   # Clever uses 'id' instead of 'sourcedId'
+#    all_users_filter: users
+#    default_group_filter: sections        # Sections means classes
+#    default_user_filter: students
 #    group_delimiter: '::'
 #    include_only:
 #      grade: Kindergarten
 
-############# Classlink Example ######################
 
-user_email_format: '{familyName}.{givenName}@bonesofether.com'
-#connection:
-#  platform: 'classlink'
-#  client_id: 'client id here'             # There is no test equivalent to TEST_TOKEN as for Clever
-#  client_secret: 'client secret here'
-#  host: "https://example.oneroster.com/ims/oneroster/v1p1/"    # You WILL need to update this to your URL
-#  page_size: 1000
-#  max_user_count: 0
-#
-#schema:
-#  match_groups_by: 'title'                # For Classlink, 'title' works for class/course.  Use 'name' for schools
-#  key_identifier: 'sourcedId'             # Root ID for Classlink is 'sourcedId'
-#  all_users_filter: 'users'
-#  default_group_filter: 'classes'
-#  default_user_filter: 'students'
+
+
+############# Classlink test information #############
+
+connection:
+  platform: 'classlink'
+  client_id: '0fc7e35773c1fffd32579507'
+  client_secret: '10332e330b2e364020179021'
+  host: "https://BAD/"
+  page_size: 3000
+  max_user_count: 10
+
+schema:
+  match_groups_by: ['title','name']
+  key_identifier: 'sourcedId'
+  all_users_filter: 'users'
+  default_group_filter: 'classes'
+  default_user_filter: 'students'
 #  include_only:
 #    status: 'active'
 
-######################################################
+
+# user_email_format: '{familyName}.{givenName}@bonesofether.com'
+user_email_format: '{sourcedId}@bonesofether.com'
+
 
 # Optional attribute fields with defaults (uncomment to use)
 #user_email_format: "{email}"

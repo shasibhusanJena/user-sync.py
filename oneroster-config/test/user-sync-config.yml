@@ -166,9 +166,9 @@ directory_users:
   # --process-groups command-line argument.
   groups:
 
-    - directory_group: schools::Pineapple Elementary School::students
-      adobe_groups:
-        - Wizardry
+#    - directory_group: schools::Pineapple Elementary School:students
+#      adobe_groups:
+#        - Wizardry
   #
   #    - directory_group: sections::Latin Dance Elective - Gleichner - 6::students
   #      adobe_groups:
@@ -181,6 +181,24 @@ directory_users:
   #    - directory_group: courses::Drama Elective::users
   #      adobe_groups:
   #      - Wizardry
+
+
+
+############# Classlink test information ###############
+
+    - directory_group: "ELA 6 (6A ELA)"
+      adobe_groups:
+        - "Caves and Embers"
+
+    - directory_group: "courses::Algebra 2::students"
+      adobe_groups:
+        - "Caves and Embers"
+
+    - directory_group: "schools::ClassLink HS::students"
+      adobe_groups:
+        - "Caves and Embers"
+
+#####################################################
 
   # the value of this setting is a mapping whose keys are single enterprise
   # directory groups and whose values are lists of Adobe groups.  This mapping
