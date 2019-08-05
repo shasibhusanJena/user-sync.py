@@ -265,6 +265,7 @@ class RecordHandler:
         key = record.get(key_identifier)
 
         if not key:
+            self.logger.warning('Skipping user with id %s: no user key found (%s)', key, key_identifier)
             return
 
         email, last_attribute_name = self.user_email_formatter.generate_value(record)
