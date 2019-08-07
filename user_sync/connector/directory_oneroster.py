@@ -19,14 +19,15 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import itertools
 import re
 import string
-import itertools
+
+import oneroster
 import six
 
 import user_sync.config
 import user_sync.connector.helper
-import oneroster
 import user_sync.helper
 import user_sync.identity_type
 from user_sync.error import AssertionException
@@ -67,7 +68,6 @@ class OneRosterConnector(object):
         caller_config.report_unused_values(self.logger)
         self.logger.debug('%s initialized with options: %s', self.name, self.options)
 
-
     @staticmethod
     def get_options(caller_config):
 
@@ -78,7 +78,7 @@ class OneRosterConnector(object):
         connection_builder.require_string_value('platform')
         connection_builder.require_string_value('host')
         connection_builder.set_int_value('page_size', 1000)
-        connection_builder.set_int_value('max_user_count', 0)
+        connection_builder.set_int_value('max_users', 0)
         connection_builder.set_string_value('access_token', None)
         connection_options = connection_builder.get_options()
 
@@ -117,15 +117,19 @@ class OneRosterConnector(object):
         :type all_users: bool
         :rtype (bool, iterable(dict))
         """
-        rh = RecordHandler(self.logger, self.options)
+
         api_options = self.options['connection']
         api_options['key_identifier'] = self.options['schema']['key_identifier']
-        api_options['match_groups_by'] = self.options['schema']['match_groups_by']
-        api = oneroster.get_connector(api_options)
-        groups_from_yml = self.parse_yaml_groups(groups)
-        max_user_count = self.options['connection']['max_user_count']
+        api_options['match_on'] = self.options['schema']['match_groups_by']
+        max_user_count = api_options['max_users']
         limit_users = max_user_count > 0
         users_by_key = {}
+
+        connector_class = self.get_connector(api_options['platform'])
+        groups_from_yml = self.parse_yaml_groups(groups)
+
+        rh = RecordHandler(self.logger, self.options)
+        api = connector_class(**api_options)
 
         for group_filter in groups_from_yml:
             groups_names = groups_from_yml[group_filter]
@@ -156,6 +160,15 @@ class OneRosterConnector(object):
             return six.itervalues(dict(itertools.islice(users_by_key.items(), max_user_count)))
         else:
             return six.itervalues(users_by_key)
+
+    def get_connector(self, name):
+        if name.lower() == 'clever':
+            return oneroster.CleverConnector
+        elif name.lower() == 'classlink':
+            return oneroster.ClasslinkConnector
+        else:
+            raise NotImplementedError("Unrecognized platform: '" + name +
+                                      "'.  Only clever and classlink are supported.")
 
     def validate_group_string(self, string, delim):
 
