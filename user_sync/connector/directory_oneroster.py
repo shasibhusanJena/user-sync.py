@@ -168,7 +168,7 @@ class OneRosterConnector(object):
             return oneroster.ClasslinkConnector
         else:
             raise NotImplementedError("Unrecognized platform: '" + name +
-                                      "'.  Only clever and classlink are supported.")
+                                      "'.  Supported are: [classlink, clever].")
 
     def validate_group_string(self, string, delim):
 
