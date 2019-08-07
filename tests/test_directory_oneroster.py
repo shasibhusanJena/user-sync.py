@@ -16,7 +16,7 @@ def caller_options():
         'client_secret': 'client_secret',
         'host': 'https://example.oneroster.com/ims/oneroster/v1p1/',
         'page_size': 1000,
-        'max_user_count': 0
+        'max_users': 0
     }
 
     schema = {
@@ -190,8 +190,8 @@ def test_load_users_and_groups(oneroster_connector, stub_api_response, stub_pars
             actual_result = list(oneroster_connector.load_users_and_groups(['xxx'], [], False))
             assert actual_result == expected
 
-            # testing max_user_count functionality
-            oneroster_connector.options['connection']['max_user_count'] = 1
+            # testing max_users functionality
+            oneroster_connector.options['connection']['max_users'] = 1
             actual_result = list(oneroster_connector.load_users_and_groups(['xxx'], [], False))
             actual_result_length = len(actual_result)
             assert actual_result_length == 1
