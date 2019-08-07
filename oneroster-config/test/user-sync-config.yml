@@ -182,8 +182,6 @@ directory_users:
       adobe_groups:
         - Wizardry
 
-
-
   ############# Classlink test information ###############
 
 #      - directory_group: "ELA 6 (6A ELA)"
