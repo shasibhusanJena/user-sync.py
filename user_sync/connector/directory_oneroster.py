@@ -31,6 +31,7 @@ import user_sync.connector.helper
 import user_sync.helper
 import user_sync.identity_type
 from user_sync.error import AssertionException
+from user_sync.helper import CSVAdapter
 
 
 def connector_metadata():
@@ -67,6 +68,10 @@ class OneRosterConnector(object):
         self.logger = user_sync.connector.helper.create_logger(self.options)
         caller_config.report_unused_values(self.logger)
         self.logger.debug('%s initialized with options: %s', self.name, self.options)
+        if self.options['file_path']:
+            if self.options['connection']['access_token']:
+                self.logger.warning("Warning: access_token will not be used because token CSV was supplied")
+            self.token_map = self.load_token_map()
 
     @staticmethod
     def get_options(caller_config):
@@ -103,11 +108,25 @@ class OneRosterConnector(object):
         builder.set_string_value('user_domain_format', None)
         builder.set_string_value('user_identity_type', None)
         builder.set_string_value('user_identity_type_format', None)
+        builder.set_string_value('file_path', None)
         options = builder.get_options()
 
         options['connection'] = connection_options
         options['schema'] = schema_options
         return options
+
+    def load_token_map(self):
+        """
+        Load token mapping from CSV -- Clever sync only.  This overrides the access_token completely.
+        :return:
+        """
+        rows = list(CSVAdapter.read_csv_rows(self.options['file_path'], logger=self.logger))
+        token_map = {}
+        for r in rows:
+            if r['token'] in token_map:
+                raise AssertionException("Duplicate access tokens found in csv -- aborting sync")
+            token_map[r['token']] = r['product']
+        return token_map
 
     def load_users_and_groups(self, groups, extended_attributes, all_users):
         """

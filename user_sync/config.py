@@ -127,7 +127,7 @@ class ConfigLoader(object):
         # --connector
         connector_spec = options['connector']
         connector_type = user_sync.helper.normalize_string(connector_spec[0])
-        if connector_type in ["ldap", "okta", "oneroster"]:
+        if connector_type in ["ldap", "okta"]:
             if len(connector_spec) > 1:
                 raise AssertionException('Must not specify a file (%s) with connector type %s' %
                                          (connector_spec[0], connector_type))
@@ -137,6 +137,13 @@ class ConfigLoader(object):
                 raise AssertionException("You must specify a single file with connector type csv")
             options['directory_connector_type'] = 'csv'
             options['directory_connector_overridden_options'] = {'file_path': connector_spec[1]}
+        elif connector_type == "oneroster":
+            options['directory_connector_type'] = connector_type
+            if len(connector_spec) == 2:
+                options['directory_connector_overridden_options'] = {'file_path': connector_spec[1]}
+            elif len(connector_spec) > 2:
+                raise AssertionException("You must specify exactly 0 or 1 file paths for connector type oneroster")
+
         else:
             raise AssertionException('Unknown connector type: %s' % connector_type)
 
@@ -516,7 +523,7 @@ class ConfigLoader(object):
 
         # get the limits
         limits_config = self.main_config.get_dict_config('limits')
-        max_missing = limits_config.get_value('max_adobe_only_users',(int, str),False)
+        max_missing = limits_config.get_value('max_adobe_only_users', (int, str), False)
         percent_pattern = re.compile("(\d*(\.\d+)?%)")
         if isinstance(max_missing, str) and percent_pattern.match(max_missing):
             max_missing_percent = float(max_missing.strip('%'))
@@ -881,7 +888,7 @@ class ConfigFileLoader:
     # key_path is being searched for in what file in what directory
     filepath = None  # absolute path of file currently being loaded
     filename = None  # filename of file currently being loaded
-    dirpath = None   # directory path of file currently being loaded
+    dirpath = None  # directory path of file currently being loaded
     key_path = None  # the full pathname of the setting key being processed
 
     @classmethod
