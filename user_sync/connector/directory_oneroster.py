@@ -69,6 +69,8 @@ class OneRosterConnector(object):
         caller_config.report_unused_values(self.logger)
         self.logger.debug('%s initialized with options: %s', self.name, self.options)
         if self.options['file_path']:
+            if self.options['connection']['platform'] != 'clever':
+                raise AssertionException('Token map can only be used with Clever')
             if self.options['connection']['access_token']:
                 self.logger.warning("Warning: access_token will not be used because token CSV was supplied")
             self.token_map = self.load_token_map()
@@ -150,35 +152,39 @@ class OneRosterConnector(object):
         rh = RecordHandler(self.logger, self.options)
         api = connector_class(**api_options)
 
-        for group_filter in groups_from_yml:
-            groups_names = groups_from_yml[group_filter]
-            for group_name in groups_names:
-                for user_group in groups_names[group_name]:
-                    user_filter = groups_names[group_name][user_group]
-                    response = api.get_users(
-                        group_filter=group_filter,
-                        group_name=group_name,
-                        user_filter=user_filter,
-                    )
-                    new_users_by_key = rh.parse_results(response, self.options['schema']['key_identifier'], extended_attributes)
-                    for key, value in six.iteritems(new_users_by_key):
-                        if key not in users_by_key:
-                            users_by_key[key] = value
-                        users_by_key[key]['groups'].add(user_group)
-        if all_users:
-            response = api.get_users(user_filter=self.options['schema']['all_users_filter'])
-            new_all_users = rh.parse_results(response, self.options['schema']['key_identifier'], extended_attributes)
-            for key, value in six.iteritems(new_all_users):
-                if key not in users_by_key:
-                    users_by_key[key] = value
 
-        limited_msg = "(limit applied)" if limit_users else ""
-        self.logger.info("Api returns " + str(len(users_by_key)) + " total users " + limited_msg)
-        if limit_users:
-            self.logger.info("Enforcing user limit of: " + str(max_user_count) + " users")
-            return six.itervalues(dict(itertools.islice(users_by_key.items(), max_user_count)))
-        else:
-            return six.itervalues(users_by_key)
+
+    def get_users_for_token(self):
+
+        # for group_filter in groups_from_yml:
+        #     groups_names = groups_from_yml[group_filter]
+        #     for group_name in groups_names:
+        #         for user_group in groups_names[group_name]:
+        #             user_filter = groups_names[group_name][user_group]
+        #             response = api.get_users(
+        #                 group_filter=group_filter,
+        #                 group_name=group_name,
+        #                 user_filter=user_filter,
+        #             )
+        #             new_users_by_key = rh.parse_results(response, self.options['schema']['key_identifier'], extended_attributes)
+        #             for key, value in six.iteritems(new_users_by_key):
+        #                 if key not in users_by_key:
+        #                     users_by_key[key] = value
+        #                 users_by_key[key]['groups'].add(user_group)
+        # if all_users:
+        #     response = api.get_users(user_filter=self.options['schema']['all_users_filter'])
+        #     new_all_users = rh.parse_results(response, self.options['schema']['key_identifier'], extended_attributes)
+        #     for key, value in six.iteritems(new_all_users):
+        #         if key not in users_by_key:
+        #             users_by_key[key] = value
+        #
+        # limited_msg = "(limit applied)" if limit_users else ""
+        # self.logger.info("Api returns " + str(len(users_by_key)) + " total users " + limited_msg)
+        # if limit_users:
+        #     self.logger.info("Enforcing user limit of: " + str(max_user_count) + " users")
+        #     return six.itervalues(dict(itertools.islice(users_by_key.items(), max_user_count)))
+        # else:
+        #     return six.itervalues(users_by_key)
 
     def get_connector(self, name):
         if name.lower() == 'clever':
