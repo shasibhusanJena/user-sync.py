@@ -68,7 +68,8 @@ class OneRosterConnector(object):
         self.logger = user_sync.connector.helper.create_logger(self.options)
         caller_config.report_unused_values(self.logger)
         self.logger.debug('%s initialized with options: %s', self.name, self.options)
-        if self.options['file_path']:
+        self.token_map = self.options.get('file_path')
+        if self.token_map:
             if self.options['connection']['platform'] != 'clever':
                 raise AssertionException('Token map can only be used with Clever')
             if self.options['connection']['access_token']:
@@ -148,17 +149,22 @@ class OneRosterConnector(object):
         users_by_key = {}
 
         connector_class = self.get_connector(api_options['platform'])
-        groups_from_yml = self.parse_yaml_groups(groups)
+        parsed_groups = self.parse_yaml_groups(groups)
 
         self.record_handler = RecordHandler(self.logger, self.options)
         self.api = connector_class(**api_options)
 
-        if all_users:
-            users_by_key = self.get_all_users()
+        if self.token_map:
+            for k, v in six.iteritems(self.token_map):
+                connector_class.access_token = k
+                new_users = self.get_all_users(group=v)
+                self.update_user_list(users_by_key, new_users)
 
-        mapped_users = self.get_mapped_users(groups_from_yml)
-
-        self.update_user_list(users_by_key, mapped_users)
+        else:
+            if all_users:
+                users_by_key = self.get_all_users()
+            mapped_users = self.get_mapped_users(parsed_groups)
+            self.update_user_list(users_by_key, mapped_users)
 
         limited_msg = "(limit applied)" if limit_users else ""
         self.logger.info("Api returns " + str(len(users_by_key)) + " total users " + limited_msg)
@@ -168,50 +174,25 @@ class OneRosterConnector(object):
         else:
             return six.itervalues(users_by_key)
 
-    # def get_users_for_token(self):
-
-    # for group_filter in groups_from_yml:
-    #     groups_names = groups_from_yml[group_filter]
-    #     for group_name in groups_names:
-    #         for user_group in groups_names[group_name]:
-    #             user_filter = groups_names[group_name][user_group]
-    #             response = api.get_users(
-    #                 group_filter=group_filter,
-    #                 group_name=group_name,
-    #                 user_filter=user_filter,
-    #             )
-    #             new_users_by_key = rh.parse_results(response, self.options['schema']['key_identifier'], extended_attributes)
-    #             for key, value in six.iteritems(new_users_by_key):
-    #                 if key not in users_by_key:
-    #                     users_by_key[key] = value
-    #                 users_by_key[key]['groups'].add(user_group)
-    # if all_users:
-    #     response = api.get_users(user_filter=self.options['schema']['all_users_filter'])
-    #     new_all_users = rh.parse_results(response, self.options['schema']['key_identifier'], extended_attributes)
-    #     for key, value in six.iteritems(new_all_users):
-    #         if key not in users_by_key:
-    #             users_by_key[key] = value
-    #
-    # limited_msg = "(limit applied)" if limit_users else ""
-    # self.logger.info("Api returns " + str(len(users_by_key)) + " total users " + limited_msg)
-    # if limit_users:
-    #     self.logger.info("Enforcing user limit of: " + str(max_user_count) + " users")
-    #     return six.itervalues(dict(itertools.islice(users_by_key.items(), max_user_count)))
-    # else:
-    #     return six.itervalues(users_by_key)
-
-    def update_user_list(self, user_list, new_users, group=None):
+    def update_user_list(self, user_dict, new_users, additional_groups=None):
         for k, v in six.iteritems(new_users):
-            if k not in user_list:
-                user_list[k] = v
-            if group:
-                user_list[k]['groups'].add(group)
+            if additional_groups:
+                v['groups'].update(additional_groups)
+            if k not in user_dict:
+                user_dict[k] = v
+            else:
+                user_dict[k]['groups'].update(v['groups'])
 
-    def get_all_users(self, groups=None):
+    def get_users_for_tokens(self):
+
+        for t in self.token_map:
+            print()
+
+    def get_all_users(self, group=None):
         user_list = {}
         response = self.api.get_users(user_filter=self.options['schema']['all_users_filter'])
         new_users = self.record_handler.parse_results(response)
-        self.update_user_list(user_list, new_users, groups)
+        self.update_user_list(user_list, new_users, group)
         return user_list
 
     def get_mapped_users(self, groups):
@@ -228,7 +209,7 @@ class OneRosterConnector(object):
                         user_filter=user_filter,
                     )
                     new_users = self.record_handler.parse_results(response)
-                    self.update_user_list(user_list, new_users, user_group)
+                    self.update_user_list(user_list, new_users, [user_group])
         return user_list
 
     def get_connector(self, name):
