@@ -123,13 +123,8 @@ class OneRosterConnector(object):
         Load token mapping from CSV -- Clever sync only.  This overrides the access_token completely.
         :return:
         """
-        rows = list(CSVAdapter.read_csv_rows(self.options['file_path'], logger=self.logger))
-        token_map = {}
-        for r in rows:
-            if r['token'] in token_map:
-                raise AssertionException("Duplicate access tokens found in csv -- aborting sync")
-            token_map[r['token']] = r['product']
-        return token_map
+        return list(CSVAdapter.read_csv_rows(self.options['file_path']))
+
 
     def load_users_and_groups(self, groups, extended_attributes, all_users):
         """
@@ -155,11 +150,7 @@ class OneRosterConnector(object):
         self.api = connector_class(**api_options)
 
         if self.token_map:
-            for k, v in six.iteritems(self.token_map):
-                connector_class.access_token = k
-                new_users = self.get_all_users(group=v)
-                self.update_user_list(users_by_key, new_users)
-
+            users_by_key = self.get_users_for_tokens()
         else:
             if all_users:
                 users_by_key = self.get_all_users()
@@ -168,7 +159,7 @@ class OneRosterConnector(object):
 
         limited_msg = "(limit applied)" if limit_users else ""
         self.logger.info("Api returns " + str(len(users_by_key)) + " total users " + limited_msg)
-        if limit_users:
+        if limit_users and not self.token_map:
             self.logger.info("Enforcing user limit of: " + str(max_user_count) + " users")
             return six.itervalues(dict(itertools.islice(users_by_key.items(), max_user_count)))
         else:
@@ -184,15 +175,20 @@ class OneRosterConnector(object):
                 user_dict[k]['groups'].update(v['groups'])
 
     def get_users_for_tokens(self):
+        self.logger.info("Using token map for Clever - all/mapped user groups will be ignored... ")
+        user_list = {}
+        for entry in self.token_map:
+            self.api.user_count = 0
+            self.api.access_token = entry['token']
+            new_users = self.get_all_users(groups=[entry['product']])
+            self.update_user_list(user_list, new_users)
+        return user_list
 
-        for t in self.token_map:
-            print()
-
-    def get_all_users(self, group=None):
+    def get_all_users(self, groups=None):
         user_list = {}
         response = self.api.get_users(user_filter=self.options['schema']['all_users_filter'])
         new_users = self.record_handler.parse_results(response)
-        self.update_user_list(user_list, new_users, group)
+        self.update_user_list(user_list, new_users, groups)
         return user_list
 
     def get_mapped_users(self, groups):
