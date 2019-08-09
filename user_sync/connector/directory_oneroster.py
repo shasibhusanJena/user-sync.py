@@ -139,6 +139,7 @@ class OneRosterConnector(object):
         :rtype (bool, iterable(dict))
         """
 
+        self.options['extended_attributes'] = extended_attributes
         api_options = self.options['connection']
         api_options['key_identifier'] = self.options['schema']['key_identifier']
         api_options['match_on'] = self.options['schema']['match_groups_by']
@@ -149,42 +150,86 @@ class OneRosterConnector(object):
         connector_class = self.get_connector(api_options['platform'])
         groups_from_yml = self.parse_yaml_groups(groups)
 
-        rh = RecordHandler(self.logger, self.options)
-        api = connector_class(**api_options)
+        self.record_handler = RecordHandler(self.logger, self.options)
+        self.api = connector_class(**api_options)
 
+        if all_users:
+            users_by_key = self.get_all_users()
 
+        mapped_users = self.get_mapped_users(groups_from_yml)
 
-    def get_users_for_token(self):
+        self.update_user_list(users_by_key, mapped_users)
 
-        # for group_filter in groups_from_yml:
-        #     groups_names = groups_from_yml[group_filter]
-        #     for group_name in groups_names:
-        #         for user_group in groups_names[group_name]:
-        #             user_filter = groups_names[group_name][user_group]
-        #             response = api.get_users(
-        #                 group_filter=group_filter,
-        #                 group_name=group_name,
-        #                 user_filter=user_filter,
-        #             )
-        #             new_users_by_key = rh.parse_results(response, self.options['schema']['key_identifier'], extended_attributes)
-        #             for key, value in six.iteritems(new_users_by_key):
-        #                 if key not in users_by_key:
-        #                     users_by_key[key] = value
-        #                 users_by_key[key]['groups'].add(user_group)
-        # if all_users:
-        #     response = api.get_users(user_filter=self.options['schema']['all_users_filter'])
-        #     new_all_users = rh.parse_results(response, self.options['schema']['key_identifier'], extended_attributes)
-        #     for key, value in six.iteritems(new_all_users):
-        #         if key not in users_by_key:
-        #             users_by_key[key] = value
-        #
-        # limited_msg = "(limit applied)" if limit_users else ""
-        # self.logger.info("Api returns " + str(len(users_by_key)) + " total users " + limited_msg)
-        # if limit_users:
-        #     self.logger.info("Enforcing user limit of: " + str(max_user_count) + " users")
-        #     return six.itervalues(dict(itertools.islice(users_by_key.items(), max_user_count)))
-        # else:
-        #     return six.itervalues(users_by_key)
+        limited_msg = "(limit applied)" if limit_users else ""
+        self.logger.info("Api returns " + str(len(users_by_key)) + " total users " + limited_msg)
+        if limit_users:
+            self.logger.info("Enforcing user limit of: " + str(max_user_count) + " users")
+            return six.itervalues(dict(itertools.islice(users_by_key.items(), max_user_count)))
+        else:
+            return six.itervalues(users_by_key)
+
+    # def get_users_for_token(self):
+
+    # for group_filter in groups_from_yml:
+    #     groups_names = groups_from_yml[group_filter]
+    #     for group_name in groups_names:
+    #         for user_group in groups_names[group_name]:
+    #             user_filter = groups_names[group_name][user_group]
+    #             response = api.get_users(
+    #                 group_filter=group_filter,
+    #                 group_name=group_name,
+    #                 user_filter=user_filter,
+    #             )
+    #             new_users_by_key = rh.parse_results(response, self.options['schema']['key_identifier'], extended_attributes)
+    #             for key, value in six.iteritems(new_users_by_key):
+    #                 if key not in users_by_key:
+    #                     users_by_key[key] = value
+    #                 users_by_key[key]['groups'].add(user_group)
+    # if all_users:
+    #     response = api.get_users(user_filter=self.options['schema']['all_users_filter'])
+    #     new_all_users = rh.parse_results(response, self.options['schema']['key_identifier'], extended_attributes)
+    #     for key, value in six.iteritems(new_all_users):
+    #         if key not in users_by_key:
+    #             users_by_key[key] = value
+    #
+    # limited_msg = "(limit applied)" if limit_users else ""
+    # self.logger.info("Api returns " + str(len(users_by_key)) + " total users " + limited_msg)
+    # if limit_users:
+    #     self.logger.info("Enforcing user limit of: " + str(max_user_count) + " users")
+    #     return six.itervalues(dict(itertools.islice(users_by_key.items(), max_user_count)))
+    # else:
+    #     return six.itervalues(users_by_key)
+
+    def update_user_list(self, user_list, new_users, group=None):
+        for k, v in six.iteritems(new_users):
+            if k not in user_list:
+                user_list[k] = v
+            if group:
+                user_list[k]['groups'].add(group)
+
+    def get_all_users(self, groups=None):
+        user_list = {}
+        response = self.api.get_users(user_filter=self.options['schema']['all_users_filter'])
+        new_users = self.record_handler.parse_results(response)
+        self.update_user_list(user_list, new_users, groups)
+        return user_list
+
+    def get_mapped_users(self, groups):
+
+        user_list = {}
+        for group_filter in groups:
+            groups_names = groups[group_filter]
+            for group_name in groups_names:
+                for user_group in groups_names[group_name]:
+                    user_filter = groups_names[group_name][user_group]
+                    response = self.api.get_users(
+                        group_filter=group_filter,
+                        group_name=group_name,
+                        user_filter=user_filter,
+                    )
+                    new_users = self.record_handler.parse_results(response)
+                    self.update_user_list(user_list, new_users, user_group)
+        return user_list
 
     def get_connector(self, name):
         if name.lower() == 'clever':
@@ -257,7 +302,10 @@ class OneRosterConnector(object):
 class RecordHandler:
     def __init__(self, logger, options):
         self.logger = logger
+        self.options = options
         self.inclusions = options['schema']['include_only']
+        self.key_identifier = options['schema']['key_identifier']
+        self.extended_attributes = options.get('extended_attributes')
         self.user_identity_type = user_sync.identity_type.parse_identity_type(options['user_identity_type'])
         self.user_identity_type_formatter = OneRosterValueFormatter(options['user_identity_type_format'])
         self.user_email_formatter = OneRosterValueFormatter(options['user_email_format'])
@@ -270,27 +318,24 @@ class RecordHandler:
         if self.inclusions != {}:
             self.logger.info("Note: inclusion filters are applied: " + str(self.inclusions))
 
-    def parse_results(self, result_set, key_identifier, extended_attributes):
+    def parse_results(self, result_set):
         """
         description: parses through user_list from API calls, to create final user objects
         :type result_set: list(dict())
-        :type extended_attributes: list(str)
-        :type key_identifier: str()
         :rtype users_dict: dict(constructed user objects)
         """
+
         users_dict = {}
         for user in result_set:
-            returned_user = self.create_user_object(user, key_identifier, extended_attributes)
+            returned_user = self.create_user_object(user)
             if returned_user is not None:
-                users_dict[user[key_identifier]] = returned_user
+                users_dict[user[self.key_identifier]] = returned_user
         return users_dict
 
-    def create_user_object(self, record, key_identifier, extended_attributes):
+    def create_user_object(self, record):
         """
         description: Using user's API information to construct final user objects
         :type record: dict()
-        :type extended_attributes: list(str)
-        :type key_identifier: str()
         :rtype: user: dict(user object)
         """
 
@@ -300,10 +345,10 @@ class RecordHandler:
         attribute_warning = "No %s attribute (%s) for user with key: %s, defaulting to %s"
         source_attributes = {}
 
-        key = record.get(key_identifier)
+        key = record.get(self.key_identifier)
 
         if not key:
-            self.logger.warning('Skipping user with id %s: no user key found (%s)', key, key_identifier)
+            self.logger.warning('Skipping user with id %s: no user key found (%s)', key, self.key_identifier)
             return
 
         email, last_attribute_name = self.user_email_formatter.generate_value(record)
@@ -361,10 +406,9 @@ class RecordHandler:
             user['country'] = c_value.upper()
 
         user['groups'] = set()
-        if extended_attributes is not None:
-            for extended_attribute in extended_attributes:
-                extended_attribute_value = OneRosterValueFormatter.get_attribute_value(record, extended_attribute)
-                source_attributes[extended_attribute] = extended_attribute_value
+        if self.extended_attributes:
+            for attr in self.extended_attributes:
+                source_attributes[attr] = OneRosterValueFormatter.get_attribute_value(record, attr)
         user['source_attributes'] = source_attributes.copy()
         return user
 

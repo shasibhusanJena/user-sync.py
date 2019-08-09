@@ -38,7 +38,8 @@ def caller_options():
 def test_parse_results_valid(oneroster_connector, stub_api_response, stub_parse_results):
     expected_result = stub_parse_results
     record_handler = RecordHandler(options=oneroster_connector.options, logger=oneroster_connector.logger)
-    actual_result = record_handler.parse_results(stub_api_response, 'sourcedId', [])
+    record_handler.key_identifier = 'sourcedId'
+    actual_result = record_handler.parse_results(stub_api_response)
     assert expected_result == actual_result
 
     # asserts extended attributes are added to source_attributes dict(),
@@ -48,20 +49,22 @@ def test_parse_results_valid(oneroster_connector, stub_api_response, stub_parse_
     expected_result['18125']['source_attributes']['identifier'] = '17580'
     expected_result['18317']['source_attributes']['sms'] = None
     expected_result['18317']['source_attributes']['identifier'] = '15125'
-    actual_result = record_handler.parse_results(stub_api_response, 'sourcedId', ['sms', 'identifier'])
+    record_handler.extended_attributes = ['sms', 'identifier']
+    actual_result = record_handler.parse_results(stub_api_response)
     assert expected_result == actual_result
 
     # Fetch nonexistent properties
 
     expected_result['18125']['source_attributes']['fake'] = None
     expected_result['18317']['source_attributes']['fake'] = None
-    actual_result = record_handler.parse_results(stub_api_response, 'sourcedId', ['sms', 'identifier', 'fake'])
+    record_handler.extended_attributes = ['sms', 'identifier', 'fake']
+    actual_result = record_handler.parse_results(stub_api_response)
     assert expected_result == actual_result
 
     # Testing filter_out_users
 
     record_handler.inclusions = {'givenName': "Billy"}
-    actual_result = record_handler.parse_results(stub_api_response, 'sourcedId', [])
+    actual_result = record_handler.parse_results(stub_api_response)
     length_of_actual_result = len(actual_result)
     assert length_of_actual_result == 1
 
@@ -199,20 +202,24 @@ def test_load_users_and_groups(oneroster_connector, stub_api_response, stub_pars
 
 def test_create_user_object(oneroster_connector, stub_api_response, stub_parse_results):
     record_handler = RecordHandler(options=oneroster_connector.options, logger=oneroster_connector.logger)
+    record_handler.key_identifier = 'sourcedId'
     record = stub_api_response[0]
 
-    actual_result = record_handler.create_user_object(record, 'sourcedId', [])
+
+    actual_result = record_handler.create_user_object(record)
     expected_result = stub_parse_results['18125']
     assert actual_result == expected_result
 
     expected_result['source_attributes']['enabledUser'] = 'true'
     expected_result['source_attributes']['sms'] = '(666) 666-6666'
-    actual_result = record_handler.create_user_object(record, 'sourcedId', ['enabledUser', 'sms'])
+    record_handler.extended_attributes = ['enabledUser', 'sms']
+    actual_result = record_handler.create_user_object(record)
     assert expected_result == actual_result
 
     expected_result = stub_parse_results['18317']
     expected_result['source_attributes']['bad'] = None
-    actual_result = record_handler.create_user_object(stub_api_response[1], 'sourcedId', ['bad'])
+    record_handler.extended_attributes = ['bad']
+    actual_result = record_handler.create_user_object(stub_api_response[1])
     assert expected_result == actual_result
 
     expected_result['source_attributes']['orgs'] = {
@@ -220,7 +227,8 @@ def test_create_user_object(oneroster_connector, stub_api_response, stub_parse_r
         'sourcedId': '2',
         'type': 'org'
     }
-    actual_result = record_handler.create_user_object(stub_api_response[1], 'sourcedId', ['orgs', 'bad'])
+    record_handler.extended_attributes =  ['orgs', 'bad']
+    actual_result = record_handler.create_user_object(stub_api_response[1])
     assert expected_result == actual_result
 
 def test_generate_value(stub_api_response):
