@@ -152,10 +152,9 @@ class OneRosterConnector(object):
         if self.token_map:
             users_by_key = self.get_users_for_tokens()
         else:
+            users_by_key = self.get_mapped_users(parsed_groups)
             if all_users:
-                users_by_key = self.get_all_users()
-            mapped_users = self.get_mapped_users(parsed_groups)
-            self.update_user_list(users_by_key, mapped_users)
+                self.update_user_list(users_by_key, self.get_all_users())
 
         limited_msg = "(limit applied)" if limit_users else ""
         self.logger.info("Api returns " + str(len(users_by_key)) + " total users " + limited_msg)
