@@ -141,7 +141,6 @@ class OneRosterConnector(object):
         api_options['match_on'] = self.options['schema']['match_groups_by']
         max_user_count = api_options['max_users']
         limit_users = max_user_count > 0
-        users_by_key = {}
 
         connector_class = self.get_connector(api_options['platform'])
         parsed_groups = self.parse_yaml_groups(groups)
