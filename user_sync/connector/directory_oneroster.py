@@ -184,7 +184,7 @@ class OneRosterConnector(object):
 
         max_users = self.options['connection']['max_users']
         limited_msg = "(limit applied)" if max_users > 0 else ""
-        self.logger.info("Api returns " + str(len(users_by_key)) + " total users " + limited_msg)
+        self.logger.info("Api returns " + str(len(users_by_key)) + " total users post filter " + limited_msg)
         if max_users > 0 and self.mode == "standard":
             self.logger.info("Enforcing user limit of: " + str(max_users) + " users")
             return six.itervalues(dict(itertools.islice(users_by_key.items(), max_users)))
