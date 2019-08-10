@@ -12,32 +12,49 @@ def oneroster_connector(caller_options):
 def caller_options():
     connection = {
         'platform': 'classlink',
-        'client_id': 'client_id',
-        'client_secret': 'client_secret',
         'host': 'https://example.oneroster.com/ims/oneroster/v1p1/',
+        'key_identifier': 'sourcedId',
         'page_size': 1000,
         'max_users': 0
     }
 
-    schema = {
+    standard_mapping = {
+        'access_token': 'TEST_TOKEN',
         'match_groups_by': 'name',
-        'key_identifier': 'id',
         'all_users_filter': 'users',
         'default_group_filter': 'classes',
         'default_user_filter': 'students',
-        'include_only': {}
     }
 
-    options = {'user_identity_type': 'federatedID',
-               'connection': connection,
-               'schema': schema}
+    product_mapping = {
+        'type': 'token',
+        'source': {
+            'type': 'file',
+            'uri': ''
+        },
+        'secure_credential': False
+    }
+
+    mapping = {
+        'mode': 'standard',
+        'group_delimiter': '::',
+        'standard_mapping': standard_mapping,
+        'product_mapping': product_mapping
+    }
+
+    options = {
+        'connection': connection,
+        'mapping': mapping,
+        'user_identity_type': 'federatedID',
+        'include_only': {},
+    }
 
     return options
 
 
 def test_parse_results_valid(oneroster_connector, stub_api_response, stub_parse_results):
     expected_result = stub_parse_results
-    record_handler = RecordHandler(options=oneroster_connector.options, logger=oneroster_connector.logger)
+    record_handler = RecordHandler(options=oneroster_connector.options)
     record_handler.key_identifier = 'sourcedId'
     actual_result = record_handler.parse_results(stub_api_response)
     assert expected_result == actual_result
@@ -70,8 +87,8 @@ def test_parse_results_valid(oneroster_connector, stub_api_response, stub_parse_
 
 
 def test_filter_out_users(oneroster_connector, stub_api_response):
-    oneroster_connector.options['schema']['include_only'] = {'givenName': "Billy"}
-    record_handler = RecordHandler(options=oneroster_connector.options, logger=oneroster_connector.logger)
+    oneroster_connector.options['include_only'] = {'givenName': "Billy"}
+    record_handler = RecordHandler(options=oneroster_connector.options)
 
     actual_result = record_handler.exclude_user(stub_api_response[0])
     assert actual_result is False
@@ -81,10 +98,10 @@ def test_filter_out_users(oneroster_connector, stub_api_response):
 
 
 def test_filter_out_users_complex(oneroster_connector, stub_api_response, stub_parse_results):
-    oneroster_connector.options['schema']['include_only'] = {'familyName': "Houston",
-                                                                             'enabledUser': 'true',
-                                                                             'role': 'student'}
-    record_handler = RecordHandler(options=oneroster_connector.options, logger=oneroster_connector.logger)
+    oneroster_connector.options['include_only'] = {'familyName': "Houston",
+                                                   'enabledUser': 'true',
+                                                   'role': 'student'}
+    record_handler = RecordHandler(options=oneroster_connector.options)
 
     actual_result = record_handler.exclude_user(stub_api_response[0])
     assert actual_result is True
@@ -95,7 +112,7 @@ def test_filter_out_users_complex(oneroster_connector, stub_api_response, stub_p
 
 def test_filter_out_users_failures(oneroster_connector, log_stream, stub_api_response):
     stream, logger = log_stream
-    oneroster_connector.options['schema']['include_only'] = {'xxx': "Billy"}
+    oneroster_connector.options['include_only'] = {'xxx': "Billy"}
     record_handler = RecordHandler(options=oneroster_connector.options, logger=logger)
     record_handler.exclude_user(stub_api_response[0])
     stream.flush()
@@ -201,10 +218,9 @@ def test_load_users_and_groups(oneroster_connector, stub_api_response, stub_pars
 
 
 def test_create_user_object(oneroster_connector, stub_api_response, stub_parse_results):
-    record_handler = RecordHandler(options=oneroster_connector.options, logger=oneroster_connector.logger)
+    record_handler = RecordHandler(options=oneroster_connector.options)
     record_handler.key_identifier = 'sourcedId'
     record = stub_api_response[0]
-
 
     actual_result = record_handler.create_user_object(record)
     expected_result = stub_parse_results['18125']
@@ -227,12 +243,12 @@ def test_create_user_object(oneroster_connector, stub_api_response, stub_parse_r
         'sourcedId': '2',
         'type': 'org'
     }
-    record_handler.extended_attributes =  ['orgs', 'bad']
+    record_handler.extended_attributes = ['orgs', 'bad']
     actual_result = record_handler.create_user_object(stub_api_response[1])
     assert expected_result == actual_result
 
-def test_generate_value(stub_api_response):
 
+def test_generate_value(stub_api_response):
     formatter = OneRosterValueFormatter(None)
     formatter.attribute_names = ['givenName', 'familyName']
     formatter.string_format = '{givenName}.{familyName}@xxx.com'
