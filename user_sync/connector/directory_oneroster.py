@@ -71,8 +71,8 @@ class OneRosterConnector(object):
         self.mode = self.options['mapping']['mode']
 
         api_options = self.options['connection']
-        api_options['key_identifier'] = self.options['connection']['key_identifier']
-        api_options['match_on'] = self.options['mapping']['match_groups_by']
+        api_options['match_on'] = self.options['mapping'].get('match_groups_by')
+
         connector_class = self.get_connector(api_options['platform'])
         self.connection = connector_class(**api_options)
         self.set_mode(self.mode)
@@ -149,12 +149,10 @@ class OneRosterConnector(object):
             self.connection.client_id = self.options['mapping']['client_id']
 
         elif mode == 'product':
-            source = self.options['mapping']['source']
-            if source['type'] not in ['file', 'mapped']:
-                raise AssertionException("Invalid product mapping source type: " + source['type']
+            self.source = self.options['mapping']['source']
+            if self.source['type'] not in ['file', 'mapped']:
+                raise AssertionException("Invalid product mapping source type: " + self.source['type']
                                          + ". Supported are [file, mapped]")
-            elif source['type'] == 'file':
-                self.product_map = self.read_product_map_from_file(source['uri'])
 
     def read_product_map_from_file(self, path):
         """
@@ -162,6 +160,13 @@ class OneRosterConnector(object):
         :return:
         """
         return list(CSVAdapter.read_csv_rows(path))
+
+    def get_product_map(self, groups=None):
+
+        if self.source['type'] == 'mapped':
+            pass
+        elif self.source['type'] == 'file':
+            return self.read_product_map_from_file(self.source['uri'])
 
     def load_users_and_groups(self, groups, extended_attributes, all_users):
         """
@@ -176,7 +181,8 @@ class OneRosterConnector(object):
         self.record_handler.extended_attributes = extended_attributes
 
         if self.mode == 'product':
-            users_by_key = self.get_users_for_products(self.product_map)
+            product_map = self.get_product_map(groups)
+            users_by_key = self.get_users_for_products(product_map)
         else:
             users_by_key = OrderedDict(self.get_mapped_users(parsed_groups))
             if all_users:
