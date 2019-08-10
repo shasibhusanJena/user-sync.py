@@ -101,7 +101,6 @@ class OneRosterConnector(object):
             o_builder = user_sync.config.OptionsBuilder(o)
             o_builder.require_string_value('type')
             o_builder.require_value('source', (str, dict))
-            o_builder.set_bool_value('secure_credential', False)
             if 'standard_mapping' in caller_config.value['mapping']:
                 optional = [mapping_config.get_dict_config('standard_mapping')]
 
@@ -132,6 +131,7 @@ class OneRosterConnector(object):
         attr_options = attr_builder.get_options()
 
         builder = user_sync.config.OptionsBuilder(caller_config)
+        builder.set_bool_value('secure_credential', False)
         builder.set_string_value('logger_name', 'oneroster')
         builder.set_dict_value('include_only', {})
         options = builder.get_options()
