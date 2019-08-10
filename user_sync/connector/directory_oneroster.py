@@ -80,66 +80,63 @@ class OneRosterConnector(object):
 
     def get_options(self, caller_config):
 
-        optional = None
-        connection_config = caller_config.get_dict_config('connection', True)
-        connection_builder = user_sync.config.OptionsBuilder(connection_config)
-        connection_builder.require_string_value('platform')
-        connection_builder.require_string_value('host')
-        connection_builder.set_int_value('page_size', 1000)
-        connection_builder.set_int_value('max_users', 0)
-        connection_builder.set_string_value('key_identifier', None)
-        connection_options = connection_builder.get_options()
+        conn_cfg = caller_config.get_dict_config('connection', True)
+        conn_bldr = user_sync.config.OptionsBuilder(conn_cfg)
+        conn_bldr.require_string_value('platform')
+        conn_bldr.require_string_value('host')
+        conn_bldr.set_int_value('page_size', 1000)
+        conn_bldr.set_int_value('max_users', 0)
+        conn_bldr.set_string_value('key_identifier', None)
+        connection_options = conn_bldr.get_options()
 
-        mapping_config = caller_config.get_dict_config('mapping', True)
-        mapping_builder = user_sync.config.OptionsBuilder(mapping_config)
-        mapping_builder.set_string_value('mode', 'standard')
-        mapping_builder.set_string_value('group_delimiter', '::')
-        mapping_options = mapping_builder.get_options()
+        mapping_cfg = caller_config.get_dict_config('mapping', True)
+        mapping_bldr = user_sync.config.OptionsBuilder(mapping_cfg)
+        mapping_bldr.set_string_value('mode', 'standard')
+        mapping_bldr.set_string_value('group_delimiter', '::')
+        mapping_options = mapping_bldr.get_options()
 
         if mapping_options['mode'] == 'product':
-            o = mapping_config.get_dict_config('product_mapping')
-            o_builder = user_sync.config.OptionsBuilder(o)
-            o_builder.require_string_value('type')
-            o_builder.require_value('source', (str, dict))
-            if 'standard_mapping' in caller_config.value['mapping']:
-                optional = [mapping_config.get_dict_config('standard_mapping')]
+            caller_config.value['mapping'].pop('standard_mapping', None)
+            mc = mapping_cfg.get_dict_config('product_mapping')
+            mc_bldr = user_sync.config.OptionsBuilder(mc)
+            mc_bldr.require_string_value('type')
+            mc_bldr.require_value('source', (str, dict))
 
         else:
-            o = mapping_config.get_dict_config('standard_mapping')
-            o_builder = user_sync.config.OptionsBuilder(o)
-            o_builder.set_string_value('access_token', None)
-            o_builder.set_string_value('client_id', None)
-            o_builder.set_string_value('client_secret', None)
-            o_builder.set_string_value('all_users_filter', 'users')
-            o_builder.set_string_value('default_group_filter', 'classes')
-            o_builder.set_string_value('default_user_filter', 'students')
-            o_builder.set_value('match_groups_by', (str, list),
-                                ['title', 'name', 'sourcedId', 'id'])
-            if 'product_mapping' in caller_config.value['mapping']:
-                optional = [mapping_config.get_dict_config('product_mapping')]
+            caller_config.value['mapping'].pop('product_mapping', None)
+            mc = mapping_cfg.get_dict_config('standard_mapping')
+            mc_bldr = user_sync.config.OptionsBuilder(mc)
+            mc_bldr.set_string_value('access_token', None)
+            mc_bldr.set_string_value('client_id', None)
+            mc_bldr.set_string_value('client_secret', None)
+            mc_bldr.set_string_value('all_users_filter', 'users')
+            mc_bldr.set_string_value('default_group_filter', 'classes')
+            mc_bldr.set_string_value('default_user_filter', 'students')
+            mc_bldr.set_value(
+                'match_groups_by',(str, list), ['title', 'name', 'sourcedId', 'id'])
 
-        mapping_options.update(o_builder.get_options())
-        attr_builder = user_sync.config.OptionsBuilder(caller_config)
-        attr_builder.set_string_value('user_email_format', six.text_type('{email}'))
-        attr_builder.set_string_value('user_given_name_format', six.text_type('{givenName}'))
-        attr_builder.set_string_value('user_surname_format', six.text_type('{familyName}'))
-        attr_builder.set_string_value('user_country_code_format', None)
-        attr_builder.set_string_value('user_username_format', None)
-        attr_builder.set_string_value('user_domain_format', None)
-        attr_builder.set_string_value('user_identity_type', None)
-        attr_builder.set_string_value('user_identity_type_format', None)
-        attr_options = attr_builder.get_options()
+        mapping_options.update(mc_bldr.get_options())
+        attr_bldr = user_sync.config.OptionsBuilder(caller_config)
+        attr_bldr.set_string_value('user_email_format', six.text_type('{email}'))
+        attr_bldr.set_string_value('user_given_name_format', six.text_type('{givenName}'))
+        attr_bldr.set_string_value('user_surname_format', six.text_type('{familyName}'))
+        attr_bldr.set_string_value('user_country_code_format', None)
+        attr_bldr.set_string_value('user_username_format', None)
+        attr_bldr.set_string_value('user_domain_format', None)
+        attr_bldr.set_string_value('user_identity_type', None)
+        attr_bldr.set_string_value('user_identity_type_format', None)
+        attr_options = attr_bldr.get_options()
 
-        builder = user_sync.config.OptionsBuilder(caller_config)
-        builder.set_bool_value('secure_credential', False)
-        builder.set_string_value('logger_name', 'oneroster')
-        builder.set_dict_value('include_only', {})
-        options = builder.get_options()
+        root_bldr = user_sync.config.OptionsBuilder(caller_config)
+        root_bldr.set_bool_value('secure_credential', False)
+        root_bldr.set_string_value('logger_name', 'oneroster')
+        root_bldr.set_dict_value('include_only', {})
+        options = root_bldr.get_options()
 
         options['attributes'] = attr_options
         options['connection'] = connection_options
         options['mapping'] = mapping_options
-        caller_config.report_unused_values(self.logger, optional_configs=optional)
+        caller_config.report_unused_values(self.logger)
         return options
 
     def set_mode(self, mode):
@@ -177,13 +174,13 @@ class OneRosterConnector(object):
         :rtype (bool, iterable(dict))
         """
 
-        parsed_groups = self.parse_yaml_groups(groups)
         self.record_handler.extended_attributes = extended_attributes
 
         if self.mode == 'product':
             product_map = self.get_product_map(groups)
             users_by_key = self.get_users_for_products(product_map)
         else:
+            parsed_groups = self.parse_yaml_groups(groups)
             users_by_key = OrderedDict(self.get_mapped_users(parsed_groups))
             if all_users:
                 self.update_user_dict(users_by_key, self.get_all_users())
