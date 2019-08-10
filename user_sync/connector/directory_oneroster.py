@@ -113,25 +113,22 @@ class OneRosterConnector(object):
         o_builder.set_string_value('group_delimiter', '::')
         mapping_options.update(o_builder.get_options())
 
+        attr_builder = user_sync.config.OptionsBuilder(caller_config)
+        attr_builder.set_string_value('user_email_format', six.text_type('{email}'))
+        attr_builder.set_string_value('user_given_name_format', six.text_type('{givenName}'))
+        attr_builder.set_string_value('user_surname_format', six.text_type('{familyName}'))
+        attr_builder.set_string_value('user_country_code_format', None)
+        attr_builder.set_string_value('user_username_format', None)
+        attr_builder.set_string_value('user_domain_format', None)
+        attr_builder.set_string_value('user_identity_type', None)
+        attr_builder.set_string_value('user_identity_type_format', None)
+        attr_options = attr_builder.get_options()
+
         builder = user_sync.config.OptionsBuilder(caller_config)
-        builder.set_string_value('logger_name', 'oneroster')
-        builder.set_string_value('user_email_format', six.text_type('{email}'))
-        builder.set_string_value('user_given_name_format', six.text_type('{givenName}'))
-        builder.set_string_value('user_surname_format', six.text_type('{familyName}'))
-        builder.set_string_value('user_country_code_format', None)
-        builder.set_string_value('user_username_format', None)
-        builder.set_string_value('user_domain_format', None)
-        builder.set_string_value('user_identity_type', None)
-        builder.set_string_value('user_identity_type_format', None)
-        builder.set_string_value('file_path', None)
         builder.set_dict_value('include_only', {})
         options = builder.get_options()
 
-        connection_builder.set_string_value('client_id', None)
-        connection_builder.set_string_value('client_secret', None)
-        connection_builder.set_string_value('access_token', None)
-
-
+        options['attributes'] = attr_options
         options['connection'] = connection_options
         options['mapping'] = mapping_options
         return options
