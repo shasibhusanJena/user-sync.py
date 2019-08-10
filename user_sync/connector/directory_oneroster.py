@@ -32,6 +32,7 @@ import user_sync.helper
 import user_sync.identity_type
 from user_sync.error import AssertionException
 from user_sync.helper import CSVAdapter
+from collections import OrderedDict
 
 
 def connector_metadata():
@@ -81,25 +82,36 @@ class OneRosterConnector(object):
 
         connection_config = caller_config.get_dict_config('connection', True)
         connection_builder = user_sync.config.OptionsBuilder(connection_config)
-        connection_builder.set_string_value('client_id', None)
-        connection_builder.set_string_value('client_secret', None)
         connection_builder.require_string_value('platform')
         connection_builder.require_string_value('host')
         connection_builder.set_int_value('page_size', 1000)
         connection_builder.set_int_value('max_users', 0)
-        connection_builder.set_string_value('access_token', None)
         connection_options = connection_builder.get_options()
 
-        schema_config = caller_config.get_dict_config('schema', True)
-        schema_builder = user_sync.config.OptionsBuilder(schema_config)
-        schema_builder.set_value('match_groups_by', (str, list), 'name')
-        schema_builder.set_string_value('key_identifier', None)
-        schema_builder.set_string_value('all_users_filter', 'users')
-        schema_builder.set_string_value('default_group_filter', 'classes')
-        schema_builder.set_string_value('default_user_filter', 'students')
-        schema_builder.set_string_value('group_delimiter', '::')
-        schema_builder.set_dict_value('include_only', {})
-        schema_options = schema_builder.get_options()
+        mapping_config = caller_config.get_dict_config('mapping', True)
+        mapping_builder = user_sync.config.OptionsBuilder(mapping_config)
+        mapping_builder.set_string_value('mode','standard')
+        mapping_options = mapping_builder.get_options()
+
+        o = mapping_config.get_dict_config('product_mapping')
+        o_builder = user_sync.config.OptionsBuilder(o)
+        o_builder.require_string_value('type')
+        o_builder.require_value('source',(str,list))
+        o_builder.set_bool_value('secure_credential', False)
+        mapping_options.update(o_builder.get_options())
+
+        o = mapping_config.get_dict_config('standard_mapping')
+        o_builder = user_sync.config.OptionsBuilder(o)
+        o_builder.set_string_value('access_token', None)
+        o_builder.set_string_value('client_id', None)
+        o_builder.set_string_value('client_secret', None)
+        o_builder.set_value('match_groups_by', (str, list), 'name')
+        o_builder.set_string_value('key_identifier', None)
+        o_builder.set_string_value('all_users_filter', 'users')
+        o_builder.set_string_value('default_group_filter', 'classes')
+        o_builder.set_string_value('default_user_filter', 'students')
+        o_builder.set_string_value('group_delimiter', '::')
+        mapping_options.update(o_builder.get_options())
 
         builder = user_sync.config.OptionsBuilder(caller_config)
         builder.set_string_value('logger_name', 'oneroster')
@@ -112,10 +124,16 @@ class OneRosterConnector(object):
         builder.set_string_value('user_identity_type', None)
         builder.set_string_value('user_identity_type_format', None)
         builder.set_string_value('file_path', None)
+        builder.set_dict_value('include_only', {})
         options = builder.get_options()
 
+        connection_builder.set_string_value('client_id', None)
+        connection_builder.set_string_value('client_secret', None)
+        connection_builder.set_string_value('access_token', None)
+
+
         options['connection'] = connection_options
-        options['schema'] = schema_options
+        options['mapping'] = mapping_options
         return options
 
     def load_token_map(self):
@@ -153,7 +171,7 @@ class OneRosterConnector(object):
         else:
             users_by_key = self.get_mapped_users(parsed_groups)
             if all_users:
-                self.update_user_list(users_by_key, self.get_all_users())
+                self.update_user_dict(users_by_key, self.get_all_users())
 
         limited_msg = "(limit applied)" if limit_users else ""
         self.logger.info("Api returns " + str(len(users_by_key)) + " total users " + limited_msg)
@@ -163,7 +181,7 @@ class OneRosterConnector(object):
         else:
             return six.itervalues(users_by_key)
 
-    def update_user_list(self, user_dict, new_users, additional_groups=None):
+    def update_user_dict(self, user_dict, new_users, additional_groups=None):
         for k, v in six.iteritems(new_users):
             if additional_groups:
                 v['groups'].update(additional_groups)
@@ -174,24 +192,24 @@ class OneRosterConnector(object):
 
     def get_users_for_tokens(self):
         self.logger.info("Using token map for Clever - all/mapped user groups will be ignored... ")
-        user_list = {}
+        user_dict = OrderedDict()
         for entry in self.token_map:
             self.api.user_count = 0
             self.api.access_token = entry['token']
             new_users = self.get_all_users(groups=[entry['product']])
-            self.update_user_list(user_list, new_users)
-        return user_list
+            self.update_user_dict(user_dict, new_users)
+        return user_dict
 
     def get_all_users(self, groups=None):
-        user_list = {}
+        user_dict = OrderedDict()
         response = self.api.get_users(user_filter=self.options['schema']['all_users_filter'])
         new_users = self.record_handler.parse_results(response)
-        self.update_user_list(user_list, new_users, groups)
-        return user_list
+        self.update_user_dict(user_dict, new_users, groups)
+        return user_dict
 
     def get_mapped_users(self, groups):
 
-        user_list = {}
+        user_dict = OrderedDict
         for group_filter in groups:
             groups_names = groups[group_filter]
             for group_name in groups_names:
@@ -203,8 +221,8 @@ class OneRosterConnector(object):
                         user_filter=user_filter,
                     )
                     new_users = self.record_handler.parse_results(response)
-                    self.update_user_list(user_list, new_users, [user_group])
-        return user_list
+                    self.update_user_dict(user_dict, new_users, [user_group])
+        return user_dict
 
     def get_connector(self, name):
         if name.lower() == 'clever':
