@@ -63,20 +63,13 @@ class OneRosterConnector(object):
     name = 'oneroster'
 
     def __init__(self, caller_options):
-        self.logger = create_logger({'name': self.name})
+
         caller_config = user_sync.config.DictConfig('%s configuration' % self.name, caller_options)
         self.options = self.get_options(caller_config)
-        self.options['logger_name'] = self.name
         self.record_handler = RecordHandler(self.options)
         self.mode = self.options['mapping']['mode']
-
-        api_options = self.options['connection']
-        api_options['match_on'] = self.options['mapping'].get('match_groups_by')
-
-        connector_class = self.get_connector(api_options['platform'])
-        self.connection = connector_class(**api_options)
-        self.set_mode(self.mode)
         self.logger.debug('%s initialized with options: %s', self.name, self.options)
+
 
     def get_options(self, caller_config):
 
@@ -92,18 +85,10 @@ class OneRosterConnector(object):
         mapping_cfg = caller_config.get_dict_config('mapping', True)
         mapping_bldr = user_sync.config.OptionsBuilder(mapping_cfg)
         mapping_bldr.set_string_value('mode', 'standard')
-        mapping_bldr.set_string_value('group_delimiter', '::')
+        mapping_bldr.set_value("scoped_sources", list, [])
         mapping_options = mapping_bldr.get_options()
 
-        if mapping_options['mode'] == 'product':
-            caller_config.value['mapping'].pop('standard_mapping', None)
-            mc = mapping_cfg.get_dict_config('product_mapping')
-            mc_bldr = user_sync.config.OptionsBuilder(mc)
-            mc_bldr.require_string_value('type')
-            mc_bldr.require_value('source', (str, dict))
-
-        else:
-            caller_config.value['mapping'].pop('product_mapping', None)
+        if mapping_options['mode'] == 'standard':
             mc = mapping_cfg.get_dict_config('standard_mapping')
             mc_bldr = user_sync.config.OptionsBuilder(mc)
             mc_bldr.set_string_value('access_token', None)
@@ -112,10 +97,13 @@ class OneRosterConnector(object):
             mc_bldr.set_string_value('all_users_filter', 'users')
             mc_bldr.set_string_value('default_group_filter', 'classes')
             mc_bldr.set_string_value('default_user_filter', 'students')
+            mc_bldr.set_string_value('group_delimiter', '::')
             mc_bldr.set_value(
-                'match_groups_by',(str, list), ['title', 'name', 'sourcedId', 'id'])
+                'match_groups_by', (str, list), ['title', 'name', 'sourcedId', 'id'])
+            mapping_options.update(mc_bldr.get_options())
+        else:
+            caller_config.value['mapping'].pop('standard_mapping', None)
 
-        mapping_options.update(mc_bldr.get_options())
         attr_bldr = user_sync.config.OptionsBuilder(caller_config)
         attr_bldr.set_string_value('user_email_format', six.text_type('{email}'))
         attr_bldr.set_string_value('user_given_name_format', six.text_type('{givenName}'))
@@ -136,34 +124,22 @@ class OneRosterConnector(object):
         options['attributes'] = attr_options
         options['connection'] = connection_options
         options['mapping'] = mapping_options
+        options['logger_name'] = self.name
+        self.logger = create_logger(options)
         caller_config.report_unused_values(self.logger)
         return options
 
-    def set_mode(self, mode):
-        if mode == 'standard':
-            self.connection.access_token = self.options['mapping']['access_token']
-            self.connection.client_secret = self.options['mapping']['client_secret']
-            self.connection.client_id = self.options['mapping']['client_id']
 
-        elif mode == 'product':
-            self.source = self.options['mapping']['source']
-            if self.source['type'] not in ['file', 'mapped']:
-                raise AssertionException("Invalid product mapping source type: " + self.source['type']
-                                         + ". Supported are [file, mapped]")
+    def get_scope_sources(self):
+        sources = []
+        for s in self.options['mapping']['scoped_sources']:
+            if s['type'] == 'file':
+                data = list(CSVAdapter.read_csv_rows(s['path']))
+                sources.extend([ScopedSource.create(row) for row in data])
+            elif s['type'] == 'yaml':
+                sources.append(ScopedSource.create(s))
+        return sources
 
-    def read_product_map_from_file(self, path):
-        """
-        Load token mapping from CSV -- Clever sync only.  This overrides the access_token completely.
-        :return:
-        """
-        return list(CSVAdapter.read_csv_rows(path))
-
-    def get_product_map(self, groups=None):
-
-        if self.source['type'] == 'mapped':
-            pass
-        elif self.source['type'] == 'file':
-            return self.read_product_map_from_file(self.source['uri'])
 
     def load_users_and_groups(self, groups, extended_attributes, all_users):
         """
@@ -176,14 +152,20 @@ class OneRosterConnector(object):
 
         self.record_handler.extended_attributes = extended_attributes
 
-        if self.mode == 'product':
-            product_map = self.get_product_map(groups)
-            users_by_key = self.get_users_for_products(product_map)
+        api_options = self.options['connection']
+        api_options['match_on'] = self.options['mapping'].get('match_groups_by')
+
+        if self.mode == 'scoped':
+            scoped_sources = self.get_scope_sources()
+            users_by_key = self.get_scoped_users(scoped_sources, api_options)
         else:
+            primary_source = ScopedSource(**self.options['mapping'])
+            self.connection = self.get_connection(api_options, primary_source)
             parsed_groups = self.parse_yaml_groups(groups)
             users_by_key = OrderedDict(self.get_mapped_users(parsed_groups))
             if all_users:
-                self.update_user_dict(users_by_key, self.get_all_users())
+                filter = self.options['mapping']['all_users_filter']
+                self.update_user_dict(users_by_key, self.get_all_users(filter))
 
         max_users = self.options['connection']['max_users']
         limited_msg = "(limit applied)" if max_users > 0 else ""
@@ -203,24 +185,22 @@ class OneRosterConnector(object):
             else:
                 user_dict[k]['groups'].update(v['groups'])
 
-    def get_users_for_products(self, product_map):
-        user_dict = OrderedDict()
-        for entry in product_map:
-            self.connection.user_count = 0
-            self.connection.access_token = entry['token']
-            new_users = self.get_all_users(groups=[entry['product']])
+    def get_scoped_users(self, scope, api_options):
+        user_dict = {}
+        for source in scope:
+            self.connection = self.get_connection(api_options, source)
+            new_users = self.get_all_users(groups=[source.product])
             self.update_user_dict(user_dict, new_users)
         return user_dict
 
-    def get_all_users(self, groups=None):
+    def get_all_users(self, groups=None, filter='users'):
         user_dict = {}
-        response = self.connection.get_users(user_filter=self.options['mapping']['all_users_filter'])
+        response = self.connection.get_users(user_filter=filter)
         new_users = self.record_handler.parse_results(response)
         self.update_user_dict(user_dict, new_users, groups)
         return user_dict
 
     def get_mapped_users(self, groups):
-
         user_dict = {}
         for group_filter in groups:
             groups_names = groups[group_filter]
@@ -236,14 +216,20 @@ class OneRosterConnector(object):
                     self.update_user_dict(user_dict, new_users, [user_group])
         return user_dict
 
-    def get_connector(self, name):
+    def get_connection(self, options, source=None):
+        name = options['platform']
         if name.lower() == 'clever':
-            return oneroster.CleverConnector
+            conn = oneroster.CleverConnector(**options)
         elif name.lower() == 'classlink':
-            return oneroster.ClasslinkConnector
+            conn = oneroster.ClasslinkConnector(**options)
         else:
             raise NotImplementedError("Unrecognized platform: '" + name +
                                       "'.  Supported are: [classlink, clever].")
+        if source:
+            conn.access_token = source.access_token
+            conn.client_secret = source.client_secret
+            conn.client_id = source.client_id
+        return conn
 
     def validate_group_string(self, string, delim):
 
@@ -443,6 +429,26 @@ class RecordHandler:
         except:
             decoded = str(string)
         return decoded.lower().strip()
+
+
+class ScopedSource():
+
+    def __init__(self,
+                 client_id=None,
+                 client_secret=None,
+                 access_token=None,
+                 product=None,
+                 **kwargs):
+
+        self.client_id = client_id
+        self.client_secret = client_secret
+        self.access_token = access_token
+        self.product = product
+
+    @classmethod
+    def create(cls, data):
+        return ScopedSource(**data)
+
 
 
 class OneRosterValueFormatter(object):
