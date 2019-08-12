@@ -70,7 +70,6 @@ class OneRosterConnector(object):
         self.mode = self.options['mapping']['mode']
         self.logger.debug('%s initialized with options: %s', self.name, self.options)
 
-
     def get_options(self, caller_config):
 
         conn_cfg = caller_config.get_dict_config('connection', True)
@@ -129,18 +128,6 @@ class OneRosterConnector(object):
         caller_config.report_unused_values(self.logger)
         return options
 
-
-    def get_scope_sources(self):
-        sources = []
-        for s in self.options['mapping']['scoped_sources']:
-            if s['type'] == 'file':
-                data = list(CSVAdapter.read_csv_rows(s['path']))
-                sources.extend([ScopedSource.create(row) for row in data])
-            elif s['type'] == 'yaml':
-                sources.append(ScopedSource.create(s))
-        return sources
-
-
     def load_users_and_groups(self, groups, extended_attributes, all_users):
         """
         description: Leverages class components to return a user list, that will be sent to UMAPI
@@ -176,15 +163,6 @@ class OneRosterConnector(object):
         else:
             return six.itervalues(users_by_key)
 
-    def update_user_dict(self, user_dict, new_users, additional_groups=None):
-        for k, v in six.iteritems(new_users):
-            if additional_groups:
-                v['groups'].update(additional_groups)
-            if k not in user_dict:
-                user_dict[k] = v
-            else:
-                user_dict[k]['groups'].update(v['groups'])
-
     def get_scoped_users(self, scope, api_options):
         user_dict = {}
         for source in scope:
@@ -215,6 +193,25 @@ class OneRosterConnector(object):
                     new_users = self.record_handler.parse_results(response)
                     self.update_user_dict(user_dict, new_users, [user_group])
         return user_dict
+
+    def get_scope_sources(self):
+        sources = []
+        for s in self.options['mapping']['scoped_sources']:
+            if s['type'] == 'file':
+                data = list(CSVAdapter.read_csv_rows(s['path']))
+                sources.extend([ScopedSource.create(row) for row in data])
+            elif s['type'] == 'yaml':
+                sources.append(ScopedSource.create(s))
+        return sources
+
+    def update_user_dict(self, user_dict, new_users, additional_groups=None):
+        for k, v in six.iteritems(new_users):
+            if additional_groups:
+                v['groups'].update(additional_groups)
+            if k not in user_dict:
+                user_dict[k] = v
+            else:
+                user_dict[k]['groups'].update(v['groups'])
 
     def get_connection(self, options, source=None):
         name = options['platform']
@@ -439,7 +436,6 @@ class ScopedSource():
                  access_token=None,
                  product=None,
                  **kwargs):
-
         self.client_id = client_id
         self.client_secret = client_secret
         self.access_token = access_token
@@ -448,7 +444,6 @@ class ScopedSource():
     @classmethod
     def create(cls, data):
         return ScopedSource(**data)
-
 
 
 class OneRosterValueFormatter(object):
