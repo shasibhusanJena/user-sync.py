@@ -24,22 +24,13 @@ def caller_options():
         'all_users_filter': 'users',
         'default_group_filter': 'classes',
         'default_user_filter': 'students',
-    }
-
-    product_mapping = {
-        'type': 'token',
-        'source': {
-            'type': 'file',
-            'uri': ''
-        },
-        'secure_credential': False
+        'group_delimiter': '::',
     }
 
     mapping = {
         'mode': 'standard',
-        'group_delimiter': '::',
         'standard_mapping': standard_mapping,
-        'product_mapping': product_mapping
+        'scoped_sources': []
     }
 
     options = {
@@ -47,6 +38,7 @@ def caller_options():
         'mapping': mapping,
         'user_identity_type': 'federatedID',
         'include_only': {},
+        'secure_credential': False
     }
 
     return options
