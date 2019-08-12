@@ -66,7 +66,6 @@ class OneRosterConnector(object):
 
         caller_config = user_sync.config.DictConfig('%s configuration' % self.name, caller_options)
         self.options = self.get_options(caller_config)
-        self.record_handler = RecordHandler(self.options)
         self.mode = self.options['mapping']['mode']
         self.logger.debug('%s initialized with options: %s', self.name, self.options)
 
@@ -76,14 +75,14 @@ class OneRosterConnector(object):
         conn_bldr = user_sync.config.OptionsBuilder(conn_cfg)
         conn_bldr.require_string_value('platform')
         conn_bldr.require_string_value('host')
+        conn_bldr.require_string_value('key_identifier')
         conn_bldr.set_int_value('page_size', 1000)
         conn_bldr.set_int_value('max_users', 0)
-        conn_bldr.set_string_value('key_identifier', None)
         connection_options = conn_bldr.get_options()
 
         mapping_cfg = caller_config.get_dict_config('mapping', True)
         mapping_bldr = user_sync.config.OptionsBuilder(mapping_cfg)
-        mapping_bldr.set_string_value('mode', 'standard')
+        mapping_bldr.require_string_value('mode')
         mapping_bldr.set_value("scoped_sources", list, [])
         mapping_options = mapping_bldr.get_options()
 
@@ -100,8 +99,10 @@ class OneRosterConnector(object):
             mc_bldr.set_value(
                 'match_groups_by', (str, list), ['title', 'name', 'sourcedId', 'id'])
             mapping_options.update(mc_bldr.get_options())
-        else:
+        elif mapping_options['mode'] == 'scoped':
             caller_config.value['mapping'].pop('standard_mapping', None)
+        else:
+            raise AssertionException("Allowed scopes are only [standard, scoped]")
 
         attr_bldr = user_sync.config.OptionsBuilder(caller_config)
         attr_bldr.set_string_value('user_email_format', six.text_type('{email}'))
@@ -137,13 +138,12 @@ class OneRosterConnector(object):
         :rtype (bool, iterable(dict))
         """
 
-        self.record_handler.extended_attributes = extended_attributes
-
+        self.record_handler = RecordHandler(self.options, extended_attributes)
         api_options = self.options['connection']
         api_options['match_on'] = self.options['mapping'].get('match_groups_by')
 
         if self.mode == 'scoped':
-            scoped_sources = self.get_scope_sources()
+            scoped_sources = self.get_scoped_sources()
             users_by_key = self.get_scoped_users(scoped_sources, api_options)
         else:
             primary_source = ScopedSource(**self.options['mapping'])
@@ -151,8 +151,8 @@ class OneRosterConnector(object):
             parsed_groups = self.parse_yaml_groups(groups)
             users_by_key = OrderedDict(self.get_mapped_users(parsed_groups))
             if all_users:
-                filter = self.options['mapping']['all_users_filter']
-                self.update_user_dict(users_by_key, self.get_all_users(filter=filter))
+                user_filter = self.options['mapping']['all_users_filter']
+                self.update_user_dict(users_by_key, self.get_all_users(user_filter=user_filter))
 
         max_users = self.options['connection']['max_users']
         limited_msg = "(limit applied)" if max_users > 0 else ""
@@ -167,13 +167,13 @@ class OneRosterConnector(object):
         user_dict = {}
         for source in scope:
             self.connection = self.get_connection(api_options, source)
-            new_users = self.get_all_users(groups=[source.product])
+            new_users = self.get_all_users(groups=source.product)
             self.update_user_dict(user_dict, new_users)
         return user_dict
 
-    def get_all_users(self, groups=None, filter='users'):
+    def get_all_users(self, groups=None, user_filter='users'):
         user_dict = {}
-        response = self.connection.get_users(user_filter=filter)
+        response = self.connection.get_users(user_filter=user_filter)
         new_users = self.record_handler.parse_results(response)
         self.update_user_dict(user_dict, new_users, groups)
         return user_dict
@@ -194,17 +194,23 @@ class OneRosterConnector(object):
                     self.update_user_dict(user_dict, new_users, [user_group])
         return user_dict
 
-    def get_scope_sources(self):
+    def get_scoped_sources(self):
         sources = []
         for s in self.options['mapping']['scoped_sources']:
             if s['type'] == 'file':
                 data = list(CSVAdapter.read_csv_rows(s['path']))
-                sources.extend([ScopedSource.create(row) for row in data])
+                sources.extend([ScopedSource.from_data(row) for row in data])
             elif s['type'] == 'yaml':
-                sources.append(ScopedSource.create(s))
+                sources.append(ScopedSource.from_data(s))
+            else:
+                raise AssertionException("Invalid source type: '"
+                                         + s['type'] + "', allowed are [file, yaml]")
         return sources
 
     def update_user_dict(self, user_dict, new_users, additional_groups=None):
+        if isinstance(additional_groups, str):
+            additional_groups = [additional_groups]
+
         for k, v in six.iteritems(new_users):
             if additional_groups:
                 v['groups'].update(additional_groups)
@@ -222,17 +228,15 @@ class OneRosterConnector(object):
         else:
             raise NotImplementedError("Unrecognized platform: '" + name +
                                       "'.  Supported are: [classlink, clever].")
-        if source:
-            conn.access_token = source.access_token
-            conn.client_secret = source.client_secret
-            conn.client_id = source.client_id
+
+        conn.access_token = source.access_token
+        conn.client_secret = source.client_secret
+        conn.client_id = source.client_id
         return conn
 
     def validate_group_string(self, string, delim):
-
         if delim not in string:
             return False
-
         if len(string.split(delim)) != 3 or re.search('.*(:::).*', string):
             msg = "Invalid group syntax: {0}\n" \
                   "Syntax should be of form 'group_filter{1}group_name{1}user_filter'"
@@ -288,12 +292,12 @@ class OneRosterConnector(object):
 
 
 class RecordHandler:
-    def __init__(self, options, logger=None):
+    def __init__(self, options, extended_attributes=None):
         attrs = options['attributes']
-        self.extended_attributes = []
         self.inclusions = options['include_only']
-        self.logger = logger or logging.getLogger(options['logger_name'])
+        self.logger = logging.getLogger(options['logger_name'])
         self.key_identifier = options['connection']['key_identifier']
+        self.extended_attributes = extended_attributes
 
         self.user_identity_type = user_sync.identity_type.parse_identity_type(attrs['user_identity_type'])
         self.user_identity_type_formatter = OneRosterValueFormatter(attrs['user_identity_type_format'])
@@ -442,7 +446,19 @@ class ScopedSource():
         self.product = product
 
     @classmethod
-    def create(cls, data):
+    def from_data(cls, data):
+
+        has_cred = data.get('client_id') and data.get('client_secret')
+        has_token = data.get('access_token')
+
+        if has_cred and has_token:
+            raise AssertionException(
+                "Sync source must have either "
+                "client_id and client_secret OR access_token (both given)")
+
+        if not has_cred and not has_token:
+            raise AssertionException("Sync source missing credentials")
+
         return ScopedSource(**data)
 
 
