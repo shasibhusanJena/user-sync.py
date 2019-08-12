@@ -95,7 +95,7 @@ mapping:
 # client_secret          |  client secret - optional for Clever if token specified
 # access_token           |  Clever access token.  Use instead of id and secret.  This field has no effect on Classlink.
 # page_size              |  api call page size.  Default is 1000.  Bigger = faster!
-# max_users         |  api calls will cutoff after this many users. Set to 0 by default for unlimited.
+# max_users              |  api calls will cutoff after this many users. Set to 0 by default for unlimited.
 #                        |  useful when doing test runs to avoid pulling very large user counts.  results tend to be
 #                        |  in random orders, so do not count on this for expected values
 
@@ -110,6 +110,7 @@ mapping:
 # include_only           |  provide attributes(key) and expected values (value) within the schema section.
 #                        |  all users that do not meet the specified criteria will be skipped (See below for examples)
 
+# Todo add doc for scoped setting
 
 ######  Attribute formatters ######
 
