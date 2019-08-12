@@ -152,7 +152,7 @@ class OneRosterConnector(object):
             users_by_key = OrderedDict(self.get_mapped_users(parsed_groups))
             if all_users:
                 filter = self.options['mapping']['all_users_filter']
-                self.update_user_dict(users_by_key, self.get_all_users(filter))
+                self.update_user_dict(users_by_key, self.get_all_users(filter=filter))
 
         max_users = self.options['connection']['max_users']
         limited_msg = "(limit applied)" if max_users > 0 else ""
