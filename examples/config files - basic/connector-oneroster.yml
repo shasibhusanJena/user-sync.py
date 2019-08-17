@@ -27,47 +27,44 @@
 
 # https://github.com/adobe-dmeservices/user-sync.py/blob/oneroster/docs/en/user-manual/oneroster.md
 
-
-############# Clever Example ##########################
-
 connection:
-  platform: 'clever'
-  access_token: 'TEST_TOKEN'              # TEST_TOKEN is provided by Clever for sample date -- Try it out!
-  host: 'https://api.clever.com/v2.1/'    # Host doesn't change for Clever, unless you need a different API version
+  platform: 'classlink'
+  host: 'https://example-ca-v2.oneroster.com/ims/oneroster/v1p1/'
+  key_identifier: 'sourcedId'
   page_size: 1000
   max_users: 0
 
-schema:
-  match_groups_by: 'name'                 # Name is a good default for Clever
-  key_identifier: 'id'                    # Clever uses 'id' instead of 'sourcedId'
-  all_users_filter: 'users'
-  default_group_filter: 'sections'        # Sections means classes
-  default_user_filter: 'students'
-#  group_delimiter: '::'
-#  include_only:
-#    grade: '6'
+mapping:
+  mode: 'standard'
 
-############# Classlink Example ######################
+  # Standard mode.  Get users based on group mapping
+  standard_mapping:
+    access_token: 'access_token (if applicable)'
+    client_id: 'client_id (if applicable)'
+    client_secret: 'client_secret (if applicable)'
+    match_groups_by: ['title', 'name', 'sourcedId']
+    all_users_filter: 'users'
+    default_group_filter: 'classes'
+    default_user_filter: 'students'
+    group_delimiter: '::'
 
-#connection:
-#  platform: 'classlink'
-#  client_id: 'client id here'             # There is no test equivalent to TEST_TOKEN as for Clever
-#  client_secret: 'client secret here'
-#  host: "https://example.oneroster.com/ims/oneroster/v1p1/"    # You WILL need to update this to your URL
-#  page_size: 1000
-#  max_users: 0
-#
-#schema:
-#  match_groups_by: 'title'                # For Classlink, 'title' works for class/course.  Use 'name' for schools
-#  key_identifier: 'sourcedId'             # Root ID for Classlink is 'sourcedId'
-#  all_users_filter: 'users'
-#  default_group_filter: 'classes'
-#  default_user_filter: 'students'
-#  group_delimiter: '::'
-#  include_only:
-#    status: 'active'
+  # Scoped sources -- only used if mode is set to 'scoped'
+  # Users from each source are fetch in full and the specified
+  # product group is assigned.  Map these to user groups in
+  # user-sync-config.yml
+  scoped_sources:
+    - type: file
+      path: 'sources.csv'
+    - type: yaml
+      access_token: 'TEST_TOKEN'
+      product: 'adobe-spark'
 
-######################################################
+# Additional options
+#include_only:
+#  grade: '6'
+
+# Todo: implement secure storage
+# secure_credential: false
 
 # Optional attribute fields with defaults (uncomment to use)
 #user_email_format: "{email}"
@@ -98,7 +95,7 @@ schema:
 # client_secret          |  client secret - optional for Clever if token specified
 # access_token           |  Clever access token.  Use instead of id and secret.  This field has no effect on Classlink.
 # page_size              |  api call page size.  Default is 1000.  Bigger = faster!
-# max_users         |  api calls will cutoff after this many users. Set to 0 by default for unlimited.
+# max_users              |  api calls will cutoff after this many users. Set to 0 by default for unlimited.
 #                        |  useful when doing test runs to avoid pulling very large user counts.  results tend to be
 #                        |  in random orders, so do not count on this for expected values
 
@@ -113,6 +110,7 @@ schema:
 # include_only           |  provide attributes(key) and expected values (value) within the schema section.
 #                        |  all users that do not meet the specified criteria will be skipped (See below for examples)
 
+# Todo add doc for scoped setting
 
 ######  Attribute formatters ######
 

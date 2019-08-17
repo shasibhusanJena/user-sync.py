@@ -1,44 +1,13 @@
-import pytest
 import mock
+import pytest
+
 from user_sync.connector.directory_oneroster import *
 
 
-@pytest.fixture
-def oneroster_connector(caller_options):
-    return OneRosterConnector(caller_options)
-
-
-@pytest.fixture()
-def caller_options():
-    connection = {
-        'platform': 'classlink',
-        'client_id': 'client_id',
-        'client_secret': 'client_secret',
-        'host': 'https://example.oneroster.com/ims/oneroster/v1p1/',
-        'page_size': 1000,
-        'max_users': 0
-    }
-
-    schema = {
-        'match_groups_by': 'name',
-        'key_identifier': 'id',
-        'all_users_filter': 'users',
-        'default_group_filter': 'classes',
-        'default_user_filter': 'students',
-        'include_only': {}
-    }
-
-    options = {'user_identity_type': 'federatedID',
-               'connection': connection,
-               'schema': schema}
-
-    return options
-
-
-def test_parse_results_valid(oneroster_connector, stub_api_response, stub_parse_results):
+def test_parse_results_valid(user_factory, stub_api_response, stub_parse_results):
     expected_result = stub_parse_results
-    record_handler = RecordHandler(options=oneroster_connector.options, logger=oneroster_connector.logger)
-    actual_result = record_handler.parse_results(stub_api_response, 'sourcedId', [])
+    user_factory.key_identifier = 'sourcedId'
+    actual_result = user_factory.parse_results(stub_api_response)
     assert expected_result == actual_result
 
     # asserts extended attributes are added to source_attributes dict(),
@@ -48,53 +17,53 @@ def test_parse_results_valid(oneroster_connector, stub_api_response, stub_parse_
     expected_result['18125']['source_attributes']['identifier'] = '17580'
     expected_result['18317']['source_attributes']['sms'] = None
     expected_result['18317']['source_attributes']['identifier'] = '15125'
-    actual_result = record_handler.parse_results(stub_api_response, 'sourcedId', ['sms', 'identifier'])
+    user_factory.extended_attributes = ['sms', 'identifier']
+    actual_result = user_factory.parse_results(stub_api_response)
     assert expected_result == actual_result
 
     # Fetch nonexistent properties
 
     expected_result['18125']['source_attributes']['fake'] = None
     expected_result['18317']['source_attributes']['fake'] = None
-    actual_result = record_handler.parse_results(stub_api_response, 'sourcedId', ['sms', 'identifier', 'fake'])
+    user_factory.extended_attributes = ['sms', 'identifier', 'fake']
+    actual_result = user_factory.parse_results(stub_api_response)
     assert expected_result == actual_result
 
     # Testing filter_out_users
 
-    record_handler.inclusions = {'givenName': "Billy"}
-    actual_result = record_handler.parse_results(stub_api_response, 'sourcedId', [])
+    user_factory.inclusion_filter = {'givenName': "Billy"}
+    actual_result = user_factory.parse_results(stub_api_response)
     length_of_actual_result = len(actual_result)
     assert length_of_actual_result == 1
 
 
-def test_filter_out_users(oneroster_connector, stub_api_response):
-    oneroster_connector.options['schema']['include_only'] = {'givenName': "Billy"}
-    record_handler = RecordHandler(options=oneroster_connector.options, logger=oneroster_connector.logger)
+def test_filter_out_users(user_factory, stub_api_response):
+    user_factory.inclusion_filter = {'givenName': "Billy"}
 
-    actual_result = record_handler.exclude_user(stub_api_response[0])
+    actual_result = user_factory.exclude_user(stub_api_response[0])
     assert actual_result is False
 
-    actual_result = record_handler.exclude_user(stub_api_response[1])
+    actual_result = user_factory.exclude_user(stub_api_response[1])
     assert actual_result is True
 
 
-def test_filter_out_users_complex(oneroster_connector, stub_api_response, stub_parse_results):
-    oneroster_connector.options['schema']['include_only'] = {'familyName': "Houston",
-                                                                             'enabledUser': 'true',
-                                                                             'role': 'student'}
-    record_handler = RecordHandler(options=oneroster_connector.options, logger=oneroster_connector.logger)
+def test_filter_out_users_complex(user_factory, stub_api_response, stub_parse_results):
+    user_factory.inclusion_filter = {'familyName': "Houston",
+                                     'enabledUser': 'true',
+                                     'role': 'student'}
 
-    actual_result = record_handler.exclude_user(stub_api_response[0])
+    actual_result = user_factory.exclude_user(stub_api_response[0])
     assert actual_result is True
 
-    actual_result = record_handler.exclude_user(stub_api_response[1])
+    actual_result = user_factory.exclude_user(stub_api_response[1])
     assert actual_result is False
 
 
-def test_filter_out_users_failures(oneroster_connector, log_stream, stub_api_response):
+def test_filter_out_users_failures(user_factory, log_stream, stub_api_response):
     stream, logger = log_stream
-    oneroster_connector.options['schema']['include_only'] = {'xxx': "Billy"}
-    record_handler = RecordHandler(options=oneroster_connector.options, logger=logger)
-    record_handler.exclude_user(stub_api_response[0])
+    user_factory.inclusion_filter = {'xxx': "Billy"}
+    user_factory.logger = logger
+    user_factory.exclude_user(stub_api_response[0])
     stream.flush()
 
     expected_logger_output = 'No key for filtering attribute xxx for user'
@@ -183,7 +152,7 @@ def test_load_users_and_groups(oneroster_connector, stub_api_response, stub_pars
     expected[1]['source_attributes']['groups'] = {'xxx'}
 
     with mock.patch("oneroster.ClasslinkConnector.get_users") as mock_endpoint:
-        with mock.patch("user_sync.connector.directory_oneroster.RecordHandler.parse_results") as mock_parse_results:
+        with mock.patch("user_sync.connector.directory_oneroster.UserFactory.parse_results") as mock_parse_results:
             mock_endpoint.return_value = stub_api_response
             mock_parse_results.return_value = stub_parse_results
 
@@ -197,22 +166,25 @@ def test_load_users_and_groups(oneroster_connector, stub_api_response, stub_pars
             assert actual_result_length == 1
 
 
-def test_create_user_object(oneroster_connector, stub_api_response, stub_parse_results):
-    record_handler = RecordHandler(options=oneroster_connector.options, logger=oneroster_connector.logger)
+def test_create_user_object(user_factory, stub_api_response, stub_parse_results):
+
+    user_factory.key_identifier = 'sourcedId'
     record = stub_api_response[0]
 
-    actual_result = record_handler.create_user_object(record, 'sourcedId', [])
+    actual_result = user_factory.create_user_object(record)
     expected_result = stub_parse_results['18125']
     assert actual_result == expected_result
 
     expected_result['source_attributes']['enabledUser'] = 'true'
     expected_result['source_attributes']['sms'] = '(666) 666-6666'
-    actual_result = record_handler.create_user_object(record, 'sourcedId', ['enabledUser', 'sms'])
+    user_factory.extended_attributes = ['enabledUser', 'sms']
+    actual_result = user_factory.create_user_object(record)
     assert expected_result == actual_result
 
     expected_result = stub_parse_results['18317']
     expected_result['source_attributes']['bad'] = None
-    actual_result = record_handler.create_user_object(stub_api_response[1], 'sourcedId', ['bad'])
+    user_factory.extended_attributes = ['bad']
+    actual_result = user_factory.create_user_object(stub_api_response[1])
     assert expected_result == actual_result
 
     expected_result['source_attributes']['orgs'] = {
@@ -220,11 +192,12 @@ def test_create_user_object(oneroster_connector, stub_api_response, stub_parse_r
         'sourcedId': '2',
         'type': 'org'
     }
-    actual_result = record_handler.create_user_object(stub_api_response[1], 'sourcedId', ['orgs', 'bad'])
+    user_factory.extended_attributes = ['orgs', 'bad']
+    actual_result = user_factory.create_user_object(stub_api_response[1])
     assert expected_result == actual_result
 
-def test_generate_value(stub_api_response):
 
+def test_generate_value(stub_api_response):
     formatter = OneRosterValueFormatter(None)
     formatter.attribute_names = ['givenName', 'familyName']
     formatter.string_format = '{givenName}.{familyName}@xxx.com'
@@ -299,6 +272,57 @@ def test_get_attr_values():
 
     # Decode a string
     assert formatter.get_attribute_value(attributes, "byte") == "byteencoded"
+
+
+@pytest.fixture()
+def caller_options():
+    connection = {
+        'platform': 'classlink',
+        'host': 'https://example.oneroster.com/ims/oneroster/v1p1/',
+        'key_identifier': 'sourcedId',
+        'page_size': 1000,
+        'max_users': 0
+    }
+
+    standard_mapping = {
+        'access_token': 'TEST_TOKEN',
+        'match_groups_by': 'name',
+        'all_users_filter': 'users',
+        'default_group_filter': 'classes',
+        'default_user_filter': 'students',
+        'group_delimiter': '::',
+    }
+
+    mapping = {
+        'mode': 'standard',
+        'standard_mapping': standard_mapping,
+        'scoped_sources': []
+    }
+
+    options = {
+        'connection': connection,
+        'mapping': mapping,
+        'user_identity_type': 'federatedID',
+        'include_only': {},
+        'secure_credential': False
+    }
+
+    return options
+
+
+@pytest.fixture
+def oneroster_connector(caller_options):
+    return OneRosterConnector(caller_options)
+
+
+@pytest.fixture
+def user_factory(oneroster_connector):
+    opts = oneroster_connector.options
+    return UserFactory(
+        key_identifier='sourcedId',
+        extended_attributes=[],
+        **opts
+    )
 
 
 @pytest.fixture()

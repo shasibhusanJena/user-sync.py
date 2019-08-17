@@ -422,7 +422,7 @@ class ConfigLoader(object):
     @staticmethod
     def combine_dicts(dicts):
         """
-        Return a single dict from an iterable of dicts.  Each dict is merged into the resulting dict, 
+        Return a single dict from an iterable of dicts.  Each dict is merged into the resulting dict,
         with a latter dict possibly overwriting the keys from previous dicts.
         :type dicts: list(dict)
         :rtype dict
@@ -580,7 +580,7 @@ class ObjectConfig(object):
 
     def add_child(self, config):
         """
-        :type config: ObjectConfig 
+        :type config: ObjectConfig
         """
         config.set_parent(self)
         self.child_configs[config.scope] = config
