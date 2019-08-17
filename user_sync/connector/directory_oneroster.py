@@ -142,6 +142,7 @@ class OneRosterConnector(object):
         api_options['match_on'] = self.options['mapping'].get('match_groups_by')
 
         self.user_factory = UserFactory(
+            logger=self.logger,
             key_identifier=api_options['key_identifier'],
             extended_attributes=extended_attributes,
             **self.options
