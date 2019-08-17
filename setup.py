@@ -56,6 +56,7 @@ setup(name='user-sync',
           'umapi-client>=2.12',
           'click',
           'click-default-group',
+          'oneroster',
       ],
       extras_require={
           ':python_version>="3" and (sys_platform=="linux" or sys_platform=="linux2")':[
