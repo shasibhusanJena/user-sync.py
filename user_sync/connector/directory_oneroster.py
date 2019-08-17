@@ -138,9 +138,14 @@ class OneRosterConnector(object):
         :rtype (bool, iterable(dict))
         """
 
-        self.record_handler = RecordHandler(self.options, extended_attributes)
         api_options = self.options['connection']
         api_options['match_on'] = self.options['mapping'].get('match_groups_by')
+
+        self.user_factory = UserFactory(
+            key_identifier=api_options['key_identifier'],
+            extended_attributes=extended_attributes,
+            **self.options
+        )
 
         if self.mode == 'scoped':
             scoped_sources = self.get_scoped_sources()
@@ -174,7 +179,7 @@ class OneRosterConnector(object):
     def get_all_users(self, groups=None, user_filter='users'):
         user_dict = {}
         response = self.connection.get_users(user_filter=user_filter)
-        new_users = self.record_handler.parse_results(response)
+        new_users = self.user_factory.parse_results(response)
         self.update_user_dict(user_dict, new_users, groups)
         return user_dict
 
@@ -190,7 +195,7 @@ class OneRosterConnector(object):
                         group_name=group_name,
                         user_filter=user_filter,
                     )
-                    new_users = self.record_handler.parse_results(response)
+                    new_users = self.user_factory.parse_results(response)
                     self.update_user_dict(user_dict, new_users, [user_group])
         return user_dict
 
@@ -291,25 +296,31 @@ class OneRosterConnector(object):
         return groups
 
 
-class RecordHandler:
-    def __init__(self, options, extended_attributes=None):
-        attrs = options['attributes']
-        self.inclusions = options['include_only']
-        self.logger = logging.getLogger(options['logger_name'])
-        self.key_identifier = options['connection']['key_identifier']
+class UserFactory:
+    def __init__(self,
+                 extended_attributes=None,
+                 include_only=None,
+                 logger=None,
+                 key_identifier=None,
+                 attributes=None,
+                 **kwargs
+                 ):
+        self.inclusion_filter = include_only
+        self.key_identifier = key_identifier
         self.extended_attributes = extended_attributes
+        self.logger = logger or logging.getLogger("oneroster")
 
-        self.user_identity_type = user_sync.identity_type.parse_identity_type(attrs['user_identity_type'])
-        self.user_identity_type_formatter = OneRosterValueFormatter(attrs['user_identity_type_format'])
-        self.user_email_formatter = OneRosterValueFormatter(attrs['user_email_format'])
-        self.user_username_formatter = OneRosterValueFormatter(attrs['user_username_format'])
-        self.user_domain_formatter = OneRosterValueFormatter(attrs['user_domain_format'])
-        self.user_given_name_formatter = OneRosterValueFormatter(attrs['user_given_name_format'])
-        self.user_surname_formatter = OneRosterValueFormatter(attrs['user_surname_format'])
-        self.user_country_code_formatter = OneRosterValueFormatter(attrs['user_country_code_format'])
+        self.user_identity_type = user_sync.identity_type.parse_identity_type(attributes['user_identity_type'])
+        self.user_identity_type_formatter = OneRosterValueFormatter(attributes['user_identity_type_format'])
+        self.user_email_formatter = OneRosterValueFormatter(attributes['user_email_format'])
+        self.user_username_formatter = OneRosterValueFormatter(attributes['user_username_format'])
+        self.user_domain_formatter = OneRosterValueFormatter(attributes['user_domain_format'])
+        self.user_given_name_formatter = OneRosterValueFormatter(attributes['user_given_name_format'])
+        self.user_surname_formatter = OneRosterValueFormatter(attributes['user_surname_format'])
+        self.user_country_code_formatter = OneRosterValueFormatter(attributes['user_country_code_format'])
 
-        if self.inclusions != {}:
-            self.logger.info("Note: inclusion filters are applied: " + str(self.inclusions))
+        if self.inclusion_filter != {}:
+            self.logger.info("Note: inclusion filters are applied: " + str(self.inclusion_filter))
 
     def parse_results(self, result_set):
         """
@@ -412,7 +423,7 @@ class RecordHandler:
         :rtype: bool
         """
 
-        for key, value in self.inclusions.items():
+        for key, value in self.inclusion_filter.items():
             try:
                 if self.decode_string(record.get(key)) not in self.decode_string(value):
                     return True
