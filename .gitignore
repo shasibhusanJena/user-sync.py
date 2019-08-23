@@ -107,3 +107,5 @@ user_sync/resources/*
 test_config/
 test-config/
 lockfile
+
+.DS_Store
