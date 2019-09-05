@@ -129,7 +129,7 @@ class ConfigLoader(object):
         # --connector
         connector_spec = options['connector']
         connector_type = user_sync.helper.normalize_string(connector_spec[0])
-        if connector_type in ["ldap", "okta"]:
+        if connector_type in ["ldap", "okta", "adobe_console"]:
             if len(connector_spec) > 1:
                 raise AssertionException('Must not specify a file (%s) with connector type %s' %
                                          (connector_spec[0], connector_type))
@@ -149,6 +149,7 @@ class ConfigLoader(object):
         else:
             adobe_action_spec = options['adobe_only_user_action']
             adobe_action = user_sync.helper.normalize_string(adobe_action_spec[0])
+            options['stray_list_output_path'] = None
             if adobe_action == 'preserve':
                 pass  # no option settings needed
             elif adobe_action == 'exclude':
@@ -313,6 +314,7 @@ class ConfigLoader(object):
             connectors_config.get_list('ldap', True)
             connectors_config.get_list('csv', True)
             connectors_config.get_list('okta', True)
+            connectors_config.get_list('adobe_console', True)
         return connectors_config
 
     def get_directory_connector_options(self, connector_name):
@@ -538,11 +540,11 @@ class ConfigLoader(object):
         elif extension_config:
             after_mapping_hook_text = extension_config.get_string('after_mapping_hook')
             options['after_mapping_hook'] = compile(after_mapping_hook_text, '<per-user after-mapping-hook>', 'exec')
-            options['extended_attributes'] = extension_config.get_list('extended_attributes')
+            options['extended_attributes'] = extension_config.get_list('extended_attributes', True) or []
             # declaration of extended adobe groups: this is needed for two reasons:
             # 1. it allows validation of group names, and matching them to adobe groups
             # 2. it allows removal of adobe groups not assigned by the hook
-            for extended_adobe_group in extension_config.get_list('extended_adobe_groups'):
+            for extended_adobe_group in extension_config.get_list('extended_adobe_groups', True) or []:
                 group = user_sync.rules.AdobeGroup.create(extended_adobe_group)
                 if group is None:
                     message = 'Extension contains illegal extended_adobe_group spec: ' + str(extended_adobe_group)
@@ -878,7 +880,8 @@ class ConfigFileLoader:
                              }
 
     # like ROOT_CONFIG_PATH_KEYS, but for non-root configuration files
-    SUB_CONFIG_PATH_KEYS = {'/enterprise/priv_key_path': (True, False, None)}
+    SUB_CONFIG_PATH_KEYS = {'/enterprise/priv_key_path': (True, False, None),
+                            '/integration/priv_key_path': (True, False, None)}
 
     @classmethod
     def load_root_config(cls, filename):
