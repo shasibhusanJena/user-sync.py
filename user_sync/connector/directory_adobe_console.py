@@ -126,6 +126,7 @@ class AdobeConsoleConnector(object):
         logger.debug('%s: connection established', self.name)
         self.umapi_users = []
         self.user_by_usr_key = {}
+        self.additional_group_filters = None
 
     def load_users_and_groups(self, groups, extended_attributes, all_users):
         """
@@ -201,6 +202,7 @@ class AdobeConsoleConnector(object):
         source_attributes['country'] = user['country'] = record['country']
 
         user['source_attributes'] = source_attributes.copy()
+        user['member_groups'] = record.get('groups', []) if self.additional_group_filters else []
         return user
 
     def iter_umapi_groups(self):
