@@ -466,9 +466,6 @@ class ConfigLoader(object):
             additional_groups = [{'source': re.compile(r['source']),
                                   'target': r['target']}
                                  for r in additional_groups]
-            # additional_groups = [{'source': re.compile(r['source']),
-            #                       'target': user_sync.rules.AdobeGroup.create(r['target'], index=False)}
-            #                      for r in additional_groups]
         except Exception as e:
             raise AssertionException("Additional group rule error: {}".format(str(e)))
         options['additional_groups'] = additional_groups
