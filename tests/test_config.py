@@ -1,4 +1,6 @@
 import os
+from unittest import mock
+
 import pytest
 import yaml
 import shutil
@@ -57,6 +59,7 @@ def modify_root_config(tmp_config_files):
         yaml.dump(conf, open(root_config_file, 'w'))
 
         return root_config_file
+
     return _modify_root_config
 
 
@@ -70,6 +73,7 @@ def modify_ldap_config(tmp_config_files):
         yaml.dump(conf, open(ldap_config_file, 'w'))
 
         return ldap_config_file
+
     return _modify_ldap_config
 
 
@@ -162,3 +166,33 @@ def test_adobe_users_config(tmp_config_files, modify_root_config, cli_args):
     options = config_loader.load_invocation_options()
     assert 'adobe_users' in options
     assert options['adobe_users'] == ['mapped']
+
+
+def test_get_directory_connector_module_name(tmp_config_files, modify_root_config, cli_args):
+    (root_config_file, _, _) = tmp_config_files
+    args = cli_args({'config_filename': root_config_file})
+    config_loader = ConfigLoader(args)
+    options = config_loader.invocation_options
+    options['stray_list_input_path'] = 'something'
+    assert not config_loader.get_directory_connector_module_name()
+
+    options['directory_connector_type'] = 'csv'
+    options['stray_list_input_path'] = None
+    expected = 'user_sync.connector.directory_csv'
+    assert config_loader.get_directory_connector_module_name() == expected
+
+
+def test_get_directory_connector_configs(tmp_config_files, modify_root_config, cli_args):
+    (root_config_file, ldap_config_file, _) = tmp_config_files
+    args = cli_args({'config_filename': root_config_file})
+    config_loader = ConfigLoader(args)
+    config_loader.get_directory_connector_configs()
+
+    # Test method to verify path is the value of the 'ldap' key
+    expected_file_path = config_loader.main_config.value['directory_users']['connectors']['ldap']
+    assert expected_file_path == ldap_config_file
+
+    # Test method to verify 'okta', 'csv', 'ldap' are in the accessed_keys set
+    result = config_loader.main_config.child_configs.get('directory_users').child_configs['connectors'].accessed_keys
+    assert result == {'okta', 'csv', 'ldap'}
+
