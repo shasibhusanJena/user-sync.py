@@ -196,3 +196,23 @@ def test_get_directory_connector_configs(tmp_config_files, modify_root_config, c
     result = config_loader.main_config.child_configs.get('directory_users').child_configs['connectors'].accessed_keys
     assert result == {'okta', 'csv', 'ldap'}
 
+
+def test_get_rule_options(tmp_config_files, modify_root_config, cli_args, caller_options, rule_processor):
+    (root_config_file, ldap_config_file, umapi_config_file) = tmp_config_files
+    # set the args to the user-sync-config.yml file before changes are made
+    args = cli_args({'config_filename': root_config_file})
+    # make changes to the values that will be read in the method
+    modify_root_config(['directory_users', 'default_country_code'], "EU")
+    modify_root_config(['directory_users', 'user_identity_type'], "enterpriseID")
+    # now the config_loader is set with the args that have been modified
+    config_loader = ConfigLoader(args)
+    # options will let us set the defaults not listed on the yaml file
+    # if they were in the yaml file, these would be overwritten
+    options = config_loader.invocation_options
+    options['exclude_users'] = ['nobody', 'someone']
+    options['adobe_group_filter'] = 'Something'
+    print()
+    print('*****************')
+    print(config_loader.get_rule_options())
+    print('*****************')
+
