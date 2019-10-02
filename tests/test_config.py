@@ -204,15 +204,19 @@ def test_get_rule_options(tmp_config_files, modify_root_config, cli_args, caller
     # make changes to the values that will be read in the method
     modify_root_config(['directory_users', 'default_country_code'], "EU")
     modify_root_config(['directory_users', 'user_identity_type'], "enterpriseID")
+    modify_root_config(['directory_users', 'additional_groups'], [{'source': 'ACL-(.+)', 'target': 'ACL-Grp-(\\1)'}])
+    modify_root_config(['directory_users', 'group_sync_options'], {'auto_create': True})
     # now the config_loader is set with the args that have been modified
     config_loader = ConfigLoader(args)
     # options will let us set the defaults not listed on the yaml file
     # if they were in the yaml file, these would be overwritten
     options = config_loader.invocation_options
-    options['exclude_users'] = ['nobody', 'someone']
     options['adobe_group_filter'] = 'Something'
     print()
     print('*****************')
     print(config_loader.get_rule_options())
     print('*****************')
 
+    # with pytest.raises(AssertionException) as error:
+    #     config_loader.get_umapi_options()
+    # assert "Your main configuration file is still in v1 format." in str(error.value)
