@@ -4,7 +4,7 @@ from unittest import mock
 import pytest
 import yaml
 import shutil
-from tests.util import update_dict
+from util import update_dict
 from user_sync.config import ConfigFileLoader, ConfigLoader, DictConfig
 from user_sync import app
 from user_sync.error import AssertionException
@@ -168,38 +168,10 @@ def test_adobe_users_config(tmp_config_files, modify_root_config, cli_args):
     assert options['adobe_users'] == ['mapped']
 
 
-def test_get_directory_connector_module_name(tmp_config_files, modify_root_config, cli_args):
-    (root_config_file, _, _) = tmp_config_files
-    args = cli_args({'config_filename': root_config_file})
-    config_loader = ConfigLoader(args)
-    options = config_loader.invocation_options
-    options['stray_list_input_path'] = 'something'
-    assert not config_loader.get_directory_connector_module_name()
-
-    options['directory_connector_type'] = 'csv'
-    options['stray_list_input_path'] = None
-    expected = 'user_sync.connector.directory_csv'
-    assert config_loader.get_directory_connector_module_name() == expected
-
-
-def test_get_directory_connector_configs(tmp_config_files, modify_root_config, cli_args):
-    (root_config_file, ldap_config_file, _) = tmp_config_files
-    args = cli_args({'config_filename': root_config_file})
-    config_loader = ConfigLoader(args)
-    config_loader.get_directory_connector_configs()
-
-    # Test method to verify path is the value of the 'ldap' key
-    expected_file_path = config_loader.main_config.value['directory_users']['connectors']['ldap']
-    assert expected_file_path == ldap_config_file
-
-    # Test method to verify 'okta', 'csv', 'ldap' are in the accessed_keys set
-    result = config_loader.main_config.child_configs.get('directory_users').child_configs['connectors'].accessed_keys
-    assert result == {'okta', 'csv', 'ldap'}
-
-
 def test_get_rule_options_add(tmp_config_files, modify_root_config, cli_args):
     (root_config_file, _, _) = tmp_config_files
     args = cli_args({'config_filename': root_config_file})
+
     # Modify these values in the root_config file (user-sync-config.yml)
     modify_root_config(['adobe_users', 'exclude_identity_types'], ['adobeID'])
     modify_root_config(['directory_users', 'default_country_code'], "EU")
@@ -216,6 +188,7 @@ def test_get_rule_options_add(tmp_config_files, modify_root_config, cli_args):
     options['exclude_users'] = ['UserA', 'UserB']
     options['directory_group_mapped'] = True
     options['adobe_group_mapped'] = True
+
     # Run the method and set result as result
     result = config_loader.get_rule_options()
     print()
@@ -227,7 +200,6 @@ def test_get_rule_options_add(tmp_config_files, modify_root_config, cli_args):
     assert result['default_country_code'] == 'EU'
     assert result['additional_groups'][0]['source'].pattern == 'ACL-(.+)'
     assert result['directory_group_filter'] == {'DIR-1', 'DIR-2'}
-    # i'm not sure how to call the adobe_group_filter. they register as objects
     assert result['exclude_adobe_groups'] == ['one', 'two']
     assert result['exclude_users'] == ['UserA', 'UserB']
 
@@ -237,40 +209,33 @@ def test_get_rule_options_add(tmp_config_files, modify_root_config, cli_args):
         config_loader.get_rule_options()
     assert "'directory_users' must be specified" in str(error.value)
 
-    # SET AT TOP WITH "directory_users" AS EMPTY DICTIONARY
-    # with pytest.raises(AssertionException) as error:
-    #     config_loader.get_rule_options()
-    # assert "'directory_users' must be specified" in str(error.value)
-
-    # SELF.LOGGER.DEBUG
-
-    # SET AT TOP WITH 'additional_groups' SETTING ERROR
-    # with pytest.raises(AssertionException) as error:
-    #     config_loader.get_rule_options()
-    # assert "Additional group rule error:" in str(error.value)
-
-    # SET AT TOP WITH 'adobe_users' AS EMPTY DICTIONARY
-    # with pytest.raises(AssertionException) as error:
-    #     config_loader.get_rule_options()
-    # assert "'adobe_users' must be specified" in str(error.value)
-
-    # IN 'exclude_identity_type_names'
-
 
 def test_get_rule_options_exceptions(tmp_config_files, modify_root_config, cli_args):
     (root_config_file, _, _) = tmp_config_files
     args = cli_args({'config_filename': root_config_file})
+
     # Set an exclude_identity_types to a list with an invalid id type to throw an error
     modify_root_config(['adobe_users', 'exclude_identity_types'], ['adobeID', 'UnknownID'])
     with pytest.raises(AssertionException) as error:
         config_loader = ConfigLoader(args)
         config_loader.get_rule_options()
-        print(error.value)
     assert 'Illegal value in exclude_identity_types: Unrecognized identity type: "UnknownID"' in str(error.value)
 
+    # Reset exclude_identity_types and set additional_groups to an invalid key:value
+    modify_root_config(['adobe_users', 'exclude_identity_types'], ['adobeID'])
+    modify_root_config(['directory_users', 'additional_groups'], [{'nothing': None}])
+    with pytest.raises(AssertionException) as error:
+        config_loader = ConfigLoader(args)
+        config_loader.get_rule_options()
+    assert 'Additional group rule error:' in str(error.value)
+
+    # Reset add'l groups and set directory_users to None
+    modify_root_config(['directory_users', 'additional_groups'], [{'source': 'ACL-(.+)', 'target': 'ACL-Grp-(\\1)'}])
     modify_root_config(['directory_users'], None)
     with pytest.raises(AssertionException) as error:
         config_loader = ConfigLoader(args)
         config_loader.get_rule_options()
     assert "'directory_users' must be specified" in str(error.value)
+
+
 
