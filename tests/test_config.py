@@ -200,11 +200,6 @@ def test_get_directory_connector_configs(tmp_config_files, modify_root_config, c
 def test_get_rule_options_add(tmp_config_files, modify_root_config, cli_args):
     (root_config_file, _, _) = tmp_config_files
     args = cli_args({'config_filename': root_config_file})
-    modify_root_config(['adobe_users', 'exclude_identity_types'], ['adobeID', 'UnknownID'])
-    with pytest.raises(AssertionException) as error:
-        config_loader = ConfigLoader(args)
-        config_loader.get_rule_options()
-    assert "Illegal value in exclude_identity_types:" in str(error.value)
     # Modify these values in the root_config file (user-sync-config.yml)
     modify_root_config(['adobe_users', 'exclude_identity_types'], ['adobeID'])
     modify_root_config(['directory_users', 'default_country_code'], "EU")
@@ -265,11 +260,13 @@ def test_get_rule_options_add(tmp_config_files, modify_root_config, cli_args):
 def test_get_rule_options_exceptions(tmp_config_files, modify_root_config, cli_args):
     (root_config_file, _, _) = tmp_config_files
     args = cli_args({'config_filename': root_config_file})
+    # Set an exclude_identity_types to a list with an invalid id type to throw an error
     modify_root_config(['adobe_users', 'exclude_identity_types'], ['adobeID', 'UnknownID'])
     with pytest.raises(AssertionException) as error:
         config_loader = ConfigLoader(args)
         config_loader.get_rule_options()
-    assert "Illegal value in exclude_identity_types:" in str(error.value)
+        print(error.value)
+    assert 'Illegal value in exclude_identity_types: Unrecognized identity type: "UnknownID"' in str(error.value)
 
     modify_root_config(['directory_users'], None)
     with pytest.raises(AssertionException) as error:
