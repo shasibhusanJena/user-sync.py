@@ -4,7 +4,7 @@ from unittest import mock
 import pytest
 import yaml
 import shutil
-from util import update_dict
+from tests.util import update_dict
 from user_sync.config import ConfigFileLoader, ConfigLoader, DictConfig
 from user_sync import app
 from user_sync.error import AssertionException
@@ -197,15 +197,15 @@ def test_get_directory_connector_configs(tmp_config_files, modify_root_config, c
     assert result == {'okta', 'csv', 'ldap'}
 
 
-def test_get_rule_options(tmp_config_files, modify_root_config, cli_args, caller_options, rule_processor):
-    (root_config_file, ldap_config_file, umapi_config_file) = tmp_config_files
+def test_get_rule_options_add(tmp_config_files, modify_root_config, cli_args):
+    (root_config_file, _, _) = tmp_config_files
     args = cli_args({'config_filename': root_config_file})
     modify_root_config(['adobe_users', 'exclude_identity_types'], ['adobeID', 'UnknownID'])
     with pytest.raises(AssertionException) as error:
         config_loader = ConfigLoader(args)
         config_loader.get_rule_options()
     assert "Illegal value in exclude_identity_types:" in str(error.value)
-
+    # Modify these values in the root_config file (user-sync-config.yml)
     modify_root_config(['adobe_users', 'exclude_identity_types'], ['adobeID'])
     modify_root_config(['directory_users', 'default_country_code'], "EU")
     modify_root_config(['directory_users', 'user_identity_type'], "enterpriseID")
@@ -213,6 +213,7 @@ def test_get_rule_options(tmp_config_files, modify_root_config, cli_args, caller
     modify_root_config(['directory_users', 'group_sync_options'], {'auto_create': True})
     modify_root_config(['directory_users', 'groups'], [{'directory_group': 'DIR-1', 'adobe_groups': ['GRP-1']}, {'directory_group': 'DIR-2', 'adobe_groups': ['GRP-2.1', 'GRP-2.2']}])
 
+    # Modify these values to override the default values
     config_loader = ConfigLoader(args)
     options = config_loader.invocation_options
     options['adobe_users'] = []
@@ -220,11 +221,13 @@ def test_get_rule_options(tmp_config_files, modify_root_config, cli_args, caller
     options['exclude_users'] = ['UserA', 'UserB']
     options['directory_group_mapped'] = True
     options['adobe_group_mapped'] = True
+    # Run the method and set result as result
     result = config_loader.get_rule_options()
     print()
     print('*****************')
-    print(result)
+    print(result['additional_groups'])
     print('*****************')
+    # Assert the values made it into the options dictionary and are successfully returned
     assert result['new_account_type'] == 'enterpriseID'
     assert result['default_country_code'] == 'EU'
     assert result['additional_groups'][0]['source'].pattern == 'ACL-(.+)'
@@ -232,6 +235,12 @@ def test_get_rule_options(tmp_config_files, modify_root_config, cli_args, caller
     # i'm not sure how to call the adobe_group_filter. they register as objects
     assert result['exclude_adobe_groups'] == ['one', 'two']
     assert result['exclude_users'] == ['UserA', 'UserB']
+
+    modify_root_config(['directory_users'], None)
+    with pytest.raises(AssertionException) as error:
+        config_loader = ConfigLoader(args)
+        config_loader.get_rule_options()
+    assert "'directory_users' must be specified" in str(error.value)
 
     # SET AT TOP WITH "directory_users" AS EMPTY DICTIONARY
     # with pytest.raises(AssertionException) as error:
@@ -251,4 +260,20 @@ def test_get_rule_options(tmp_config_files, modify_root_config, cli_args, caller
     # assert "'adobe_users' must be specified" in str(error.value)
 
     # IN 'exclude_identity_type_names'
+
+
+def test_get_rule_options_exceptions(tmp_config_files, modify_root_config, cli_args):
+    (root_config_file, _, _) = tmp_config_files
+    args = cli_args({'config_filename': root_config_file})
+    modify_root_config(['adobe_users', 'exclude_identity_types'], ['adobeID', 'UnknownID'])
+    with pytest.raises(AssertionException) as error:
+        config_loader = ConfigLoader(args)
+        config_loader.get_rule_options()
+    assert "Illegal value in exclude_identity_types:" in str(error.value)
+
+    modify_root_config(['directory_users'], None)
+    with pytest.raises(AssertionException) as error:
+        config_loader = ConfigLoader(args)
+        config_loader.get_rule_options()
+    assert "'directory_users' must be specified" in str(error.value)
 
