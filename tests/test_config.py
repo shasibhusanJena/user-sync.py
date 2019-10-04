@@ -199,24 +199,56 @@ def test_get_directory_connector_configs(tmp_config_files, modify_root_config, c
 
 def test_get_rule_options(tmp_config_files, modify_root_config, cli_args, caller_options, rule_processor):
     (root_config_file, ldap_config_file, umapi_config_file) = tmp_config_files
-    # set the args to the user-sync-config.yml file before changes are made
     args = cli_args({'config_filename': root_config_file})
-    # make changes to the values that will be read in the method
+    modify_root_config(['adobe_users', 'exclude_identity_types'], ['adobeID', 'UnknownID'])
+    with pytest.raises(AssertionException) as error:
+        config_loader = ConfigLoader(args)
+        config_loader.get_rule_options()
+    assert "Illegal value in exclude_identity_types:" in str(error.value)
+
+    modify_root_config(['adobe_users', 'exclude_identity_types'], ['adobeID'])
     modify_root_config(['directory_users', 'default_country_code'], "EU")
     modify_root_config(['directory_users', 'user_identity_type'], "enterpriseID")
     modify_root_config(['directory_users', 'additional_groups'], [{'source': 'ACL-(.+)', 'target': 'ACL-Grp-(\\1)'}])
     modify_root_config(['directory_users', 'group_sync_options'], {'auto_create': True})
-    # now the config_loader is set with the args that have been modified
+    modify_root_config(['directory_users', 'groups'], [{'directory_group': 'DIR-1', 'adobe_groups': ['GRP-1']}, {'directory_group': 'DIR-2', 'adobe_groups': ['GRP-2.1', 'GRP-2.2']}])
+
     config_loader = ConfigLoader(args)
-    # options will let us set the defaults not listed on the yaml file
-    # if they were in the yaml file, these would be overwritten
     options = config_loader.invocation_options
-    options['adobe_group_filter'] = 'Something'
+    options['adobe_users'] = []
+    options['exclude_adobe_groups'] = ['one', 'two']
+    options['exclude_users'] = ['UserA', 'UserB']
+    options['directory_group_mapped'] = True
+    options['adobe_group_mapped'] = True
+    result = config_loader.get_rule_options()
     print()
     print('*****************')
-    print(config_loader.get_rule_options())
+    print(result)
     print('*****************')
+    assert result['new_account_type'] == 'enterpriseID'
+    assert result['default_country_code'] == 'EU'
+    assert result['additional_groups'][0]['source'].pattern == 'ACL-(.+)'
+    assert result['directory_group_filter'] == {'DIR-1', 'DIR-2'}
+    # i'm not sure how to call the adobe_group_filter. they register as objects
+    assert result['exclude_adobe_groups'] == ['one', 'two']
+    assert result['exclude_users'] == ['UserA', 'UserB']
 
+    # SET AT TOP WITH "directory_users" AS EMPTY DICTIONARY
     # with pytest.raises(AssertionException) as error:
-    #     config_loader.get_umapi_options()
-    # assert "Your main configuration file is still in v1 format." in str(error.value)
+    #     config_loader.get_rule_options()
+    # assert "'directory_users' must be specified" in str(error.value)
+
+    # SELF.LOGGER.DEBUG
+
+    # SET AT TOP WITH 'additional_groups' SETTING ERROR
+    # with pytest.raises(AssertionException) as error:
+    #     config_loader.get_rule_options()
+    # assert "Additional group rule error:" in str(error.value)
+
+    # SET AT TOP WITH 'adobe_users' AS EMPTY DICTIONARY
+    # with pytest.raises(AssertionException) as error:
+    #     config_loader.get_rule_options()
+    # assert "'adobe_users' must be specified" in str(error.value)
+
+    # IN 'exclude_identity_type_names'
+
