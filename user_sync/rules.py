@@ -421,18 +421,18 @@ class RuleProcessor(object):
             for member_group in member_groups:
                 for group_rule in additional_groups:
                     source = group_rule['source']
-                    target = group_rule['target']
-                    target_name = target.get_group_name()
-                    umapi_info = self.get_umapi_info(target.get_umapi_name())
-                    if not group_rule['source'].match(member_group):
+                    if not source.match(member_group):
                         continue
+                    target = group_rule['target']
                     try:
-                        rename_group = source.sub(target_name, member_group)
+                        rename_group = source.sub(target, member_group)
                     except Exception as e:
                         raise user_sync.error.AssertionException("Additional group resolution error: {}".format(str(e)))
-                    umapi_info.add_mapped_group(rename_group)
-                    umapi_info.add_additional_group(rename_group, member_group)
-                    umapi_info.add_desired_group_for(user_key, rename_group)
+                    target_object = user_sync.rules.AdobeGroup.create(rename_group, index=False)
+                    umapi_info = self.get_umapi_info(target_object.get_umapi_name())
+                    umapi_info.add_mapped_group(target_object.get_group_name())
+                    umapi_info.add_additional_group(target_object.get_group_name(), member_group)
+                    umapi_info.add_desired_group_for(user_key, target_object.get_group_name())
 
         self.logger.debug('Total directory users after filtering: %d', len(filtered_directory_user_by_user_key))
         if self.logger.isEnabledFor(logging.DEBUG):
