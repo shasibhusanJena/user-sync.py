@@ -1,6 +1,6 @@
 import re
 from copy import deepcopy
-import six
+
 import mock
 import pytest
 import yaml
@@ -590,6 +590,20 @@ target_groups.add('existing_group')
         rp.umapi_info_by_name[None].desired_groups_by_user_key[user_key])
 
 
+@mock.patch("user_sync.rules.RuleProcessor.create_umapi_commands_for_directory_user")
+def test_create_umapi_user(create_commands, rule_processor):
+    rule_processor.directory_user_by_user_key['test'] = 'test'
+
+    mock_command = MagicMock()
+    create_commands.return_value = mock_command
+    rule_processor.options['process_groups'] = True
+    rule_processor.push_umapi = True
+    rule_processor.create_umapi_user('test', set(), MagicMock(), MagicMock())
+
+    called = [c[0] for c in mock_command.mock_calls][1:]
+    assert called == ['remove_groups', 'add_groups']
+
+
 @pytest.fixture
 def mock_user_directory_data():
     return {
@@ -722,15 +736,10 @@ def mock_umapi_user_data():
             'type': 'federatedID'}]
 
 
-@mock.patch("user_sync.rules.RuleProcessor.create_umapi_commands_for_directory_user")
-def test_create_umapi_user(create_commands, rule_processor):
-    rule_processor.directory_user_by_user_key['test'] = 'test'
+@pytest.fixture
+def rule_processor(caller_options):
+    return RuleProcessor(caller_options)
 
-    mock_command = MagicMock()
-    create_commands.return_value = mock_command
-    rule_processor.options['process_groups'] = True
-    rule_processor.push_umapi = True
-    rule_processor.create_umapi_user('test', set(), MagicMock(), MagicMock())
 
     called = [c[0] for c in mock_command.mock_calls][1:]
     assert called == ['remove_groups', 'add_groups']
@@ -765,3 +774,41 @@ def test_create_umapi_user(create_commands, rule_processor):
     #
     # called = [c[0] for c in mock_command.mock_calls][1:]
     # assert called == ['remove_groups', 'add_groups']
+
+@pytest.fixture
+def caller_options():
+    return {
+        'adobe_group_filter': None,
+        'after_mapping_hook': None,
+        'default_country_code': 'US',
+        'delete_strays': False,
+        'directory_group_filter': None,
+        'disentitle_strays': False,
+        'exclude_groups': [],
+        'exclude_identity_types': ['adobeID'],
+        'exclude_strays': False,
+        'exclude_users': [],
+        'extended_attributes': None,
+        'process_groups': True,
+        'max_adobe_only_users': 200,
+        'new_account_type': 'federatedID',
+        'remove_strays': True,
+        'strategy': 'sync',
+        'stray_list_input_path': None,
+        'stray_list_output_path': None,
+        'test_mode': True,
+        'update_user_info': False,
+        'username_filter_regex': None,
+        'adobe_only_user_action': ['remove'],
+        'adobe_only_user_list': None,
+        'adobe_users': ['all'],
+        'config_filename': 'tests/fixture/user-sync-config.yml',
+        'connector': 'ldap',
+        'encoding_name': 'utf8',
+        'user_filter': None,
+        'users': None,
+        'directory_connector_type': 'csv',
+        'directory_connector_overridden_options': {
+            'file_path': '../tests/fixture/remove-data.csv'},
+        'adobe_group_mapped': False,
+        'additional_groups': []}
