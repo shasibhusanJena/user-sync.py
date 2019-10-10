@@ -242,6 +242,12 @@ def test_get_rule_options_percent(config_files, modify_root_config, cli_args):
     root_config_file = config_files['root_config']
     args = cli_args({'config_filename': root_config_file})
 
+    # Set to a valid percentage value and verify it saves as a percentage value
+    modify_root_config(['limits', 'max_adobe_only_users'], '80%')
+    config_loader = ConfigLoader(args)
+    result = config_loader.get_rule_options()
+    assert result['max_adobe_only_users'] == '80%'
+
     # Set a percentage higher than 100% to raise an exception
     modify_root_config(['limits', 'max_adobe_only_users'], '101%')
     with pytest.raises(AssertionException) as error:
