@@ -1,5 +1,5 @@
 import os
-from unittest import mock
+# from unittest import mock
 
 import shutil
 
@@ -7,7 +7,7 @@ import pytest
 import six
 import yaml
 
-from tests.util import make_dict, merge_dict
+from tests.util import make_dict, merge_dict, compare_iterable
 from user_sync.config import ConfigFileLoader, ConfigLoader, DictConfig
 from user_sync.error import AssertionException
 
@@ -44,14 +44,6 @@ def modify_config(config_files):
 def modify_root_config(modify_config):
     def _modify_root_config(key, value):
         return modify_config('root_config', key, value)
-
-    def _modify_root_config(keys, val):
-        conf = yaml.safe_load(open(root_config_file))
-        conf = update_dict(conf, keys, val)
-        yaml.dump(conf, open(root_config_file, 'w'))
-
-        return root_config_file
-
     return _modify_root_config
 
 
@@ -67,9 +59,6 @@ def load_ldap_config_options(args):
     caller_config = DictConfig('%s configuration' % dc.name, dc_config_options)
     return LDAPDirectoryConnector.get_options(caller_config)
 
-        return ldap_config_file
-
-    return _modify_ldap_config
 
 def test_load_root(config_files):
     """Load root config file and test for presence of root-level keys"""
@@ -164,8 +153,8 @@ def test_adobe_users_config(cli_args, config_files, modify_root_config):
     assert options['adobe_users'] == ['mapped']
 
 
-def test_get_rule_options_add(tmp_config_files, modify_root_config, cli_args):
-    (root_config_file, _, _) = tmp_config_files
+def test_get_rule_options_add(config_files, modify_root_config, cli_args):
+    root_config_file = config_files['root_config']
     args = cli_args({'config_filename': root_config_file})
 
     # Modify these values in the root_config file (user-sync-config.yml)
@@ -175,17 +164,14 @@ def test_get_rule_options_add(tmp_config_files, modify_root_config, cli_args):
     modify_root_config(['directory_users', 'additional_groups'], [{'source': 'ACL-(.+)', 'target': 'ACL-Grp-(\\1)'}])
     modify_root_config(['directory_users', 'group_sync_options'], {'auto_create': True})
     modify_root_config(['directory_users', 'groups'], [{'directory_group': 'DIR-1', 'adobe_groups': ['GRP-1']}, {'directory_group': 'DIR-2', 'adobe_groups': ['GRP-2.1', 'GRP-2.2']}])
+    modify_root_config(['limits', 'max_adobe_only_users'], '300')
 
-    # Modify these values to override the default values from default_options (line 40 in rules.py)
-    # conftest caller_options does not seem to have an effect on this process
     config_loader = ConfigLoader(args)
     options = config_loader.invocation_options
     options['exclude_adobe_groups'] = ['one', 'two']
     options['exclude_users'] = ['UserA', 'UserB']
     options['directory_group_mapped'] = True
     options['adobe_group_mapped'] = True
-
-    # Run the method and set result as result
     result = config_loader.get_rule_options()
 
     # Assert the values made it into the options dictionary and are successfully returned
@@ -195,16 +181,11 @@ def test_get_rule_options_add(tmp_config_files, modify_root_config, cli_args):
     assert result['directory_group_filter'] == {'DIR-1', 'DIR-2'}
     assert result['exclude_adobe_groups'] == ['one', 'two']
     assert result['exclude_users'] == ['UserA', 'UserB']
-
-    modify_root_config(['directory_users'], None)
-    with pytest.raises(AssertionException) as error:
-        config_loader = ConfigLoader(args)
-        config_loader.get_rule_options()
-    assert "'directory_users' must be specified" in str(error.value)
+    assert result['max_adobe_only_users'] == 300
 
 
-def test_get_rule_options_exceptions(tmp_config_files, modify_root_config, cli_args):
-    (root_config_file, _, _) = tmp_config_files
+def test_get_rule_options_exceptions(config_files, modify_root_config, cli_args):
+    root_config_file = config_files['root_config']
     args = cli_args({'config_filename': root_config_file})
 
     # Set an exclude_identity_types to a list with an invalid id type to throw an error
@@ -245,9 +226,10 @@ def test_get_rule_options_exceptions(tmp_config_files, modify_root_config, cli_a
     assert "'directory_users' must be specified" in str(error.value)
 
 
-def test_get_rule_options_regex(tmp_config_files, modify_root_config, cli_args):
-    (root_config_file, _, _) = tmp_config_files
+def test_get_rule_options_regex(config_files, modify_root_config, cli_args):
+    root_config_file = config_files['root_config']
     args = cli_args({'config_filename': root_config_file})
+
     # Set exclude_users to a regex to verify it compiles correctly
     modify_root_config(['adobe_users', 'exclude_users'], ['.*@special.com', "freelancer-[0-9]+.*"])
     config_loader = ConfigLoader(args)
@@ -256,17 +238,43 @@ def test_get_rule_options_regex(tmp_config_files, modify_root_config, cli_args):
     assert result['exclude_users'][1].pattern == '\\Afreelancer-[0-9]+.*\\Z'
 
 
-def test_get_rule_options_percent(tmp_config_files, modify_root_config, cli_args):
-    (root_config_file, _, _) = tmp_config_files
+def test_get_rule_options_percent(config_files, modify_root_config, cli_args):
+    root_config_file = config_files['root_config']
     args = cli_args({'config_filename': root_config_file})
+
+    # Set a percentage higher than 100% to raise an exception
     modify_root_config(['limits', 'max_adobe_only_users'], '101%')
     with pytest.raises(AssertionException) as error:
         config_loader = ConfigLoader(args)
         config_loader.get_rule_options()
     assert 'max_adobe_only_users value must be less or equal than 100%' in str(error.value)
 
+    # Set the value to max_adobe_only_users to a string to raise an exception
+    modify_root_config(['limits', 'max_adobe_only_users'], 'one-hundred')
+    with pytest.raises(AssertionException) as error:
+        config_loader = ConfigLoader(args)
+        config_loader.get_rule_options()
+    assert 'Unable to parse max_adobe_only_users value. Value must be a percentage or an integer.' in str(error.value)
 
 
+def test_get_rule_options_extension(config_files, modify_root_config, cli_args, modify_config):
+    root_config_file = config_files['root_config']
+    args = cli_args({'config_filename': root_config_file})
+
+    # Set the extension-config file to be called in user-sync-config. Assert after_mapping_hook is processed correctly
+    modify_root_config(['directory_users', 'extension'], 'extension-config.yml')
+    config_loader = ConfigLoader(args)
+    result = config_loader.get_rule_options()
+    expected = ('bc', 'subco', None, 0, 2, 'country', 'Company 1', 'Company 1 Users', 'Company 2', 'Company 2 Users')
+    result = result['after_mapping_hook'].co_consts
+    assert compare_iterable(result, expected)
+
+    # Modify the extension-config file to call an extended_adobe_groups to a blank value to raise an exception
+    modify_config('extension', ['extended_adobe_groups'], '')
+    with pytest.raises(AssertionException) as error:
+        config_loader = ConfigLoader(args)
+        config_loader.get_rule_options()
+    assert 'Extension contains illegal extended_adobe_group spec: ' in str(error.value)
 
 
 def test_get_umapi_options(cli_args, config_files, modify_root_config):
@@ -338,4 +346,3 @@ def test_get_directory_connector_module_name(cli_args, config_files):
 
     options['directory_connector_type'] = None
     assert not config_loader.get_directory_connector_module_name()
-    # new stuff

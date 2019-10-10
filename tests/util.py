@@ -41,3 +41,9 @@ def merge_dict(d1, d2, immutable=False):
         else:
             d1[k] = d2[k]
     return d1
+
+
+def compare_iterable(a, b):
+    if len(a) != len(b):
+        return False
+    return {x in b for x in a} == {x in b for x in a} == {True}
