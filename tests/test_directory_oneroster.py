@@ -1,7 +1,8 @@
+import copy
+
 import mock
 import pytest
-import copy
-from mock import MagicMock
+
 from user_sync.connector.directory_oneroster import *
 
 
@@ -168,7 +169,6 @@ def test_load_users_and_groups(oneroster_connector, stub_api_response, stub_pars
 
 
 def test_create_user_object(user_factory, stub_api_response, stub_parse_results):
-
     user_factory.key_identifier = 'sourcedId'
     record = stub_api_response[0]
 
