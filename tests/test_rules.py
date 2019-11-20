@@ -214,47 +214,37 @@ def test_create_umapi_groups(rule_processor, log_stream, mock_umapi_connectors, 
     calls = [c[0] for c in calls if c]
     assert compare_iter(calls, ['new_group', 'new_group_2', 'new_group_3'])
 
+@mock.patch("user_sync.rules.RuleProcessor.manage_strays")
+def test_process_strays(ms, rule_processor, log_stream):
+    rp = rule_processor
+    stream, rp.logger = log_stream
+    rp.will_manage_strays = True
+    rp.stray_key_map = {None: {'federatedID,testuser2000@example.com,': set()}}
+    rp.process_strays(None)
 
-def test_process_strays(rule_processor, log_stream):
-    stream, logger = log_stream
-    rule_processor.logger = logger
-    rule_processor.will_manage_strays = True
-    with mock.patch("user_sync.rules.RuleProcessor.manage_strays"):
-        rule_processor.stray_key_map = {
-            None: {
-                'federatedID,testuser2000@example.com,': set()}}
-        rule_processor.process_strays({})
-
-        stream.flush()
-        actual_logger_output = stream.getvalue()
-        assert "Processing Adobe-only users..." in actual_logger_output
-
-    rule_processor.options["max_adobe_only_users"] = 0
-    rule_processor.process_strays({})
     stream.flush()
-    actual_logger_output = stream.getvalue()
-    assert "Unable to process Adobe-only users" in actual_logger_output
-    assert rule_processor.action_summary["primary_strays_processed"] == 0
+    assert "Processing Adobe-only users..." in stream.getvalue()
 
-    rule_processor.primary_user_count = 10
-    rule_processor.excluded_user_count = 1
-    rule_processor.options["max_adobe_only_users"] = "5%"
-    rule_processor.process_strays({})
+
+    rp.options["max_adobe_only_users"] = 0
+    rp.process_strays(None)
+    rp.logger.info("1234")
     stream.flush()
-    actual_logger_output = stream.getvalue()
-    assert "Unable to process Adobe-only users" in actual_logger_output
-    assert rule_processor.action_summary["primary_strays_processed"] == 0
+    assert "Unable to process Adobe-only users" in stream.getvalue()
+    assert rp.action_summary["primary_strays_processed"] == 0
 
-    with mock.patch("user_sync.rules.RuleProcessor.manage_strays"):
-        rule_processor.stray_key_map = {
-            None: {
-                'federatedID,testuser2000@example.com,': set()}}
-        rule_processor.options["max_adobe_only_users"] = "20%"
-        rule_processor.process_strays({})
-        stream.flush()
-        actual_logger_output = stream.getvalue()
-        assert "Processing Adobe-only users..." in actual_logger_output
+    rp.primary_user_count = 10
+    rp.excluded_user_count = 1
+    rp.options["max_adobe_only_users"] = "5%"
+    rp.process_strays(None)
+    stream.flush()
+    assert "Unable to process Adobe-only users" in stream.getvalue()
+    assert rp.action_summary["primary_strays_processed"] == 0
 
+    rp.options["max_adobe_only_users"] = "20%"
+    rp.process_strays(None)
+    stream.flush()
+    assert "Processing Adobe-only users..." in stream.getvalue()
 
 @mock.patch('user_sync.helper.CSVAdapter.read_csv_rows')
 def test_stray_key_map(csv_reader, rule_processor):
