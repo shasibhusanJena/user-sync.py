@@ -2,8 +2,8 @@ import logging
 import os
 
 import pytest
-from six import StringIO
 
+from tests.util import ClearableStringIO
 from user_sync import config
 
 
@@ -31,18 +31,7 @@ def cli_args():
 
     return _cli_args
 
-class ClearableStringIO(StringIO):
 
-    def __init__(self):
-        super(ClearableStringIO, self).__init__()
-
-    def clear(self):
-        self.truncate(0)
-        self.seek(0)
-
-    def getvalue(self):
-        self.flush()
-        return super(ClearableStringIO, self).getvalue()
 
 @pytest.fixture
 def log_stream():

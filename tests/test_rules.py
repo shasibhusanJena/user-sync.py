@@ -56,8 +56,7 @@ class MockUmapiConnector(MagicMock):
 
 def test_log_action_summary(rule_processor, log_stream, mock_umapi_connectors):
     connectors = mock_umapi_connectors('umapi-2', 'umapi-3')
-    stream, logger = log_stream
-    rule_processor.logger = logger
+    stream, rule_processor.logger = log_stream
     rule_processor.log_action_summary(connectors)
     expected = """---------------------------------- Action Summary ----------------------------------
                                 Number of directory users read: 0
@@ -121,7 +120,7 @@ target_groups.add('ext group 2')
     assert "ext group 2" in rp.after_mapping_hook_scope['target_groups']
 
 
-def test_additional_groups(rule_processor, log_stream, mock_directory_user):
+def test_additional_groups(rule_processor, mock_directory_user):
     rp = rule_processor
     mock_directory_user['member_groups'] = ['other_security_group', 'security_group', 'more_security_group']
 
@@ -180,11 +179,8 @@ def test_sync_umapi_users(update_umapi, rule_processor, mock_umapi_connectors, m
     assert compare_iter(results, actual)
 
 
-def test_create_umapi_groups(rule_processor, log_stream, mock_umapi_connectors, mock_umapi_info):
-    stream, logger = log_stream
-    rule_processor.logger = logger
+def test_create_umapi_groups(rule_processor, mock_umapi_connectors, mock_umapi_info):
     secondary_umapi_name = 'umapi-2'
-
     uc = mock_umapi_connectors(secondary_umapi_name)
     sec_conn = uc.secondary_connectors[secondary_umapi_name]
     sec_conn.get_groups.return_value = {}
@@ -220,32 +216,28 @@ def test_process_strays(ms, rule_processor, log_stream):
     stream, rp.logger = log_stream
     rp.will_manage_strays = True
     rp.stray_key_map = {None: {'federatedID,testuser2000@example.com,': set()}}
-    rp.process_strays(None)
 
-    stream.flush()
+    rp.process_strays(None)
     assert "Processing Adobe-only users..." in stream.getvalue()
 
-
+    stream.clear()
     rp.options["max_adobe_only_users"] = 0
     rp.process_strays(None)
-    rp.logger.info("1234")
+
+    assert "Unable to process Adobe-only users" in stream.getvalue()
+    assert rp.action_summary["primary_strays_processed"] == 0
+
     stream.clear()
-
-    # x = stream.getvalue()
-    # assert "Unable to process Adobe-only users" in stream.getvalue()
-    # assert rp.action_summary["primary_strays_processed"] == 0
-
     rp.primary_user_count = 10
     rp.excluded_user_count = 1
     rp.options["max_adobe_only_users"] = "5%"
     rp.process_strays(None)
-    stream.flush()
     assert "Unable to process Adobe-only users" in stream.getvalue()
     assert rp.action_summary["primary_strays_processed"] == 0
 
+    stream.clear()
     rp.options["max_adobe_only_users"] = "20%"
     rp.process_strays(None)
-    stream.flush()
     assert "Processing Adobe-only users..." in stream.getvalue()
 
 @mock.patch('user_sync.helper.CSVAdapter.read_csv_rows')

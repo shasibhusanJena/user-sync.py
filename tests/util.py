@@ -1,6 +1,8 @@
 from collections import Mapping
 from copy import deepcopy
 
+from six import StringIO
+
 
 def make_dict(keylist, value):
     """
@@ -47,3 +49,17 @@ def compare_iter(a, b):
             {x in b for x in a} ==
             {x in b for x in a} ==
             {True})
+
+
+class ClearableStringIO(StringIO, object):
+
+    def __init__(self):
+        super(ClearableStringIO, self).__init__()
+
+    def clear(self):
+        self.truncate(0)
+        self.seek(0)
+
+    def getvalue(self):
+        self.flush()
+        return super(ClearableStringIO, self).getvalue()
