@@ -3,6 +3,7 @@ import os
 
 import pytest
 
+from copy import deepcopy
 from tests.util import ClearableStringIO
 from user_sync import config
 
@@ -46,7 +47,7 @@ def log_stream():
 
 @pytest.fixture
 def mock_directory_user():
-    return {
+    return deepcopy({
         'identity_type': 'federatedID',
         'username': 'nameless@example.com',
         'domain': 'example.com',
@@ -63,12 +64,12 @@ def mock_directory_user():
             'domain': None,
             'givenName': 'One',
             'sn': 'Six',
-            'c': 'US'}}
+            'c': 'US'}})
 
 
 @pytest.fixture()
 def mock_umapi_user():
-    return {
+    return deepcopy({
         'email': 'bsisko@example.com',
         'status': 'active',
         'groups': ['Group A', '_admin_Group A', 'Group A_1924484-provisioning'],
@@ -78,12 +79,12 @@ def mock_umapi_user():
         'lastname': 'Sisko',
         'country': 'CA',
         'type': 'federatedID'
-    }
+    })
 
 
 @pytest.fixture
 def mock_user_directory_data():
-    return {
+    return deepcopy({
         'federatedID,both1@example.com,':
             {
                 'identity_type': 'federatedID',
@@ -160,12 +161,12 @@ def mock_user_directory_data():
                     'givenName': 'dir1',
                     'sn': 'one',
                     'c': 'US'}}
-    }
+    })
 
 
 @pytest.fixture
 def mock_umapi_user_data():
-    return [
+    return deepcopy([
         {
             'email': 'both1@example.com',
             'status': 'active',
@@ -210,4 +211,4 @@ def mock_umapi_user_data():
             'adminRoles': ['org'],
             'domain': 'example.com',
             'country': 'US',
-            'type': 'federatedID'}]
+            'type': 'federatedID'}])
