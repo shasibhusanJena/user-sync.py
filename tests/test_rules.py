@@ -9,6 +9,7 @@ import yaml
 from mock import MagicMock
 
 from tests.util import compare_iter
+from user_sync.connector.umapi import Commands
 from user_sync.rules import RuleProcessor, AdobeGroup, UmapiTargetInfo
 from user_sync.rules import UmapiConnectors
 
@@ -210,8 +211,8 @@ def test_create_umapi_groups(rule_processor, mock_umapi_connectors, mock_umapi_i
     calls = [c[0] for c in calls if c]
     assert compare_iter(calls, ['new_group', 'new_group_2', 'new_group_3'])
 
-def test_process_strays(rule_processor, log_stream):
 
+def test_process_strays(rule_processor, log_stream):
     rp = rule_processor
     rp.will_manage_strays = True
     rp.manage_strays = MagicMock()
@@ -244,67 +245,78 @@ def test_process_strays(rule_processor, log_stream):
     rp.process_strays(None)
     assert straysProcessed()
 
+
 def test_create_umapi_commands_for_directory_user(rule_processor, mock_directory_user):
+    rp = rule_processor
+    user = mock_directory_user
 
-    def check_basic_results(commands, expected):
-        assert commands.domain == expected['domain']
-        assert commands.email == expected['email']
-        assert commands.identity_type == expected['identity_type']
-        assert commands.username == expected['username']
-        assert commands.do_list[0][0] == 'create'
-        assert commands.do_list[0][1]['email'] == expected['email']
-        assert commands.do_list[0][1]['first_name'] == expected['firstname']
-        assert commands.do_list[0][1]['last_name'] == expected['lastname']
-        assert commands.do_list[0][1]['country'] == expected['country']
+    def get_commands(user, update_option='ignoreIfAlreadyExists'):
+        attributes = rp.get_user_attributes(user)
+        attributes['country'] = user['country']
+        attributes['option'] = update_option
+        commands = Commands(user['identity_type'], user['email'], user['username'], user['domain'])
+        commands.add_user(attributes)
+        return commands
 
-    def check_update_results(commands, expected):
-        e = commands.do_list[1][1]
-        e['action'] = commands.do_list[1][0]
-        assert compare_iter(e, expected)
+    # simple case
+    commands = get_commands(user)
+    result = rp.create_umapi_commands_for_directory_user(user)
+    assert vars(result) == vars(commands)
 
-    commands = rule_processor.create_umapi_commands_for_directory_user(mock_directory_user)
-    check_basic_results(commands, mock_directory_user)
+    # test do_update
+    commands = get_commands(user, 'updateIfAlreadyExists')
+    result = rp.create_umapi_commands_for_directory_user(user, do_update=True)
+    assert vars(result) == vars(commands)
 
-    update = {
-        'action': 'update',
-        'email': mock_directory_user['email'],
-        'username': 'dummy@example.com'
-    }
+    # test username format
+    user['username'] = 'nosymbol'
+    commands = get_commands(user)
+    result = rp.create_umapi_commands_for_directory_user(user)
+    assert vars(result) == vars(commands)
 
-    mock_directory_user['username'] = 'dummy@example.com'
-    commands = rule_processor.create_umapi_commands_for_directory_user(mock_directory_user)
+    # test username format
+    user['username'] = 'different@example.com'
+    commands = get_commands(user)
+    commands.update_user({"email": user['email'], "username": user['username']})
+    commands.username = user['email']
+    result = rp.create_umapi_commands_for_directory_user(user)
+    assert vars(result) == vars(commands)
 
-    check_basic_results(commands, mock_directory_user)
-    check_update_results(commands, update)
+    # test console trusted
+    user['username'] = 'different@example.com'
+    commands = get_commands(user)
+    commands.username = user['email']
+    result = rp.create_umapi_commands_for_directory_user(user, console_trusted=True)
+    assert vars(result) == vars(commands)
 
-def test_create_umapi_commands_for_directory_user_country_code(rule_processor, log_stream, mock_directory_user):
-    stream, logger = log_stream
-    rule_processor.logger = logger
-
-    # Default Country Code as None and Id Type as federatedID. Country as None in mock_directory_user
-    rule_processor.options['default_country_code'] = None
-    mock_directory_user['country'] = None
-    result = rule_processor.create_umapi_commands_for_directory_user(mock_directory_user)
+    # Default Country Code as None and Id Type as federatedID. Country as None in user
+    rp.options['default_country_code'] = None
+    user['country'] = None
+    result = rp.create_umapi_commands_for_directory_user(user)
     assert result == None
-    stream.flush()
-    actual_logger_output = stream.getvalue()
-    assert "User cannot be added without a specified country code:" in actual_logger_output
 
-    # Default Country Code as None with Id Type as enterpriseID. Country as None in mock_directory_user
-    rule_processor.options['default_country_code'] = None
-    mock_directory_user['identity_type'] = 'enterpriseID'
-    result = rule_processor.create_umapi_commands_for_directory_user(mock_directory_user)
-    assert result.do_list[0][1]['country'] == 'UD'
+    # Default Country Code as None with Id Type as enterpriseID. Country as None in user
+    rp.options['default_country_code'] = None
+    user['identity_type'] = 'enterpriseID'
+    result = rp.create_umapi_commands_for_directory_user(user)
+    user['country'] = 'UD'
+    commands = get_commands(user)
+    assert vars(result) == vars(commands)
 
-    # Having Default Country Code with value 'US'. Country as None in mock_directory_user.
-    rule_processor.options['default_country_code'] = 'US'
-    result = rule_processor.create_umapi_commands_for_directory_user(mock_directory_user)
-    assert result.do_list[0][1]['country'] == 'US'
+    # Having Default Country Code with value 'US'. Country as None in user.
+    rp.options['default_country_code'] = 'US'
+    user['country'] = None
+    result = rp.create_umapi_commands_for_directory_user(user)
+    user['country'] = 'US'
+    commands = get_commands(user)
+    assert vars(result) == vars(commands)
 
-    # Country as 'CA' in mock_directory_user
-    mock_directory_user['country'] = 'CA'
-    result = rule_processor.create_umapi_commands_for_directory_user(mock_directory_user)
-    assert result.do_list[0][1]['country'] == 'CA'
+    # Country as 'CA' in user
+    user['country'] = 'CA'
+    result = rp.create_umapi_commands_for_directory_user(user)
+    commands = get_commands(user)
+    assert vars(result) == vars(commands)
+
 
 @mock.patch('user_sync.helper.CSVAdapter.read_csv_rows')
 def test_stray_key_map(csv_reader, rule_processor):
