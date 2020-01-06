@@ -148,6 +148,8 @@ def test_additional_groups(rule_processor, mock_directory_user):
 @mock.patch("user_sync.rules.RuleProcessor.update_umapi_users_for_connector")
 def test_sync_umapi_users(update_umapi, rule_processor, mock_umapi_connectors, mock_user_directory_data,
                           mock_umapi_info):
+
+    rule_processor.options['exclude_unmapped_users'] = False
     # Create 3 umapi connectors - 1 primary, 2 secondary
     secondary_umapi_name = 'umapi-2'
     third_umapi_name = 'umapi-3'
