@@ -403,44 +403,6 @@ def test_update_umapi_user(rule_processor, mock_directory_user, mock_umapi_user)
             'email': 'different@example.com',
             'username': 'nameless@example.com'})]}
 
-
-def test_update_umapi_user1(rule_processor, log_stream, mock_umapi_user):
-    stream, logger = log_stream
-    rule_processor.logger = logger
-
-    mock_user_key = 'federatedID,both1@example.com,'
-    mock_groups_to_add = {'added_user_group'}
-    mock_groups_to_remove = {'removed_user_group'}
-    mock_attributes_to_update = {
-        'firstname': 'newfirstname',
-        'email': 'newemail'
-    }
-
-    mock_umapi_user["groups"] = ["removed_user_group", "org"]
-    mock_umapi_user['username'] = 'different@example.com'
-
-    umapi_connector = mock.MagicMock()
-    with mock.patch('user_sync.connector.umapi.Commands') as commands:
-        commands.return_value = mock.MagicMock()
-        rule_processor.update_umapi_user(UmapiTargetInfo(None), mock_user_key, umapi_connector,
-                                         mock_attributes_to_update,
-                                         mock_groups_to_add, mock_groups_to_remove, mock_umapi_user)
-        commands_sent = str(umapi_connector.send_commands.call_args[0][0].method_calls)
-        commands_sent = re.sub("set\\(\\[", "{", commands_sent)
-        commands_sent = re.sub("\\]\\)", "}", commands_sent)
-        assert "update_user" in commands_sent
-        assert 'username' in commands_sent and "'firstname': 'newfirstname'" in commands_sent and "'email': 'newemail'" in commands_sent
-        assert "remove_groups({'removed_user_group'})" in commands_sent
-        assert "add_groups({'added_user_group'})" in commands_sent
-
-    stream.flush()
-    actual_logger_output = stream.getvalue()
-    assert 'newfirstname' in actual_logger_output
-    assert 'removed_user_group' in actual_logger_output
-    assert 'added_user_group' in actual_logger_output
-    assert mock_umapi_user["email"] == mock_umapi_user["username"]
-
-
 def test_update_umapi_users_for_connector(rule_processor, mock_user_directory_data, mock_umapi_user_data, log_stream):
     stream, logger = log_stream
     rule_processor.logger = logger
