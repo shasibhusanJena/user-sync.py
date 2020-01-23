@@ -1,9 +1,9 @@
 import logging
 import os
+from copy import deepcopy
 
 import pytest
 
-from copy import deepcopy
 from tests.util import ClearableStringIO
 from user_sync import config
 
@@ -33,7 +33,6 @@ def cli_args():
     return _cli_args
 
 
-
 @pytest.fixture
 def log_stream():
     stream = ClearableStringIO()
@@ -45,121 +44,117 @@ def log_stream():
     handler.close()
 
 
-@pytest.fixture
-def mock_directory_user():
-    return deepcopy({
-        'identity_type': 'federatedID',
-        'username': 'nameless@example.com',
-        'domain': 'example.com',
-        'firstname': 'One',
-        'lastname': 'Six',
-        'email': 'nameless@example.com',
-        'groups': ['All Sea of Carag'],
-        'country': 'US',
-        'member_groups': [],
-        'source_attributes': {
-            'email': 'nameless@example.com',
-            'identity_type': None,
-            'username': None,
-            'domain': None,
-            'givenName': 'One',
-            'sn': 'Six',
-            'c': 'US'}})
+@pytest.fixture()
+def generate_mock_dir_user():
+    def _directory_user_template(
+            id,
+            firstname=None,
+            lastname=None,
+            groups=None,
+            country="US",
+            id_type="federatedID",
+            domain="example.com",
+            username=None
+    ):
+        user_key = "{0},{1}@{2},".format(id_type, id, domain)
+        identifier = id + "@" + domain
+        first = firstname or id + " First"
+        last = lastname or id + " Last"
+        return {
+
+            user_key:
+                {
+                    'identity_type': id_type,
+                    'username': username or identifier,
+                    'domain': domain,
+                    'firstname': first,
+                    'lastname': last,
+                    'email': identifier,
+                    'groups': groups or [],
+                    'country': country,
+                    'member_groups': [],
+                    'source_attributes': {
+                        'email': identifier,
+                        'identity_type': None,
+                        'username': None,
+                        'domain': None,
+                        'givenName': first,
+                        'sn': last,
+                        'c': country}}}
+
+    return _directory_user_template
 
 
 @pytest.fixture()
-def mock_umapi_user():
-    return deepcopy({
-        'email': 'bsisko@example.com',
-        'status': 'active',
-        'groups': ['Group A', '_admin_Group A', 'Group A_1924484-provisioning'],
-        'username': 'bsisko@example.com',
-        'domain': 'example.com',
-        'firstname': 'Benjamin',
-        'lastname': 'Sisko',
-        'country': 'CA',
-        'type': 'federatedID'
-    })
+def mock_directory_users(generate_mock_dir_user):
+    z = generate_mock_dir_user("user1")
+
+    print()
+
+    # def _mock_directory_users(number=5):
+    #
+    # return _mock_directory_users
 
 
 @pytest.fixture
-def mock_user_directory_data():
+def mock_directory_user_data(mock_directory_users):
     return deepcopy({
-        'federatedID,both1@example.com,':
+        'federatedID,user1@example.com,':
             {
                 'identity_type': 'federatedID',
-                'username': 'both1@example.com',
+                'username': 'user1@example.com',
                 'domain': 'example.com',
-                'firstname': 'both1',
-                'lastname': 'one',
-                'email': 'both1@example.com',
-                'groups': ['All Sea of Carag'],
+                'firstname': 'user1',
+                'lastname': 'last1',
+                'email': 'user1@example.com',
+                'groups': ['Group A'],
                 'country': 'US',
                 'member_groups': [],
                 'source_attributes': {
-                    'email': 'both1@example.com',
+                    'email': 'user1@example.com',
                     'identity_type': None,
                     'username': None,
                     'domain': None,
-                    'givenName': 'both1',
+                    'givenName': 'user1',
                     'sn': 'one',
                     'c': 'US'}},
-        'federatedID,both2@example.com,':
+        'federatedID,user2@example.com,':
             {
                 'identity_type': 'federatedID',
-                'username': 'both2@example.com',
+                'username': 'user2@example.com',
                 'domain': 'example.com',
-                'firstname': 'both2',
-                'lastname': 'one',
-                'email': 'both2@example.com',
-                'groups': ['All Sea of Carag'],
+                'firstname': 'user2',
+                'lastname': 'last2',
+                'email': 'user2@example.com',
+                'groups': ['Group A'],
                 'country': 'US',
                 'member_groups': [],
                 'source_attributes': {
-                    'email': 'both2@example.com',
+                    'email': 'user2@example.com',
                     'identity_type': None,
                     'username': None,
                     'domain': None,
-                    'givenName': 'both2',
+                    'givenName': 'user2',
                     'sn': 'two',
                     'c': 'US'}},
-        'federatedID,both3@example.com,':
+        'federatedID,user3@example.com,':
             {
                 'identity_type': 'federatedID',
-                'username': 'both3@example.com',
+                'username': 'user3@example.com',
                 'domain': 'example.com',
-                'firstname': 'both3',
-                'lastname': 'one',
-                'email': 'both3@example.com',
-                'groups': ['All Sea of Carag'],
+                'firstname': 'user3',
+                'lastname': 'last3',
+                'email': 'user3@example.com',
+                'groups': ['Group A'],
                 'country': 'US',
                 'member_groups': [],
                 'source_attributes': {
-                    'email': 'both3@example.com',
+                    'email': 'user3@example.com',
                     'identity_type': None,
                     'username': None,
                     'domain': None,
-                    'givenName': 'both3',
+                    'givenName': 'user3',
                     'sn': 'three',
-                    'c': 'US'}},
-        'federatedID,directory.only1@example.com,':
-            {
-                'identity_type': 'federatedID',
-                'username': 'directory.only1@example.com',
-                'domain': 'example.com',
-                'firstname': 'dir1',
-                'lastname': 'one',
-                'email': 'directory.only1example.com',
-                'groups': ['All Sea of Carag'],
-                'country': 'US',
-                'member_groups': [],
-                'source_attributes': {
-                    'email': 'directory.only1@example.com',
-                    'identity_type': None,
-                    'username': None,
-                    'domain': None,
-                    'givenName': 'dir1',
-                    'sn': 'one',
                     'c': 'US'}}
     })
 
@@ -168,47 +163,57 @@ def mock_user_directory_data():
 def mock_umapi_user_data():
     return deepcopy([
         {
-            'email': 'both1@example.com',
+            'email': 'user12@example.com',
             'status': 'active',
-            'groups': ['_org_admin', 'group1'],
-            'username': 'both1@example.com',
+            'groups': ['group a', 'group b'],
+            'username': 'user12@example.com',
             'adminRoles': ['org'],
             'domain': 'example.com',
             'country': 'US',
             'type': 'federatedID'},
         {
-            'email': 'both2@example.com',
+            'email': 'user2@example.com',
             'status': 'active',
-            'groups': ['_org_admin', 'user_group'],
-            'username': 'both2@example.com',
+            'groups': ['group a', 'group b'],
+            'username': 'user2@example.com',
             'adminRoles': ['org'],
             'domain': 'example.com',
             'country': 'US',
             'type': 'federatedID'},
         {
-            'email': 'both3@example.com',
+            'email': 'user3@example.com',
             'status': 'active',
-            'groups': ['_org_admin', 'group1', 'user_group'],
-            'username': 'both3@example.com',
+            'groups': ['group a'],
+            'username': 'user3@example.com',
             'adminRoles': ['org'],
             'domain': 'example.com',
             'country': 'US',
             'type': 'federatedID'},
         {
-            'email': 'adobe.only1@example.com',
+            'email': 'user4@example.com',
             'status': 'active',
-            'groups': ['_org_admin'],
-            'username': 'adobe.only1@example.com',
+            'groups': ['group a', 'group b'],
+            'username': 'user4@example.com',
             'adminRoles': ['org'],
             'domain': 'example.com',
             'country': 'US',
             'type': 'federatedID'},
         {
-            'email': 'exclude1@example.com',
+            'email': 'user5@example.com',
             'status': 'active',
-            'groups': ['_org_admin'],
-            'username': 'exclude1@example.com',
+            'groups': [],
+            'username': 'user5@example.com',
             'adminRoles': ['org'],
             'domain': 'example.com',
             'country': 'US',
             'type': 'federatedID'}])
+
+
+@pytest.fixture()
+def mock_umapi_user(mock_umapi_user_data):
+    return mock_umapi_user_data[0]
+
+
+@pytest.fixture
+def mock_directory_user(mock_directory_user_data):
+    return list(mock_directory_user_data.values())[0]
