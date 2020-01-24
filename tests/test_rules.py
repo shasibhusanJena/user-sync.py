@@ -156,7 +156,6 @@ def test_additional_groups(rule_processor, mock_dir_user):
 
 @mock.patch("user_sync.rules.RuleProcessor.update_umapi_users_for_connector")
 def test_sync_umapi_users(update_umapi, rule_processor, mock_umapi_connectors, get_mock_user_list, mock_umapi_info):
-
     rule_processor.options['exclude_unmapped_users'] = False
     refine = lambda u: {k: set(u[k].pop('groups')) for k in u}
     groups = ['Group A', 'Group B']
@@ -364,7 +363,6 @@ def test_create_umapi_user(rule_processor, mock_dir_user, mock_umapi_info):
 
 
 def test_update_umapi_user(rule_processor, mock_dir_user, mock_umapi_user, get_mock_user_list):
-
     rp = rule_processor
     user = mock_dir_user
     mock_umapi_user['email'] = user['email']
@@ -402,7 +400,8 @@ def test_update_umapi_user(rule_processor, mock_dir_user, mock_umapi_user, get_m
     assert result['username'] == user['email']
 
     user['email'] = 'different@example.com'
-    up_attrs = {'email': user['email']}
+    up_attrs = {
+        'email': user['email']}
     result = update(user, up_attrs)
 
     assert result == {
@@ -415,64 +414,48 @@ def test_update_umapi_user(rule_processor, mock_dir_user, mock_umapi_user, get_m
             'username': user['username']})]}
 
 
-def test_update_umapi_users_for_connector(rule_processor, log_stream, mock_umapi_info):
+@mock.patch("user_sync.rules.RuleProcessor.update_umapi_user")
+@mock.patch("user_sync.rules.RuleProcessor.add_stray")
+def test_update_umapi_users_for_connector(add_stray, update_umapi_user, rule_processor, get_mock_user_list):
     rp = rule_processor
-    # rp.options['process_groups'] = True
-    # rp.options['update_user_options'] = True
-    # rp.will_process_strays = True
-    #
-    #
-    # conn = MockUmapiConnector()
-    # info = UmapiTargetInfo(None)
-    # info.add_mapped_group("New Group")
-    #
-    # rp.filtered_directory_user_by_user_key.update(mock_user_directory_data)
-    #
-    # for u in mock_user_directory_data:
-    #     info.add_desired_group_for(u, 'New Group')
-    #
-    # conn.users = mock_umapi_user_data
-    #
-    # rp.update_umapi_users_for_connector(info, conn)
-    #
-    # assert rp.stray_key_map == {None: {}}
+    rp.options['process_groups'] = True
+    rp.options['update_user_info'] = True
+    rp.will_process_strays = True
 
-    # stream, logger = log_stream
-    # rule_processor.logger = logger
-    # rule_processor.options['process_groups'] = True
-    # rule_processor.will_process_strays = True
-    # umapi_connector = mock.MagicMock()
-    # umapi_connector.iter_users.return_value = mock_umapi_user_data
-    # umapi_info = mock.MagicMock()
-    # umapi_info.get_name.return_value = None
-    # umapi_info.get_desired_groups_by_user_key.return_value = {
-    #     'federatedID,both1@example.com,': {'user_group'},
-    #     'federatedID,directory.only1@example.com,': {'user_group'},
-    #     'federatedID,both3@example.com,': {'user_group'}}
-    # umapi_info.get_umapi_user.return_value = None
-    # umapi_info.get_mapped_groups.return_value = {'user_group'}
-    # rule_processor.filtered_directory_user_by_user_key = mock_user_directory_data
-    # rule_processor.exclude_users = [re.compile('\\Aexclude1@example.com\\Z', re.IGNORECASE)]
-    # result_user_groups_to_map = rule_processor.update_umapi_users_for_connector(umapi_info, umapi_connector)
-    # umapi_info_methods_called = [c[0] for c in umapi_info.mock_calls]
-    # umapi_connector_methods_called = [c[0] for c in umapi_connector.mock_calls]
-    # stream.flush()
-    # logger_output = stream.getvalue()
-    # logger_output = re.sub('[\\[\\]]+', '', logger_output)
-    # logger_output = re.sub("{'user_group'}", "set('user_group')", logger_output)
-    # assert "Found Adobe-only user: federatedID,adobe.only1@example.com," in logger_output
-    # assert "Adobe user matched on customer side: federatedID,both1@example.com," in logger_output
-    # assert "Managing groups for user key: federatedID,both1@example.com, added: set('user_group') removed: set()" in logger_output
-    # assert "Managing groups for user key: federatedID,both2@example.com, added: set() removed: set('user_group')" in logger_output
-    # assert "Managing groups for user key: federatedID,both3@example.com," not in logger_output
-    # assert "Excluding adobe user (due to name): federatedID,exclude1@example.com," in logger_output
-    # assert 'set_umapi_users_loaded' in umapi_info_methods_called
-    # assert 'send_commands' in umapi_connector_methods_called
-    # assert rule_processor.stray_key_map == {
-    #     None: {
-    #         'federatedID,adobe.only1@example.com,': set()}}
-    # assert result_user_groups_to_map == {
-    #     'federatedID,directory.only1@example.com,': {'user_group'}}
+    conn = MockUmapiConnector()
+    info = UmapiTargetInfo(None)
+    info.add_mapped_group("New Group")
+    info.add_mapped_group("To Remove")
+
+    umapi_users = get_mock_user_list(count=6, umapi_users=True, groups=["Current Group", "To Remove"])
+    dir_users = get_mock_user_list(groups=["Current Group", "New Group"])
+
+    for k, u in six.iteritems(dir_users):
+        u['firstname'] += " Updated Name"
+        info.add_desired_group_for(k, "New Group")
+
+    conn.users = umapi_users.values()
+    rp.filtered_directory_user_by_user_key.update(dir_users)
+
+    utg_map = rp.update_umapi_users_for_connector(info, conn)
+    calls = [c[1] for c in update_umapi_user.mock_calls]
+    c = calls[0]
+
+    # Generally check all the parameters passed
+    # Just check the first call since all are the same
+    assert utg_map == {}
+    assert info.umapi_users_loaded
+    assert len(calls) == len(umapi_users)
+    assert c[1] == list(umapi_users.keys())[0]
+    assert c[3] == {
+        'firstname': list(dir_users.values())[0]['firstname']}
+    assert c[4] == {'new group'}
+    assert c[5] == {'to remove'}
+    assert c[6] == list(umapi_users.values())[0]
+
+    # Check that a stray is handled correctly
+    strays = add_stray.mock_calls[1][1]
+    assert strays == (None, list(umapi_users.keys())[5], {"to remove"})
 
 
 @mock.patch('user_sync.helper.CSVAdapter.read_csv_rows')

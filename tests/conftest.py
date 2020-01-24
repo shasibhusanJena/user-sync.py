@@ -86,9 +86,11 @@ def mock_umapi_user(get_mock_user):
 def get_mock_user_list(get_mock_user):
     def _get_mock_user_list(count=5, start=0, umapi_users=False, groups=[]):
         users = {}
+        rp = RuleProcessor({})
+        get_key = rp.get_umapi_user_key if umapi_users else rp.get_directory_user_key
         for i in range(start, start + count):
             u = get_mock_user("user" + str(i), umapi_users, groups=groups)
-            users[RuleProcessor({}).get_directory_user_key(u)] = u
+            users[get_key(u)] = u
         return users
 
     return _get_mock_user_list
