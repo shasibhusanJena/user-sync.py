@@ -4,6 +4,48 @@ from copy import deepcopy
 from six import StringIO
 
 
+# Serves as a base user for either umapi or directory user tests
+def blank_user_full(
+        identifier,
+        firstname=None,
+        lastname=None,
+        groups=None,
+        country="US",
+        identity_type="federatedID",
+        domain="example.com",
+        username=None
+):
+    if '@' not in identifier:
+        identifier = identifier + "@" + domain
+    user_id = identifier.split("@")[0]
+    firstname = firstname or user_id + " First"
+    lastname = lastname or user_id + " Last"
+    domain = domain or identifier.split("@")[-1]
+
+    return deepcopy({
+        'identity_type': identity_type,
+        'type': identity_type,
+        'username': username or identifier,
+        'domain': domain,
+        'firstname': firstname,
+        'lastname': lastname,
+        'email': identifier,
+        'groups': groups or [],
+        'member_groups': [],
+        'adminRoles':[],
+        'status': 'active',
+        'country': country,
+        'source_attributes': {
+            'email': identifier,
+            'identity_type': None,
+            'username': user_id,
+            'domain': domain,
+            'givenName': firstname,
+            'sn': lastname,
+            'c': country}
+    })
+
+
 def make_dict(keylist, value):
     """
     Create a dict from a list of keys
@@ -43,6 +85,7 @@ def merge_dict(d1, d2, immutable=False):
         else:
             d1[k] = d2[k]
     return d1
+
 
 def compare_iter(a, b):
     return (len(a) == len(b) and
