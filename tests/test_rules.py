@@ -518,9 +518,9 @@ def test_stray_key_map(csv_reader, rule_processor):
     assert expected_value == actual_value
 
 
-def test_get_user_attribute_difference(rule_processor, mock_dir_user):
+def test_get_user_attribute_difference(rule_processor, mock_dir_user, mock_umapi_user):
     directory_user_mock_data = mock_dir_user
-    umapi_users_mock_data = deepcopy(mock_dir_user)
+    umapi_users_mock_data = mock_umapi_user
     umapi_users_mock_data['firstname'] = 'Adobe'
     umapi_users_mock_data['lastname'] = 'Username'
     umapi_users_mock_data['email'] = 'adobe.username@example.com'
