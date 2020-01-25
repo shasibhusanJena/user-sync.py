@@ -437,26 +437,30 @@ def test_update_umapi_users_for_connector(add_stray, update_umapi_user, rule_pro
     rp.filtered_directory_user_by_user_key.update(dir_users)
 
     utg_map = rp.update_umapi_users_for_connector(info, conn)
-    calls = [c[1] for c in update_umapi_user.mock_calls]
-    c = calls[0]
+
+    all_calls = [c[1] for c in update_umapi_user.mock_calls]
+    all_calls = {c[1]: c for c in all_calls}
+
+    # Sort the users for easier access when asserting
+    dir_users = sorted(dir_users.values(), key=lambda u: u['email'])
+    umapi_users = sorted(umapi_users.values(), key=lambda u: u['email'])
 
     # Generally check all the parameters passed
     # Just check the first call since all are the same
-    dir_users = sorted(dir_users.values(), key=lambda u: u['email'])
-    um_users = sorted(umapi_users.values(), key=lambda u: u['email'])
-
     assert utg_map == {}
     assert info.umapi_users_loaded
-    assert len(calls) == len(umapi_users)
-    assert c[1] == rp.get_umapi_user_key(um_users[0])
-    assert c[3] == {'firstname': dir_users[0]['firstname']}
+    assert len(all_calls) == len(umapi_users)
+
+    c = all_calls[rp.get_umapi_user_key(umapi_users[0])]
+    assert c[3] == {
+        'firstname': dir_users[0]['firstname']}
     assert c[4] == {'new group'}
     assert c[5] == {'to remove'}
-    assert c[6] == um_users[0]
+    assert c[6] == umapi_users[0]
 
     # Check that a stray is handled correctly
     strays = add_stray.mock_calls[1][1]
-    assert strays == (None, rp.get_umapi_user_key(um_users[-1]), {"to remove"})
+    assert strays == (None, rp.get_umapi_user_key(umapi_users[-1]), {"to remove"})
 
 
 @mock.patch('user_sync.helper.CSVAdapter.read_csv_rows')
