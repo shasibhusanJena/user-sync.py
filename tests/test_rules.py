@@ -442,19 +442,21 @@ def test_update_umapi_users_for_connector(add_stray, update_umapi_user, rule_pro
 
     # Generally check all the parameters passed
     # Just check the first call since all are the same
+    dir_users = sorted(dir_users.values(), key=lambda u: u['email'])
+    um_users = sorted(umapi_users.values(), key=lambda u: u['email'])
+
     assert utg_map == {}
     assert info.umapi_users_loaded
     assert len(calls) == len(umapi_users)
-    assert c[1] == list(umapi_users.keys())[0]
-    assert c[3] == {
-        'firstname': list(dir_users.values())[0]['firstname']}
+    assert c[1] == rp.get_umapi_user_key(um_users[0])
+    assert c[3] == {'firstname': dir_users[0]['firstname']}
     assert c[4] == {'new group'}
     assert c[5] == {'to remove'}
-    assert c[6] == list(umapi_users.values())[0]
+    assert c[6] == um_users[0]
 
     # Check that a stray is handled correctly
     strays = add_stray.mock_calls[1][1]
-    assert strays == (None, list(umapi_users.keys())[5], {"to remove"})
+    assert strays == (None, rp.get_umapi_user_key(um_users[-1]), {"to remove"})
 
 
 @mock.patch('user_sync.helper.CSVAdapter.read_csv_rows')
