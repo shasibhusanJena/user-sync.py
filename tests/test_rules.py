@@ -1,6 +1,5 @@
 import csv
 import re
-from copy import deepcopy
 
 import mock
 import pytest
