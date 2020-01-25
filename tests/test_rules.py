@@ -1,6 +1,5 @@
 import csv
 import re
-from copy import deepcopy
 
 import mock
 import pytest
@@ -9,6 +8,7 @@ import yaml
 from mock import MagicMock
 
 from tests.util import compare_iter
+from user_sync.connector.umapi import Commands
 from user_sync.rules import RuleProcessor, AdobeGroup, UmapiTargetInfo
 from user_sync.rules import UmapiConnectors
 
@@ -30,7 +30,7 @@ def mock_umapi_connectors():
 
 @pytest.fixture()
 def mock_umapi_info():
-    def _mock_umapi_info(name='primary', groups=[]):
+    def _mock_umapi_info(name=None, groups=[]):
         mock_umapi_info = UmapiTargetInfo(name)
         for g in groups:
             mock_umapi_info.add_mapped_group(g)
@@ -47,17 +47,25 @@ class MockUmapiConnector(MagicMock):
     def __init__(self, name='', options={}, *args, **kwargs):
         super(MockUmapiConnector, self).__init__(*args, **kwargs)
         self.name = 'umapi' + name
+        self.trusted = False
         self.options = options
         self.action_manager = MockUmapiConnector.MockActionManager()
+        self.commands_sent = None
+        self.users = {}
+
+    def send_commands(self, commands):
+        self.commands_sent = commands
 
     def get_action_manager(self):
         return self.action_manager
 
+    def iter_users(self):
+        return self.users
+
 
 def test_log_action_summary(rule_processor, log_stream, mock_umapi_connectors):
     connectors = mock_umapi_connectors('umapi-2', 'umapi-3')
-    stream, logger = log_stream
-    rule_processor.logger = logger
+    stream, rule_processor.logger = log_stream
     rule_processor.log_action_summary(connectors)
     expected = """---------------------------------- Action Summary ----------------------------------
                                 Number of directory users read: 0
@@ -77,12 +85,12 @@ def test_log_action_summary(rule_processor, log_stream, mock_umapi_connectors):
     assert expected == stream.getvalue()
 
 
-def test_read_desired_user_groups_basic(rule_processor, mock_directory_user):
+def test_read_desired_user_groups_basic(rule_processor, mock_dir_user):
     rp = rule_processor
-    mock_directory_user['groups'] = ['Group A', 'Group B']
+    mock_dir_user['groups'] = ['Group A', 'Group B']
 
     directory_connector = mock.MagicMock()
-    directory_connector.load_users_and_groups.return_value = [mock_directory_user]
+    directory_connector.load_users_and_groups.return_value = [mock_dir_user]
     mappings = {
         'Group A': [AdobeGroup.create('Console Group')]}
     rp.read_desired_user_groups(mappings, directory_connector)
@@ -92,16 +100,16 @@ def test_read_desired_user_groups_basic(rule_processor, mock_directory_user):
     assert "Console Group" in rp.after_mapping_hook_scope['target_groups']
 
     # Assert the user group updated in umapi info
-    user_key = rp.get_directory_user_key(mock_directory_user)
+    user_key = rp.get_directory_user_key(mock_dir_user)
     assert ('console group' in rp.umapi_info_by_name[None].desired_groups_by_user_key[user_key])
     assert user_key in rp.filtered_directory_user_by_user_key
 
 
-def test_after_mapping_hook(rule_processor, mock_directory_user):
+def test_after_mapping_hook(rule_processor, mock_dir_user):
     rp = rule_processor
-    mock_directory_user['groups'] = ['Group A']
+    mock_dir_user['groups'] = ['Group A']
     directory_connector = mock.MagicMock()
-    directory_connector.load_users_and_groups.return_value = [mock_directory_user]
+    directory_connector.load_users_and_groups.return_value = [mock_dir_user]
 
     # testing after_mapping_hooks
     after_mapping_hook_text = """
@@ -121,13 +129,13 @@ target_groups.add('ext group 2')
     assert "ext group 2" in rp.after_mapping_hook_scope['target_groups']
 
 
-def test_additional_groups(rule_processor, log_stream, mock_directory_user):
+def test_additional_groups(rule_processor, mock_dir_user):
     rp = rule_processor
-    mock_directory_user['member_groups'] = ['other_security_group', 'security_group', 'more_security_group']
+    mock_dir_user['member_groups'] = ['other_security_group', 'security_group', 'more_security_group']
 
     directory_connector = mock.MagicMock()
-    directory_connector.load_users_and_groups.return_value = [mock_directory_user]
-    user_key = rp.get_directory_user_key(mock_directory_user)
+    directory_connector.load_users_and_groups.return_value = [mock_dir_user]
+    user_key = rp.get_directory_user_key(mock_dir_user)
 
     rp.options['additional_groups'] = [
         {
@@ -146,13 +154,20 @@ def test_additional_groups(rule_processor, log_stream, mock_directory_user):
 
 
 @mock.patch("user_sync.rules.RuleProcessor.update_umapi_users_for_connector")
-def test_sync_umapi_users(update_umapi, rule_processor, mock_umapi_connectors, mock_user_directory_data,
-                          mock_umapi_info):
+def test_sync_umapi_users(update_umapi, rule_processor, mock_umapi_connectors, get_mock_user_list, mock_umapi_info):
+    rule_processor.options['exclude_unmapped_users'] = False
+    refine = lambda u: {k: set(u[k].pop('groups')) for k in u}
+    groups = ['Group A', 'Group B']
+
+    primary_users = refine(get_mock_user_list(5, start=0, groups=groups))
+    secondary_users = refine(get_mock_user_list(5, start=6, groups=groups))
+    tertiary_users = refine(get_mock_user_list(5, start=11, groups=groups))
+
     # Create 3 umapi connectors - 1 primary, 2 secondary
     secondary_umapi_name = 'umapi-2'
     third_umapi_name = 'umapi-3'
     umapi_connectors = mock_umapi_connectors(secondary_umapi_name, third_umapi_name)
-    umapi_info = mock_umapi_info(secondary_umapi_name, "Group")
+    umapi_info = mock_umapi_info(secondary_umapi_name, groups)
 
     # Add the umapi infos + group for secondaries so they will not be skipped
     rule_processor.umapi_info_by_name[secondary_umapi_name] = umapi_info
@@ -160,31 +175,27 @@ def test_sync_umapi_users(update_umapi, rule_processor, mock_umapi_connectors, m
 
     # Use a mock object here to collect the calls made for validation
     rule_processor.create_umapi_user = mock.MagicMock()
-
-    # Just prepare a list of users from the mock data in the form of user_key:groups
-    # We use a mock method call to return users from the update commands
-    refined_users = {k: set(v.pop('groups')) for k, v in six.iteritems(mock_user_directory_data)}
-    primary_users = {k: refined_users[k] for k in list(refined_users.keys())[0:2]}
-    secondary_users = {k: refined_users[k] for k in list(refined_users.keys())[2:3]}
-    third_users = {k: refined_users[k] for k in list(refined_users.keys())[3:]}
-    update_umapi.side_effect = [primary_users, secondary_users, third_users]
+    update_umapi.side_effect = [primary_users, secondary_users, tertiary_users]
     rule_processor.sync_umapi_users(umapi_connectors)
+
+    # Combine the secondary users
+    secondary_users.update(tertiary_users)
 
     # Check that the users were correctly returned and sorted from update_umapi_users calls
     assert compare_iter(rule_processor.primary_users_created, primary_users.keys())
-    assert compare_iter(rule_processor.secondary_users_created, list(refined_users.keys())[2:])
+    assert compare_iter(rule_processor.secondary_users_created, secondary_users.keys())
 
     # Checks that create user was called for all of the users
     results = [c[1][0:2] for c in rule_processor.create_umapi_user.mock_calls]
-    actual = [(k, v) for k, v in six.iteritems(refined_users)]
+
+    # Now combine all the users and check
+    secondary_users.update(primary_users)
+    actual = [(k, v) for k, v in six.iteritems(secondary_users)]
     assert compare_iter(results, actual)
 
 
-def test_create_umapi_groups(rule_processor, log_stream, mock_umapi_connectors, mock_umapi_info):
-    stream, logger = log_stream
-    rule_processor.logger = logger
+def test_create_umapi_groups(rule_processor, mock_umapi_connectors, mock_umapi_info):
     secondary_umapi_name = 'umapi-2'
-
     uc = mock_umapi_connectors(secondary_umapi_name)
     sec_conn = uc.secondary_connectors[secondary_umapi_name]
     sec_conn.get_groups.return_value = {}
@@ -216,44 +227,240 @@ def test_create_umapi_groups(rule_processor, log_stream, mock_umapi_connectors, 
 
 
 def test_process_strays(rule_processor, log_stream):
-    stream, logger = log_stream
-    rule_processor.logger = logger
-    rule_processor.will_manage_strays = True
-    with mock.patch("user_sync.rules.RuleProcessor.manage_strays"):
-        rule_processor.stray_key_map = {
-            None: {
-                'federatedID,testuser2000@example.com,': set()}}
-        rule_processor.process_strays({})
+    rp = rule_processor
+    rp.will_manage_strays = True
+    rp.manage_strays = MagicMock()
+    rp.stray_key_map = {
+        None: {
+            'federatedID,testuser2000@example.com,': set()
+        }
+    }
 
-        stream.flush()
-        actual_logger_output = stream.getvalue()
-        assert "Processing Adobe-only users..." in actual_logger_output
+    def straysProcessed():
+        called = rp.manage_strays.mock_calls != []
+        rp.manage_strays = MagicMock()
+        return called
 
-    rule_processor.options["max_adobe_only_users"] = 0
-    rule_processor.process_strays({})
-    stream.flush()
-    actual_logger_output = stream.getvalue()
-    assert "Unable to process Adobe-only users" in actual_logger_output
-    assert rule_processor.action_summary["primary_strays_processed"] == 0
+    rp.options["max_adobe_only_users"] = 200
+    rp.process_strays(None)
+    assert straysProcessed()
 
-    rule_processor.primary_user_count = 10
-    rule_processor.excluded_user_count = 1
-    rule_processor.options["max_adobe_only_users"] = "5%"
-    rule_processor.process_strays({})
-    stream.flush()
-    actual_logger_output = stream.getvalue()
-    assert "Unable to process Adobe-only users" in actual_logger_output
-    assert rule_processor.action_summary["primary_strays_processed"] == 0
+    rp.options["max_adobe_only_users"] = 0
+    rp.process_strays(None)
+    assert not straysProcessed()
 
-    with mock.patch("user_sync.rules.RuleProcessor.manage_strays"):
-        rule_processor.stray_key_map = {
-            None: {
-                'federatedID,testuser2000@example.com,': set()}}
-        rule_processor.options["max_adobe_only_users"] = "20%"
-        rule_processor.process_strays({})
-        stream.flush()
-        actual_logger_output = stream.getvalue()
-        assert "Processing Adobe-only users..." in actual_logger_output
+    rp.primary_user_count = 10
+    rp.excluded_user_count = 1
+    rp.options["max_adobe_only_users"] = "5%"
+    rp.process_strays(None)
+    assert not straysProcessed()
+
+    rp.options["max_adobe_only_users"] = "20%"
+    rp.process_strays(None)
+    assert straysProcessed()
+
+
+def test_create_umapi_commands_for_directory_user(rule_processor, mock_dir_user):
+    rp = rule_processor
+    user = mock_dir_user
+
+    def get_commands(user, update_option='ignoreIfAlreadyExists'):
+        attributes = rp.get_user_attributes(user)
+        attributes['country'] = user['country']
+        attributes['option'] = update_option
+        commands = Commands(user['identity_type'], user['email'], user['username'], user['domain'])
+        commands.add_user(attributes)
+        return commands
+
+    # simple case
+    commands = get_commands(user)
+    result = rp.create_umapi_commands_for_directory_user(user)
+    assert vars(result) == vars(commands)
+
+    # test do_update
+    commands = get_commands(user, 'updateIfAlreadyExists')
+    result = rp.create_umapi_commands_for_directory_user(user, do_update=True)
+    assert vars(result) == vars(commands)
+
+    # test username format
+    user['username'] = 'nosymbol'
+    commands = get_commands(user)
+    result = rp.create_umapi_commands_for_directory_user(user)
+    assert vars(result) == vars(commands)
+
+    # test username format
+    user['username'] = 'different@example.com'
+    commands = get_commands(user)
+    commands.update_user({
+        "email": user['email'],
+        "username": user['username']})
+    commands.username = user['email']
+    result = rp.create_umapi_commands_for_directory_user(user)
+    assert vars(result) == vars(commands)
+
+    # test console trusted
+    user['username'] = 'different@example.com'
+    commands = get_commands(user)
+    commands.username = user['email']
+    result = rp.create_umapi_commands_for_directory_user(user, console_trusted=True)
+    assert vars(result) == vars(commands)
+
+    # Default Country Code as None and Id Type as federatedID. Country as None in user
+    rp.options['default_country_code'] = None
+    user['country'] = None
+    result = rp.create_umapi_commands_for_directory_user(user)
+    assert result == None
+
+    # Default Country Code as None with Id Type as enterpriseID. Country as None in user
+    rp.options['default_country_code'] = None
+    user['identity_type'] = 'enterpriseID'
+    result = rp.create_umapi_commands_for_directory_user(user)
+    user['country'] = 'UD'
+    commands = get_commands(user)
+    assert vars(result) == vars(commands)
+
+    # Having Default Country Code with value 'US'. Country as None in user.
+    rp.options['default_country_code'] = 'US'
+    user['country'] = None
+    result = rp.create_umapi_commands_for_directory_user(user)
+    user['country'] = 'US'
+    commands = get_commands(user)
+    assert vars(result) == vars(commands)
+
+    # Country as 'CA' in user
+    user['country'] = 'CA'
+    result = rp.create_umapi_commands_for_directory_user(user)
+    commands = get_commands(user)
+    assert vars(result) == vars(commands)
+
+
+def test_create_umapi_user(rule_processor, mock_dir_user, mock_umapi_info):
+    user = mock_dir_user
+    rp = rule_processor
+
+    key = rp.get_user_key(user['identity_type'], user['username'], user['domain'])
+    rp.directory_user_by_user_key[key] = user
+    rp.options['process_groups'] = True
+    rp.push_umapi = True
+
+    groups_to_add = {'Group A', 'Group C'}
+    info = mock_umapi_info(None, {'Group A', 'Group B'})
+    conn = MockUmapiConnector()
+    rp.create_umapi_user(key, groups_to_add, info, conn)
+
+    result = vars(conn.commands_sent)['do_list']
+    result[0][1].pop('on_conflict')
+    assert result[0] == ('create', {
+        'email': user['email'],
+        'first_name': user['firstname'],
+        'last_name': user['lastname'],
+        'country': user['country']})
+    assert result[1] == ('remove_from_groups', {
+        'groups': {'group b', 'group a'}})
+    assert result[2] == ('add_to_groups', {
+        'groups': {'Group C', 'Group A'}})
+
+
+def test_update_umapi_user(rule_processor, mock_dir_user, mock_umapi_user, get_mock_user_list):
+    rp = rule_processor
+    user = mock_dir_user
+    mock_umapi_user['email'] = user['email']
+    mock_umapi_user['username'] = user['username']
+    mock_umapi_user['domain'] = user['domain']
+    mock_umapi_user['type'] = user['identity_type']
+
+    def update(up_user, up_attrs):
+        group_add = set()
+        group_rem = set()
+        conn = MockUmapiConnector()
+        info = UmapiTargetInfo(None)
+        user_key = rp.get_user_key(up_user['identity_type'], up_user['username'], up_user['domain'])
+        rp.directory_user_by_user_key[user_key] = up_user
+        rp.update_umapi_user(info, user_key, conn, up_attrs, group_add, group_rem, mock_umapi_user)
+        assert user_key in rp.updated_user_keys
+        return vars(conn.commands_sent)
+
+    up_attrs = {
+        'firstname': user['firstname'],
+        'lastname': user['lastname']}
+
+    result = update(user, up_attrs)
+    assert result == {
+        'identity_type': user['identity_type'],
+        'email': user['email'],
+        'username': user['username'],
+        'domain': user['domain'],
+        'do_list': [('update', {
+            'first_name': user['firstname'],
+            'last_name': user['lastname']})]}
+
+    user['username'] = 'different@example.com'
+    result = update(user, up_attrs)
+    assert result['username'] == user['email']
+
+    user['email'] = 'different@example.com'
+    up_attrs = {
+        'email': user['email']}
+    result = update(user, up_attrs)
+
+    assert result == {
+        'identity_type': user['identity_type'],
+        'email': user['email'],
+        'username': user['username'],
+        'domain': user['domain'],
+        'do_list': [('update', {
+            'email': 'different@example.com',
+            'username': user['username']})]}
+
+
+@mock.patch("user_sync.rules.RuleProcessor.update_umapi_user")
+@mock.patch("user_sync.rules.RuleProcessor.add_stray")
+def test_update_umapi_users_for_connector(add_stray, update_umapi_user, rule_processor, get_mock_user_list):
+    rp = rule_processor
+    rp.options['process_groups'] = True
+    rp.options['update_user_info'] = True
+    rp.will_process_strays = True
+
+    conn = MockUmapiConnector()
+    info = UmapiTargetInfo(None)
+    info.add_mapped_group("New Group")
+    info.add_mapped_group("To Remove")
+
+    umapi_users = get_mock_user_list(count=6, umapi_users=True, groups=["Current Group", "To Remove"])
+    dir_users = get_mock_user_list(groups=["Current Group", "New Group"])
+
+    for k, u in six.iteritems(dir_users):
+        u['firstname'] += " Updated Name"
+        info.add_desired_group_for(k, "New Group")
+
+    conn.users = umapi_users.values()
+    rp.filtered_directory_user_by_user_key.update(dir_users)
+
+    utg_map = rp.update_umapi_users_for_connector(info, conn)
+
+    all_calls = [c[1] for c in update_umapi_user.mock_calls]
+    all_calls = {c[1]: c for c in all_calls}
+
+    # Sort the users for easier access when asserting
+    dir_users = sorted(dir_users.values(), key=lambda u: u['email'])
+    umapi_users = sorted(umapi_users.values(), key=lambda u: u['email'])
+
+    # Generally check all the parameters passed
+    # Just check the first call since all are the same
+    assert utg_map == {}
+    assert info.umapi_users_loaded
+    assert len(all_calls) == len(umapi_users)
+
+    c = all_calls[rp.get_umapi_user_key(umapi_users[0])]
+    assert c[3] == {
+        'firstname': dir_users[0]['firstname']}
+    assert c[4] == {'new group'}
+    assert c[5] == {'to remove'}
+    assert c[6] == umapi_users[0]
+
+    # Check that a stray is handled correctly
+    strays = add_stray.mock_calls[1][1]
+    assert strays == (None, rp.get_umapi_user_key(umapi_users[-1]), {"to remove"})
 
 
 @mock.patch('user_sync.helper.CSVAdapter.read_csv_rows')
@@ -316,17 +523,17 @@ def test_stray_key_map(csv_reader, rule_processor):
     assert expected_value == actual_value
 
 
-def test_get_user_attribute_difference(rule_processor, mock_directory_user):
-    directory_user_mock_data = mock_directory_user
-    umapi_users_mock_data = deepcopy(mock_directory_user)
+def test_get_user_attribute_difference(rule_processor, mock_dir_user, mock_umapi_user):
+    directory_user_mock_data = mock_dir_user
+    umapi_users_mock_data = mock_umapi_user
     umapi_users_mock_data['firstname'] = 'Adobe'
     umapi_users_mock_data['lastname'] = 'Username'
     umapi_users_mock_data['email'] = 'adobe.username@example.com'
 
     expected = {
-        'email': mock_directory_user['email'],
-        'firstname': mock_directory_user['firstname'],
-        'lastname': mock_directory_user['lastname']
+        'email': mock_dir_user['email'],
+        'firstname': mock_dir_user['firstname'],
+        'lastname': mock_dir_user['lastname']
     }
 
     assert expected == rule_processor.get_user_attribute_difference(
@@ -528,133 +735,3 @@ def test_write_stray_key_map(rule_processor, tmpdir):
                     ['enterpriseID', 'adobe.user1@example.com', '', ''],
                     ['federatedID', 'adobe.user2@example.com', '', '']]
         assert compare_iter(actual, expected)
-
-
-def test_create_umapi_commands_for_directory_user_update_username(rule_processor, mock_directory_user):
-    result = rule_processor.create_umapi_commands_for_directory_user(mock_directory_user)
-    assert len(result.do_list) == 1
-
-    mock_directory_user['username'] = 'dummy@example.com'
-    result = rule_processor.create_umapi_commands_for_directory_user(mock_directory_user)
-    assert 'update' in result.do_list[1]
-    assert len(result.do_list) == 2
-
-
-def test_create_umapi_commands_for_directory_user_country_code(rule_processor, log_stream, mock_directory_user):
-    stream, logger = log_stream
-    rule_processor.logger = logger
-
-    # Default Country Code as None and Id Type as federatedID. Country as None in mock_directory_user
-    rule_processor.options['default_country_code'] = None
-    mock_directory_user['country'] = None
-    result = rule_processor.create_umapi_commands_for_directory_user(mock_directory_user)
-    assert result == None
-    stream.flush()
-    actual_logger_output = stream.getvalue()
-    assert "User cannot be added without a specified country code:" in actual_logger_output
-
-    # Default Country Code as None with Id Type as enterpriseID. Country as None in mock_directory_user
-    rule_processor.options['default_country_code'] = None
-    mock_directory_user['identity_type'] = 'enterpriseID'
-    result = rule_processor.create_umapi_commands_for_directory_user(mock_directory_user)
-    assert result.do_list[0][1]['country'] == 'UD'
-
-    # Having Default Country Code with value 'US'. Country as None in mock_directory_user.
-    rule_processor.options['default_country_code'] = 'US'
-    result = rule_processor.create_umapi_commands_for_directory_user(mock_directory_user)
-    assert result.do_list[0][1]['country'] == 'US'
-
-    # Country as 'CA' in mock_directory_user
-    mock_directory_user['country'] = 'CA'
-    result = rule_processor.create_umapi_commands_for_directory_user(mock_directory_user)
-    assert result.do_list[0][1]['country'] == 'CA'
-
-
-def test_update_umapi_users_for_connector(rule_processor, mock_user_directory_data, mock_umapi_user_data, log_stream):
-    stream, logger = log_stream
-    rule_processor.logger = logger
-    rule_processor.options['process_groups'] = True
-    rule_processor.will_process_strays = True
-    umapi_connector = mock.MagicMock()
-    umapi_connector.iter_users.return_value = mock_umapi_user_data
-    umapi_info = mock.MagicMock()
-    umapi_info.get_name.return_value = None
-    umapi_info.get_desired_groups_by_user_key.return_value = {
-        'federatedID,both1@example.com,': {'user_group'},
-        'federatedID,directory.only1@example.com,': {'user_group'},
-        'federatedID,both3@example.com,': {'user_group'}}
-    umapi_info.get_umapi_user.return_value = None
-    umapi_info.get_mapped_groups.return_value = {'user_group'}
-    rule_processor.filtered_directory_user_by_user_key = mock_user_directory_data
-    rule_processor.exclude_users = [re.compile('\\Aexclude1@example.com\\Z', re.IGNORECASE)]
-    result_user_groups_to_map = rule_processor.update_umapi_users_for_connector(umapi_info, umapi_connector)
-    umapi_info_methods_called = [c[0] for c in umapi_info.mock_calls]
-    umapi_connector_methods_called = [c[0] for c in umapi_connector.mock_calls]
-    stream.flush()
-    logger_output = stream.getvalue()
-    logger_output = re.sub('[\\[\\]]+', '', logger_output)
-    logger_output = re.sub("{'user_group'}", "set('user_group')", logger_output)
-    assert "Found Adobe-only user: federatedID,adobe.only1@example.com," in logger_output
-    assert "Adobe user matched on customer side: federatedID,both1@example.com," in logger_output
-    assert "Managing groups for user key: federatedID,both1@example.com, added: set('user_group') removed: set()" in logger_output
-    assert "Managing groups for user key: federatedID,both2@example.com, added: set() removed: set('user_group')" in logger_output
-    assert "Managing groups for user key: federatedID,both3@example.com," not in logger_output
-    assert "Excluding adobe user (due to name): federatedID,exclude1@example.com," in logger_output
-    assert 'set_umapi_users_loaded' in umapi_info_methods_called
-    assert 'send_commands' in umapi_connector_methods_called
-    assert rule_processor.stray_key_map == {
-        None: {
-            'federatedID,adobe.only1@example.com,': set()}}
-    assert result_user_groups_to_map == {
-        'federatedID,directory.only1@example.com,': {'user_group'}}
-
-
-def test_update_umapi_user(rule_processor, log_stream, mock_umapi_user):
-    stream, logger = log_stream
-    rule_processor.logger = logger
-
-    mock_user_key = 'federatedID,both1@example.com,'
-    mock_groups_to_add = {'added_user_group'}
-    mock_groups_to_remove = {'removed_user_group'}
-    mock_attributes_to_update = {
-        'firstname': 'newfirstname',
-        'email': 'newemail'
-    }
-
-    mock_umapi_user["groups"] = ["removed_user_group", "org"]
-    mock_umapi_user['username'] = 'different@example.com'
-
-    umapi_connector = mock.MagicMock()
-    with mock.patch('user_sync.connector.umapi.Commands') as commands:
-        commands.return_value = mock.MagicMock()
-        rule_processor.update_umapi_user(UmapiTargetInfo(None), mock_user_key, umapi_connector,
-                                         mock_attributes_to_update,
-                                         mock_groups_to_add, mock_groups_to_remove, mock_umapi_user)
-        commands_sent = str(umapi_connector.send_commands.call_args[0][0].method_calls)
-        commands_sent = re.sub("set\\(\\[", "{", commands_sent)
-        commands_sent = re.sub("\\]\\)", "}", commands_sent)
-        assert "update_user" in commands_sent
-        assert 'username' in commands_sent and "'firstname': 'newfirstname'" in commands_sent and "'email': 'newemail'" in commands_sent
-        assert "remove_groups({'removed_user_group'})" in commands_sent
-        assert "add_groups({'added_user_group'})" in commands_sent
-
-    stream.flush()
-    actual_logger_output = stream.getvalue()
-    assert 'newfirstname' in actual_logger_output
-    assert 'removed_user_group' in actual_logger_output
-    assert 'added_user_group' in actual_logger_output
-    assert mock_umapi_user["email"] == mock_umapi_user["username"]
-
-
-@mock.patch("user_sync.rules.RuleProcessor.create_umapi_commands_for_directory_user")
-def test_create_umapi_user(create_commands, rule_processor):
-    rule_processor.directory_user_by_user_key['test'] = 'test'
-
-    mock_command = MagicMock()
-    create_commands.return_value = mock_command
-    rule_processor.options['process_groups'] = True
-    rule_processor.push_umapi = True
-    rule_processor.create_umapi_user('test', set(), MagicMock(), MagicMock())
-
-    called = [c[0] for c in mock_command.mock_calls][1:]
-    assert called == ['remove_groups', 'add_groups']

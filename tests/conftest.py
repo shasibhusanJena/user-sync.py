@@ -2,9 +2,10 @@ import logging
 import os
 
 import pytest
-from six import StringIO
 
+from tests.util import ClearableStringIO, blank_user_full
 from user_sync import config
+from user_sync.rules import RuleProcessor
 
 
 @pytest.fixture
@@ -34,7 +35,7 @@ def cli_args():
 
 @pytest.fixture
 def log_stream():
-    stream = StringIO()
+    stream = ClearableStringIO()
     handler = logging.StreamHandler(stream)
     logger = logging.getLogger('test_logger')
     logger.setLevel(logging.DEBUG)
@@ -43,170 +44,53 @@ def log_stream():
     handler.close()
 
 
-@pytest.fixture
-def mock_directory_user():
-    return {
-        'identity_type': 'federatedID',
-        'username': 'nameless@example.com',
-        'domain': 'example.com',
-        'firstname': 'One',
-        'lastname': 'Six',
-        'email': 'nameless@example.com',
-        'groups': ['All Sea of Carag'],
-        'country': 'US',
-        'member_groups': [],
-        'source_attributes': {
-            'email': 'nameless@example.com',
-            'identity_type': None,
-            'username': None,
-            'domain': None,
-            'givenName': 'One',
-            'sn': 'Six',
-            'c': 'US'}}
+@pytest.fixture()
+def get_mock_user():
+    def _get_mock_user(
+            identifier="user1",
+            is_umapi_user=False,
+            firstname=None,
+            lastname=None,
+            groups=None,
+            country="US",
+            identity_type="federatedID",
+            domain="example.com",
+            username=None
+    ):
+        u = blank_user_full(identifier, firstname, lastname, groups,
+                            country, identity_type, domain, username)
+        if is_umapi_user:
+            u.pop('identity_type')
+            u.pop('member_groups')
+            u.pop('source_attributes')
+        else:
+            u.pop('adminRoles')
+            u.pop('status')
+            u.pop('type')
+        return u
+
+    return _get_mock_user
 
 
 @pytest.fixture()
-def mock_umapi_user():
-    return {
-        'email': 'bsisko@example.com',
-        'status': 'active',
-        'groups': ['Group A', '_admin_Group A', 'Group A_1924484-provisioning'],
-        'username': 'bsisko@example.com',
-        'domain': 'example.com',
-        'firstname': 'Benjamin',
-        'lastname': 'Sisko',
-        'country': 'CA',
-        'type': 'federatedID'
-    }
+def mock_dir_user(get_mock_user):
+    return get_mock_user()
 
 
-@pytest.fixture
-def mock_user_directory_data():
-    return {
-        'federatedID,both1@example.com,':
-            {
-                'identity_type': 'federatedID',
-                'username': 'both1@example.com',
-                'domain': 'example.com',
-                'firstname': 'both1',
-                'lastname': 'one',
-                'email': 'both1@example.com',
-                'groups': ['All Sea of Carag'],
-                'country': 'US',
-                'member_groups': [],
-                'source_attributes': {
-                    'email': 'both1@example.com',
-                    'identity_type': None,
-                    'username': None,
-                    'domain': None,
-                    'givenName': 'both1',
-                    'sn': 'one',
-                    'c': 'US'}},
-        'federatedID,both2@example.com,':
-            {
-                'identity_type': 'federatedID',
-                'username': 'both2@example.com',
-                'domain': 'example.com',
-                'firstname': 'both2',
-                'lastname': 'one',
-                'email': 'both2@example.com',
-                'groups': ['All Sea of Carag'],
-                'country': 'US',
-                'member_groups': [],
-                'source_attributes': {
-                    'email': 'both2@example.com',
-                    'identity_type': None,
-                    'username': None,
-                    'domain': None,
-                    'givenName': 'both2',
-                    'sn': 'two',
-                    'c': 'US'}},
-        'federatedID,both3@example.com,':
-            {
-                'identity_type': 'federatedID',
-                'username': 'both3@example.com',
-                'domain': 'example.com',
-                'firstname': 'both3',
-                'lastname': 'one',
-                'email': 'both3@example.com',
-                'groups': ['All Sea of Carag'],
-                'country': 'US',
-                'member_groups': [],
-                'source_attributes': {
-                    'email': 'both3@example.com',
-                    'identity_type': None,
-                    'username': None,
-                    'domain': None,
-                    'givenName': 'both3',
-                    'sn': 'three',
-                    'c': 'US'}},
-        'federatedID,directory.only1@example.com,':
-            {
-                'identity_type': 'federatedID',
-                'username': 'directory.only1@example.com',
-                'domain': 'example.com',
-                'firstname': 'dir1',
-                'lastname': 'one',
-                'email': 'directory.only1example.com',
-                'groups': ['All Sea of Carag'],
-                'country': 'US',
-                'member_groups': [],
-                'source_attributes': {
-                    'email': 'directory.only1@example.com',
-                    'identity_type': None,
-                    'username': None,
-                    'domain': None,
-                    'givenName': 'dir1',
-                    'sn': 'one',
-                    'c': 'US'}}
-    }
+@pytest.fixture()
+def mock_umapi_user(get_mock_user):
+    return get_mock_user(is_umapi_user=True)
 
 
-@pytest.fixture
-def mock_umapi_user_data():
-    return [
-        {
-            'email': 'both1@example.com',
-            'status': 'active',
-            'groups': ['_org_admin', 'group1'],
-            'username': 'both1@example.com',
-            'adminRoles': ['org'],
-            'domain': 'example.com',
-            'country': 'US',
-            'type': 'federatedID'},
-        {
-            'email': 'both2@example.com',
-            'status': 'active',
-            'groups': ['_org_admin', 'user_group'],
-            'username': 'both2@example.com',
-            'adminRoles': ['org'],
-            'domain': 'example.com',
-            'country': 'US',
-            'type': 'federatedID'},
-        {
-            'email': 'both3@example.com',
-            'status': 'active',
-            'groups': ['_org_admin', 'group1', 'user_group'],
-            'username': 'both3@example.com',
-            'adminRoles': ['org'],
-            'domain': 'example.com',
-            'country': 'US',
-            'type': 'federatedID'},
-        {
-            'email': 'adobe.only1@example.com',
-            'status': 'active',
-            'groups': ['_org_admin'],
-            'username': 'adobe.only1@example.com',
-            'adminRoles': ['org'],
-            'domain': 'example.com',
-            'country': 'US',
-            'type': 'federatedID'},
-        {
-            'email': 'exclude1@example.com',
-            'status': 'active',
-            'groups': ['_org_admin'],
-            'username': 'exclude1@example.com',
-            'adminRoles': ['org'],
-            'domain': 'example.com',
-            'country': 'US',
-            'type': 'federatedID'}]
+@pytest.fixture()
+def get_mock_user_list(get_mock_user):
+    def _get_mock_user_list(count=5, start=0, umapi_users=False, groups=[]):
+        users = {}
+        rp = RuleProcessor({})
+        get_key = rp.get_umapi_user_key if umapi_users else rp.get_directory_user_key
+        for i in range(start, start + count):
+            u = get_mock_user("user" + str(i), umapi_users, groups=groups)
+            users[get_key(u)] = u
+        return users
+
+    return _get_mock_user_list
