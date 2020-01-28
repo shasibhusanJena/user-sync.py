@@ -721,6 +721,383 @@ def test_write_stray_key_map(rule_processor, tmpdir):
             'adobeID,remoab@example.com,': set(),
             'enterpriseID,adobe.user3@example.com,': set(), },
         None: {
+
+            'federatedID,adobe.only1@example.com,': set()}}
+    assert result_user_groups_to_map == {
+        'federatedID,directory.only1@example.com,': {'user_group'}}
+
+
+def test_update_umapi_user(rule_processor, log_stream, mock_umapi_user):
+    stream, logger = log_stream
+    rule_processor.logger = logger
+
+    mock_user_key = 'federatedID,both1@example.com,'
+    mock_groups_to_add = {'added_user_group'}
+    mock_groups_to_remove = {'removed_user_group'}
+    mock_attributes_to_update = {
+        'firstname': 'newfirstname',
+        'email': 'newemail'
+    }
+
+    mock_umapi_user["groups"] = ["removed_user_group", "org"]
+    mock_umapi_user['username'] = 'different@example.com'
+
+    umapi_connector = mock.MagicMock()
+    with mock.patch('user_sync.connector.umapi.Commands') as commands:
+        commands.return_value = mock.MagicMock()
+        rule_processor.update_umapi_user(UmapiTargetInfo(None), mock_user_key, umapi_connector,
+                                         mock_attributes_to_update,
+                                         mock_groups_to_add, mock_groups_to_remove, mock_umapi_user)
+        commands_sent = str(umapi_connector.send_commands.call_args[0][0].method_calls)
+        commands_sent = re.sub("set\\(\\[", "{", commands_sent)
+        commands_sent = re.sub("\\]\\)", "}", commands_sent)
+        assert "update_user" in commands_sent
+        assert 'username' in commands_sent and "'firstname': 'newfirstname'" in commands_sent and "'email': 'newemail'" in commands_sent
+        assert "remove_groups({'removed_user_group'})" in commands_sent
+        assert "add_groups({'added_user_group'})" in commands_sent
+
+    stream.flush()
+    actual_logger_output = stream.getvalue()
+    assert 'newfirstname' in actual_logger_output
+    assert 'removed_user_group' in actual_logger_output
+    assert 'added_user_group' in actual_logger_output
+    assert mock_umapi_user["email"] == mock_umapi_user["username"]
+
+
+def test_read_desired_user_groups(rule_processor, log_stream, mock_directory_user):
+    rp = rule_processor
+    stream, logger = log_stream
+    rp.logger = logger
+    mock_directory_user['groups'] = ['security_group']
+
+    directory_connector = mock.MagicMock()
+    directory_connector.load_users_and_groups.return_value = [mock_directory_user]
+    mappings = {
+        'security_group': [AdobeGroup.create('user_group')]
+    }
+
+    rp.read_desired_user_groups(mappings, directory_connector)
+
+    # Assert the security group and adobe group end up in the correct scope
+    assert "security_group" in rp.after_mapping_hook_scope['source_groups']
+    assert "user_group" in rp.after_mapping_hook_scope['target_groups']
+
+    # Assert the user group updated in umapi info
+    user_key = rp.get_directory_user_key(mock_directory_user)
+    assert ('user_group' in rp.umapi_info_by_name[None].desired_groups_by_user_key[user_key])
+
+    # testing after_mapping_hooks
+    AdobeGroup.create('existing_group')
+
+    after_mapping_hook_text = """
+first = source_attributes.get('givenName')
+if first is not None: 
+  target_groups.add('scope_group')
+target_groups.add('existing_group')
+"""
+
+    hook_code = compile(after_mapping_hook_text, '<per-user after-mapping-hook>', 'exec')
+    rp.options['after_mapping_hook'] = hook_code
+    rp.read_desired_user_groups(mappings, directory_connector)
+    stream.flush()
+    logger_output = stream.getvalue()
+
+    assert 'Target adobe group scope_group is not known; ignored' in logger_output
+    assert rp.umapi_info_by_name[None].desired_groups_by_user_key == {
+        user_key: {'user_group', 'existing_group'}
+    }
+
+    assert "security_group" in rp.after_mapping_hook_scope['source_groups']
+    assert "existing_group" in rp.after_mapping_hook_scope['target_groups']
+
+    # testing additional_groups
+    rp.options['after_mapping_hook'] = None
+    mock_directory_user['member_groups'] = ['other_security_group', 'security_group', 'more_security_group']
+    rp.options['additional_groups'] = [
+        {
+            'source': re.compile('other(.+)'),
+            'target': AdobeGroup.create('additional_user_group')},
+        {
+            'source': re.compile('security_group'),
+            'target': AdobeGroup.create('additional(.+)')}]
+
+    rp.read_desired_user_groups(mappings, directory_connector)
+    assert 'other_security_group' in rp.umapi_info_by_name[None].additional_group_map[
+        'additional_user_group']
+    assert 'security_group' in rp.umapi_info_by_name[None].additional_group_map[
+        'additional(.+)']
+    assert {'additional_user_group', 'additional(.+)'}.issubset(
+        rp.umapi_info_by_name[None].desired_groups_by_user_key[user_key])
+
+
+@mock.patch("user_sync.rules.RuleProcessor.create_umapi_commands_for_directory_user")
+def test_create_umapi_user(create_commands, rule_processor):
+    rule_processor.directory_user_by_user_key['test'] = 'test'
+
+    mock_command = MagicMock()
+    create_commands.return_value = mock_command
+    rule_processor.options['process_groups'] = True
+    rule_processor.push_umapi = True
+    rule_processor.create_umapi_user('test', set(), MagicMock(), MagicMock())
+
+    called = [c[0] for c in mock_command.mock_calls][1:]
+    assert called == ['remove_groups', 'add_groups']
+
+
+@pytest.fixture
+def mock_user_directory_data():
+    return {
+        'federatedID,both1@example.com,':
+            {
+                'identity_type': 'federatedID',
+                'username': 'both1@example.com',
+                'domain': 'example.com',
+                'firstname': 'both1',
+                'lastname': 'one',
+                'email': 'both1@example.com',
+                'groups': ['All Sea of Carag'],
+                'country': 'US',
+                'member_groups': [],
+                'source_attributes': {
+                    'email': 'both1@example.com',
+                    'identity_type': None,
+                    'username': None,
+                    'domain': None,
+                    'givenName': 'both1',
+                    'sn': 'one',
+                    'c': 'US'}},
+        'federatedID,both2@example.com,':
+            {
+                'identity_type': 'federatedID',
+                'username': 'both2@example.com',
+                'domain': 'example.com',
+                'firstname': 'both2',
+                'lastname': 'one',
+                'email': 'both2@example.com',
+                'groups': ['All Sea of Carag'],
+                'country': 'US',
+                'member_groups': [],
+                'source_attributes': {
+                    'email': 'both2@example.com',
+                    'identity_type': None,
+                    'username': None,
+                    'domain': None,
+                    'givenName': 'both2',
+                    'sn': 'two',
+                    'c': 'US'}},
+        'federatedID,both3@example.com,':
+            {
+                'identity_type': 'federatedID',
+                'username': 'both3@example.com',
+                'domain': 'example.com',
+                'firstname': 'both3',
+                'lastname': 'one',
+                'email': 'both3@example.com',
+                'groups': ['All Sea of Carag'],
+                'country': 'US',
+                'member_groups': [],
+                'source_attributes': {
+                    'email': 'both3@example.com',
+                    'identity_type': None,
+                    'username': None,
+                    'domain': None,
+                    'givenName': 'both3',
+                    'sn': 'three',
+                    'c': 'US'}},
+        'federatedID,directory.only1@example.com,':
+            {
+                'identity_type': 'federatedID',
+                'username': 'directory.only1@example.com',
+                'domain': 'example.com',
+                'firstname': 'dir1',
+                'lastname': 'one',
+                'email': 'directory.only1example.com',
+                'groups': ['All Sea of Carag'],
+                'country': 'US',
+                'member_groups': [],
+                'source_attributes': {
+                    'email': 'directory.only1@example.com',
+                    'identity_type': None,
+                    'username': None,
+                    'domain': None,
+                    'givenName': 'dir1',
+                    'sn': 'one',
+                    'c': 'US'}}
+    }
+
+
+@pytest.fixture
+def mock_umapi_user_data():
+    return [
+        {
+            'email': 'both1@example.com',
+            'status': 'active',
+            'groups': ['_org_admin', 'group1'],
+            'username': 'both1@example.com',
+            'adminRoles': ['org'],
+            'domain': 'example.com',
+            'country': 'US',
+            'type': 'federatedID'},
+        {
+            'email': 'both2@example.com',
+            'status': 'active',
+            'groups': ['_org_admin', 'user_group'],
+            'username': 'both2@example.com',
+            'adminRoles': ['org'],
+            'domain': 'example.com',
+            'country': 'US',
+            'type': 'federatedID'},
+        {
+            'email': 'both3@example.com',
+            'status': 'active',
+            'groups': ['_org_admin', 'group1', 'user_group'],
+            'username': 'both3@example.com',
+            'adminRoles': ['org'],
+            'domain': 'example.com',
+            'country': 'US',
+            'type': 'federatedID'},
+        {
+            'email': 'adobe.only1@example.com',
+            'status': 'active',
+            'groups': ['_org_admin'],
+            'username': 'adobe.only1@example.com',
+            'adminRoles': ['org'],
+            'domain': 'example.com',
+            'country': 'US',
+            'type': 'federatedID'},
+        {
+            'email': 'exclude1@example.com',
+            'status': 'active',
+            'groups': ['_org_admin'],
+            'username': 'exclude1@example.com',
+            'adminRoles': ['org'],
+            'domain': 'example.com',
+            'country': 'US',
+            'type': 'federatedID'}]
+
+
+@pytest.fixture
+def rule_processor(caller_options):
+    return RuleProcessor(caller_options)
+
+
+    called = [c[0] for c in mock_command.mock_calls][1:]
+    assert called == ['remove_groups', 'add_groups']
+
+#
+# @mock.patch("user_sync.rules.RuleProcessor.update_umapi_users_for_connector")
+# def test_example(update_umapi, rule_processor, mock_user_directory_data):
+#
+#     umapi_connectors = mock.MagicMock()
+#     umapi_connectors.get_secondary_connectors.return_value = {}
+#     rule_processor.create_umapi_user =  mock.MagicMock()
+#
+#     refined_users = {k:set(v.pop('groups')) for k, v in six.iteritems(mock_user_directory_data)}
+#     update_umapi.return_value = refined_users
+#
+#     rule_processor.sync_umapi_users(umapi_connectors)
+#     assert  rule_processor.primary_users_created == refined_users.keys()
+#
+#     results = [c.args[0:2] for c in rule_processor.create_umapi_user.mock_calls]
+#     actual = [(k, v) for k, v in six.iteritems(refined_users)]
+#     assert results == actual
+#
+#     print()
+
+    # rule_processor.directory_user_by_user_key['test'] = 'test'
+    #
+    # mock_command = MagicMock()
+    # create_commands.return_value = mock_command
+    # rule_processor.options['process_groups'] = True
+    # rule_processor.push_umapi = True
+    # rule_processor.create_umapi_user('test', set(), MagicMock(), MagicMock())
+    #
+    # called = [c[0] for c in mock_command.mock_calls][1:]
+    # assert called == ['remove_groups', 'add_groups']
+
+@pytest.fixture
+def caller_options():
+    return {
+        'adobe_group_filter': None,
+        'after_mapping_hook': None,
+        'default_country_code': 'US',
+        'delete_strays': False,
+        'directory_group_filter': None,
+        'disentitle_strays': False,
+        'exclude_groups': [],
+        'exclude_identity_types': ['adobeID'],
+        'exclude_strays': False,
+        'exclude_users': [],
+        'extended_attributes': None,
+        'process_groups': True,
+        'max_adobe_only_users': 200,
+        'new_account_type': 'federatedID',
+        'remove_strays': True,
+        'strategy': 'sync',
+        'stray_list_input_path': None,
+        'stray_list_output_path': None,
+        'test_mode': True,
+        'update_user_info': False,
+        'username_filter_regex': None,
+        'adobe_only_user_action': ['remove'],
+        'adobe_only_user_list': None,
+        'adobe_users': ['all'],
+        'config_filename': 'tests/fixture/user-sync-config.yml',
+        'connector': 'ldap',
+        'encoding_name': 'utf8',
+        'user_filter': None,
+        'users': None,
+        'directory_connector_type': 'csv',
+        'directory_connector_overridden_options': {
+            'file_path': '../tests/fixture/remove-data.csv'},
+        'adobe_group_mapped': False,
+        'additional_groups': []}
+    called = [c[0] for c in mock_command.mock_calls][1:]
+    assert called == ['remove_groups', 'add_groups']
+
+
+@mock.patch("user_sync.connector.umapi.Commands")
+def test_manage_strays(commands, rule_processor):
+    commands.return_value = mock.MagicMock()
+    umapi_connector = mock.MagicMock()
+    umapi_connector.get_primary_connector.return_value = mock.MagicMock()
+    rule_processor.stray_key_map = {None: {'federatedID,example@email.com,': {'user_group'}}}
+
+    rule_processor.options['disentitle_strays'] = True
+    rule_processor.manage_strays(umapi_connector)
+    called = [c[0] for c in commands.mock_calls]
+    assert '().remove_all_groups' in called
+
+    rule_processor.options['disentitle_strays'] = False
+    commands.mock_calls = []
+    rule_processor.options['remove_strays'] = True
+    rule_processor.manage_strays(umapi_connector)
+    called = [c[0] for c in commands.mock_calls]
+
+    assert '().remove_from_org' in called
+
+    rule_processor.options['remove_strays'] = False
+
+    commands.mock_calls = []
+    rule_processor.options['delete_strays'] = True
+    rule_processor.manage_strays(umapi_connector)
+    called = [c[0] for c in commands.mock_calls]
+    assert '().remove_from_org' in called
+
+    rule_processor.options['disentitle_strays'] = False
+    rule_processor.options['remove_strays'] = False
+    rule_processor.options['delete_strays'] = False
+    commands.mock_calls = []
+    rule_processor.manage_stray_groups = True
+    rule_processor.manage_strays(umapi_connector)
+    called = [c[0] for c in commands.mock_calls]
+    assert '().remove_groups' in called
+
+
+
+
+    rule_processor.manage_strays(umapi_connector)
+
             'enterpriseID,adobe.user1@example.com,': set(),
             'federatedID,adobe.user2@example.com,': set()
         }}
@@ -735,3 +1112,4 @@ def test_write_stray_key_map(rule_processor, tmpdir):
                     ['enterpriseID', 'adobe.user1@example.com', '', ''],
                     ['federatedID', 'adobe.user2@example.com', '', '']]
         assert compare_iter(actual, expected)
+
