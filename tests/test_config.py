@@ -335,7 +335,7 @@ def test_get_directory_connector_configs(cli_args, config_files):
 
     # Test method to verify 'okta', 'csv', 'ldap' are in the accessed_keys set
     result = config_loader.main_config.child_configs.get('directory_users').child_configs['connectors'].accessed_keys
-    assert result == {'okta', 'csv', 'ldap'}
+    assert result == {'okta', 'adobe_console', 'csv', 'ldap'}
 
 
 def test_get_directory_connector_module_name(cli_args, config_files):
@@ -352,3 +352,127 @@ def test_get_directory_connector_module_name(cli_args, config_files):
 
     options['directory_connector_type'] = None
     assert not config_loader.get_directory_connector_module_name()
+
+
+def test_get_directory_extension_option(cli_args, modify_config, modify_root_config, config_files):
+    # case 1: When there is no change in the user sync config file
+    # getting the user-sync file from the set of config files
+    root_config_file = config_files['root_config']
+    # setting the config loader
+    args = cli_args({'config_filename': root_config_file})
+    config_loader = ConfigLoader(args)
+    assert config_loader.get_directory_extension_options() == {}
+    # case 2: When there is an extension file link in the user-sync-config file
+    root_config_file = modify_root_config(['directory_users', 'extension'], 'extension-config.yml')
+    # get the config loader object
+    args = cli_args({'config_filename': root_config_file})
+    config_loader = ConfigLoader(args)
+    # raise assertionerror if after mapping hook has nothing
+    modify_config('extension', ['after_mapping_hook'], None)
+    with pytest.raises(AssertionError):
+        config_loader.get_directory_extension_options()
+    # check for the string under after mapping hook
+    modify_config('extension', ['after_mapping_hook'], 'print hello ')
+    options = {'after_mapping_hook': 'print hello ', 'extended_adobe_groups': ['Company 1 Users', 'Company 2 Users'],
+               'extended_attributes': ['bc', 'subco']}
+    assert config_loader.get_directory_extension_options().value == options
+
+def test_combine_dicts(cli_args, modify_config, modify_root_config, config_files):
+        root_config_file = config_files['root_config']
+        ldap_config_file = config_files['ldap']
+
+        args = cli_args({'config_filename': root_config_file})
+        
+        config_loader = ConfigLoader(args)
+        # Create a dummy dict
+
+        dict1 = {'server': {'host': 'dummy1-stage.adobe.io', 'ims_host': 'ims-na1-stg1.adobelogin.com', 'saba': 'saba'},
+                 'enterprise': {'org_id': 'D28927675A9581A20A49412A@AdobeOrg',
+                                'api_key': 'b348211181c74a8f84dba226cba72cac',
+                                'client_secret': '51802159-c3f2-4549-8ac1-0d607ee558c3',
+                                'tech_acct': '57C7738C5D67F8420A494216@techacct.adobe.com',
+                                'priv_key_path': 'C:\\Program Files\\Adobe\\Adobe User Sync ToolSaba\\private.key'}}
+        dict2 = {'server': {'host': 'dummy2-stage.adobe.io', 'ims_host': 'ims-na1-stg1.adobelogin.com'},
+                 'enterprise': {'mike': 'mike', 'org_id': 'D28927675A9581A20A49412A@AdobeOrg',
+                                'api_key': 'b348211181c74a8f84dba226cba72cac',
+                                'client_secret': '51802159-c3f2-4549-8ac1-0d607ee558c3',
+                                'tech_acct': '57C7738C5D67F8420A494216@techacct.adobe.com',
+                                'priv_key_path': 'C:\\Program Files\\Adobe\\Adobe User Sync ToolSaba\\private.key'}}
+
+        result = config_loader.combine_dicts([dict1, dict2])
+
+        dict2['server']['saba'] = 'saba'
+        assert dict2 == result
+
+def test_load_directory_groups(config_files, cli_args, modify_root_config):
+    root_config_file = config_files['root_config']
+    args = cli_args({'config_filename': root_config_file})
+
+    result = ConfigLoader(args).load_directory_groups()
+    assert 'All Apps' in result
+
+    modify_root_config(['directory_users', 'groups'], [])
+    result = ConfigLoader(args).load_directory_groups()
+    assert result == {}
+
+    modify_root_config(['directory_users', 'groups'], [{'directory_group': 'DIR-1', 'adobe_groups': ['']}])
+    with pytest.raises(AssertionException) as error:
+        ConfigLoader(args).load_directory_groups()
+    assert 'Bad adobe group: "" in directory group: "DIR-1"' in str(error.value)
+
+    modify_root_config(['directory'], {})
+    with pytest.raises(AssertionException) as error:
+        ConfigLoader(args).load_directory_groups()
+    assert "Your main configuration file is still in v1 format.  Please convert it to v2." in str(error.value)
+
+
+def test_load_invocation_options(config_files, cli_args, modify_root_config):
+    root_config_file = config_files['root_config']
+    args = cli_args({'config_filename': root_config_file})
+
+    # Default was 'preserve.'
+    modify_root_config(['invocation_defaults', 'adobe_only_user_action'], 'delete')
+    # Default was 'all.'
+    modify_root_config(['invocation_defaults', 'adobe_users'], ['mapped'])
+    # Default was 'ldap.'
+    modify_root_config(['invocation_defaults', 'connector'], ['okta'])
+    # Default was 'utf8.'
+    modify_root_config(['invocation_defaults', 'encoding_name'], 'ascii')
+    # Default was 'False.'
+    modify_root_config(['invocation_defaults', 'process_groups'], True)
+    # Default was 'False.'
+    modify_root_config(['invocation_defaults', 'test_mode'], True)
+    # Default was 'False.'
+    modify_root_config(['invocation_defaults', 'update_user_info'], True)
+    # Default was None.
+    modify_root_config(['invocation_defaults', 'user_filter'], 'b.*@forxampl.com')
+    # Default was 'all.'
+    modify_root_config(['invocation_defaults', 'users'], ['mapped'])
+    modify_root_config(['invocation_defaults', 'config_filename'], 'user-sync-config.yml')
+
+    options = ConfigLoader(args).load_invocation_options()
+
+    assert options['adobe_only_user_action'] == ['delete']
+    assert options['adobe_users'] == ['mapped']
+    assert options['connector'] == ['okta']
+    assert options['encoding_name'] == 'ascii'
+    assert options['process_groups'] is True
+    assert options['test_mode'] is True
+    assert options['update_user_info'] is True
+    assert options['user_filter'] == 'b.*@forxampl.com'
+    assert options['users'] == ['mapped']
+
+    # Default was None
+    modify_root_config(['invocation_defaults', 'adobe_only_user_list'], 'adobe_only_user_list.csv')
+
+    options = ConfigLoader(args).load_invocation_options()
+    assert options['adobe_only_user_list'] == 'adobe_only_user_list.csv'
+
+    # Default was 'sync.'
+    modify_root_config(['invocation_defaults', 'adobe_only_user_list'], None)
+    modify_root_config(['invocation_defaults', 'strategy'], 'push')
+
+    options = ConfigLoader(args).load_invocation_options()
+    assert options['strategy'] == 'push'
+    assert options['adobe_only_user_action'] is None
+    assert options['adobe_only_user_list'] is None

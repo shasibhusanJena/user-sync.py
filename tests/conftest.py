@@ -1,15 +1,19 @@
 import logging
 import os
+
 import pytest
-from six import StringIO
+
+from tests.util import ClearableStringIO, blank_user_full
 from user_sync import config
 from user_sync.rules import RuleProcessor
+
 
 @pytest.fixture
 def fixture_dir():
     return os.path.abspath(
         os.path.join(
             os.path.dirname(__file__), 'fixture'))
+
 
 @pytest.fixture
 def cli_args():
@@ -31,7 +35,7 @@ def cli_args():
 
 @pytest.fixture
 def log_stream():
-    stream = StringIO()
+    stream = ClearableStringIO()
     handler = logging.StreamHandler(stream)
     logger = logging.getLogger('test_logger')
     logger.setLevel(logging.DEBUG)
@@ -40,39 +44,53 @@ def log_stream():
     handler.close()
 
 
+@pytest.fixture()
+def get_mock_user():
+    def _get_mock_user(
+            identifier="user1",
+            is_umapi_user=False,
+            firstname=None,
+            lastname=None,
+            groups=None,
+            country="US",
+            identity_type="federatedID",
+            domain="example.com",
+            username=None
+    ):
+        u = blank_user_full(identifier, firstname, lastname, groups,
+                            country, identity_type, domain, username)
+        if is_umapi_user:
+            u.pop('identity_type')
+            u.pop('member_groups')
+            u.pop('source_attributes')
+        else:
+            u.pop('adminRoles')
+            u.pop('status')
+            u.pop('type')
+        return u
 
+    return _get_mock_user
 
-@pytest.fixture
-def mock_directory_user():
-    return {
-        'identity_type': 'federatedID',
-        'username': 'nameless@example.com',
-        'domain': 'example.com',
-        'firstname': 'One',
-        'lastname': 'Six',
-        'email': 'nameless@example.com',
-        'groups': ['All Sea of Carag'],
-        'country': None,
-        'member_groups': [],
-        'source_attributes': {
-            'email': 'nameless@example.com',
-            'identity_type': None,
-            'username': None,
-            'domain': None,
-            'givenName': 'One',
-            'sn': 'Six',
-            'c': 'US'}}
 
 @pytest.fixture()
-def mock_umapi_user():
-    return  {
-        'email': 'bsisko@example.com',
-        'status': 'active',
-        'groups': ['Group A', '_admin_Group A', 'Group A_1924484-provisioning'],
-        'username': 'bsisko@example.com',
-        'domain': 'example.com',
-        'firstname': 'Benjamin',
-        'lastname': 'Sisko',
-        'country': 'CA',
-        'type': 'federatedID'
-    }
+def mock_dir_user(get_mock_user):
+    return get_mock_user()
+
+
+@pytest.fixture()
+def mock_umapi_user(get_mock_user):
+    return get_mock_user(is_umapi_user=True)
+
+
+@pytest.fixture()
+def get_mock_user_list(get_mock_user):
+    def _get_mock_user_list(count=5, start=0, umapi_users=False, groups=[]):
+        users = {}
+        rp = RuleProcessor({})
+        get_key = rp.get_umapi_user_key if umapi_users else rp.get_directory_user_key
+        for i in range(start, start + count):
+            u = get_mock_user("user" + str(i), umapi_users, groups=groups)
+            users[get_key(u)] = u
+        return users
+
+    return _get_mock_user_list

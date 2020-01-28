@@ -1,6 +1,50 @@
 from collections import Mapping
 from copy import deepcopy
 
+from six import StringIO
+
+
+# Serves as a base user for either umapi or directory user tests
+def blank_user_full(
+        identifier,
+        firstname=None,
+        lastname=None,
+        groups=None,
+        country="US",
+        identity_type="federatedID",
+        domain="example.com",
+        username=None
+):
+    if '@' not in identifier:
+        identifier = identifier + "@" + domain
+    user_id = identifier.split("@")[0]
+    firstname = firstname or user_id + " First"
+    lastname = lastname or user_id + " Last"
+    domain = domain or identifier.split("@")[-1]
+
+    return deepcopy({
+        'identity_type': identity_type,
+        'type': identity_type,
+        'username': username or identifier,
+        'domain': domain,
+        'firstname': firstname,
+        'lastname': lastname,
+        'email': identifier,
+        'groups': groups or [],
+        'member_groups': [],
+        'adminRoles':[],
+        'status': 'active',
+        'country': country,
+        'source_attributes': {
+            'email': identifier,
+            'identity_type': None,
+            'username': user_id,
+            'domain': domain,
+            'givenName': firstname,
+            'sn': lastname,
+            'c': country}
+    })
+
 
 def make_dict(keylist, value):
     """
@@ -43,7 +87,22 @@ def merge_dict(d1, d2, immutable=False):
     return d1
 
 
-def compare_iterable(a, b):
-    if len(a) != len(b):
-        return False
-    return {x in b for x in a} == {x in b for x in a} == {True}
+def compare_iter(a, b):
+    return (len(a) == len(b) and
+            {x in b for x in a} ==
+            {x in b for x in a} ==
+            {True})
+
+
+class ClearableStringIO(StringIO, object):
+
+    def __init__(self):
+        super(ClearableStringIO, self).__init__()
+
+    def clear(self):
+        self.truncate(0)
+        self.seek(0)
+
+    def getvalue(self):
+        self.flush()
+        return super(ClearableStringIO, self).getvalue()
