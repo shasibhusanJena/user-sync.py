@@ -579,7 +579,7 @@ class ObjectConfig(object):
 
     def add_child(self, config):
         """
-        :type config: ObjectConfig
+        :type config: ObjectConfig 
         """
         config.set_parent(self)
         self.child_configs[config.scope] = config
