@@ -204,7 +204,7 @@ def test_get_directory_connector_configs(cli_args, config_files):
 
     # Test method to verify 'okta', 'csv', 'ldap' are in the accessed_keys set
     result = config_loader.main_config.child_configs.get('directory_users').child_configs['connectors'].accessed_keys
-    assert result == {'okta', 'csv', 'ldap'}
+    assert result == {'okta', 'adobe_console', 'csv', 'ldap'}
 
 
 def test_get_directory_connector_module_name(cli_args, config_files):
@@ -272,3 +272,76 @@ def test_combine_dicts(cli_args, modify_config, modify_root_config, config_files
 
         dict2['server']['saba'] = 'saba'
         assert dict2 == result
+
+def test_load_directory_groups(config_files, cli_args, modify_root_config):
+    root_config_file = config_files['root_config']
+    args = cli_args({'config_filename': root_config_file})
+
+    result = ConfigLoader(args).load_directory_groups()
+    assert 'All Apps' in result
+
+    modify_root_config(['directory_users', 'groups'], [])
+    result = ConfigLoader(args).load_directory_groups()
+    assert result == {}
+
+    modify_root_config(['directory_users', 'groups'], [{'directory_group': 'DIR-1', 'adobe_groups': ['']}])
+    with pytest.raises(AssertionException) as error:
+        ConfigLoader(args).load_directory_groups()
+    assert 'Bad adobe group: "" in directory group: "DIR-1"' in str(error.value)
+
+    modify_root_config(['directory'], {})
+    with pytest.raises(AssertionException) as error:
+        ConfigLoader(args).load_directory_groups()
+    assert "Your main configuration file is still in v1 format.  Please convert it to v2." in str(error.value)
+
+
+def test_load_invocation_options(config_files, cli_args, modify_root_config):
+    root_config_file = config_files['root_config']
+    args = cli_args({'config_filename': root_config_file})
+
+    # Default was 'preserve.'
+    modify_root_config(['invocation_defaults', 'adobe_only_user_action'], 'delete')
+    # Default was 'all.'
+    modify_root_config(['invocation_defaults', 'adobe_users'], ['mapped'])
+    # Default was 'ldap.'
+    modify_root_config(['invocation_defaults', 'connector'], ['okta'])
+    # Default was 'utf8.'
+    modify_root_config(['invocation_defaults', 'encoding_name'], 'ascii')
+    # Default was 'False.'
+    modify_root_config(['invocation_defaults', 'process_groups'], True)
+    # Default was 'False.'
+    modify_root_config(['invocation_defaults', 'test_mode'], True)
+    # Default was 'False.'
+    modify_root_config(['invocation_defaults', 'update_user_info'], True)
+    # Default was None.
+    modify_root_config(['invocation_defaults', 'user_filter'], 'b.*@forxampl.com')
+    # Default was 'all.'
+    modify_root_config(['invocation_defaults', 'users'], ['mapped'])
+    modify_root_config(['invocation_defaults', 'config_filename'], 'user-sync-config.yml')
+
+    options = ConfigLoader(args).load_invocation_options()
+
+    assert options['adobe_only_user_action'] == ['delete']
+    assert options['adobe_users'] == ['mapped']
+    assert options['connector'] == ['okta']
+    assert options['encoding_name'] == 'ascii'
+    assert options['process_groups'] is True
+    assert options['test_mode'] is True
+    assert options['update_user_info'] is True
+    assert options['user_filter'] == 'b.*@forxampl.com'
+    assert options['users'] == ['mapped']
+
+    # Default was None
+    modify_root_config(['invocation_defaults', 'adobe_only_user_list'], 'adobe_only_user_list.csv')
+
+    options = ConfigLoader(args).load_invocation_options()
+    assert options['adobe_only_user_list'] == 'adobe_only_user_list.csv'
+
+    # Default was 'sync.'
+    modify_root_config(['invocation_defaults', 'adobe_only_user_list'], None)
+    modify_root_config(['invocation_defaults', 'strategy'], 'push')
+
+    options = ConfigLoader(args).load_invocation_options()
+    assert options['strategy'] == 'push'
+    assert options['adobe_only_user_action'] is None
+    assert options['adobe_only_user_list'] is None
