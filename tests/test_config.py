@@ -69,9 +69,9 @@ class TestConfigLoader():
         pass
 
     def test_load_invocation_options(self, config_files, cli_args, modify_root_config):
+
         root_config_file = config_files['root_config']
-        args = cli_args({
-            'config_filename': root_config_file})
+        args = cli_args({'config_filename': root_config_file})
 
         # Default was 'preserve.'
         modify_root_config(['invocation_defaults', 'adobe_only_user_action'], 'delete')
@@ -93,8 +93,8 @@ class TestConfigLoader():
         modify_root_config(['invocation_defaults', 'users'], ['mapped'])
         modify_root_config(['invocation_defaults', 'config_filename'], 'user-sync-config.yml')
 
+        # Check that the root options were loaded correctly
         options = ConfigLoader(args).load_invocation_options()
-
         assert options['adobe_only_user_action'] == ['delete']
         assert options['adobe_users'] == ['mapped']
         assert options['connector'] == ['okta']
@@ -129,28 +129,21 @@ class TestConfigLoader():
             key.write("data")
 
         # tests a single primary umapi configration
-        args = cli_args({
-            'config_filename': root_config})
+        args = cli_args({'config_filename': root_config})
         config_loader = ConfigLoader(args)
         primary, secondary = config_loader.get_umapi_options()
         assert {'server', 'enterprise'} <= set(primary)
         assert secondary == {}
 
         # tests secondary connector
-        modify_root_config(['adobe_users', 'connectors', 'umapi'],
-                           [umapi_config, {
-                               'secondary_console': umapi_config}])
-
+        modify_root_config(['adobe_users', 'connectors', 'umapi'], [umapi_config, {'secondary_console': umapi_config}])
         config_loader = ConfigLoader(args)
         primary, secondary = config_loader.get_umapi_options()
         assert {'server', 'enterprise'} <= set(primary)
         assert 'secondary_console' in secondary
 
         # tests secondary umapi configuration assertion
-        modify_root_config(['adobe_users', 'connectors', 'umapi'],
-                           [{
-                               'primary': umapi_config}, umapi_config])
-
+        modify_root_config(['adobe_users', 'connectors', 'umapi'], [{'primary': umapi_config}, umapi_config])
         config_loader = ConfigLoader(args)
         with pytest.raises(AssertionException) as error:
             config_loader.get_umapi_options()
@@ -164,8 +157,7 @@ class TestConfigLoader():
         assert "Your main configuration file is still in v1 format." in str(error.value)
 
     def test_get_directory_connector_module_name(self, cli_args, config_files):
-        args = cli_args({
-            'config_filename': config_files['root_config']})
+        args = cli_args({'config_filename': config_files['root_config']})
         config_loader = ConfigLoader(args)
         options = config_loader.invocation_options
         options['stray_list_input_path'] = 'something'
@@ -180,8 +172,7 @@ class TestConfigLoader():
         assert not config_loader.get_directory_connector_module_name()
 
     def test_get_directory_connector_configs(self, cli_args, config_files):
-        args = cli_args({
-            'config_filename': config_files['root_config']})
+        args = cli_args({ 'config_filename': config_files['root_config']})
         config_loader = ConfigLoader(args)
         config_loader.get_directory_connector_configs()
 
@@ -190,9 +181,12 @@ class TestConfigLoader():
         assert expected_file_path == config_files['ldap']
 
         # Test method to verify 'okta', 'csv', 'ldap' are in the accessed_keys set
-        result = config_loader.main_config.child_configs.get('directory_users').child_configs[
-            'connectors'].accessed_keys
+        result = (config_loader.main_config.child_configs.get('directory_users').child_configs['connectors'].accessed_keys)
         assert result == {'okta', 'adobe_console', 'csv', 'ldap'}
+
+        # Check for unknown conector type
+        args['connector'] = ['bad_connector']
+        pytest.raises(AssertionException, ConfigLoader, args)
 
     # todo: implement test_get_directory_connector_options
     def test_get_directory_connector_options(self):
@@ -200,11 +194,16 @@ class TestConfigLoader():
 
     def test_load_directory_groups(self, config_files, cli_args, modify_root_config):
         root_config_file = config_files['root_config']
-        args = cli_args({
-            'config_filename': root_config_file})
+        args = cli_args({'config_filename': root_config_file})
+
+        modify_root_config(['directory_users', 'groups'], [{
+            'directory_group': 'Directory Group',
+            'adobe_groups': ['Acrobat Users']}
+        ])
 
         result = ConfigLoader(args).load_directory_groups()
-        assert 'All Apps' in result
+        assert 'Directory Group' in result
+        assert isinstance(result['Directory Group'][0], rules.AdobeGroup)
 
         modify_root_config(['directory_users', 'groups'], [])
         result = ConfigLoader(args).load_directory_groups()
@@ -217,6 +216,13 @@ class TestConfigLoader():
             ConfigLoader(args).load_directory_groups()
         assert 'Bad adobe group: "" in directory group: "DIR-1"' in str(error.value)
 
+        modify_root_config(['directory_users', 'groups'], [{
+            'directory_group': None,
+            'adobe_groups': ['Group']}])
+        with pytest.raises(AssertionException) as error:
+            ConfigLoader(args).load_directory_groups()
+        assert 'Value not found for key: directory_group' in str(error.value)
+
         modify_root_config(['directory'], {})
         with pytest.raises(AssertionException) as error:
             ConfigLoader(args).load_directory_groups()
@@ -227,26 +233,27 @@ class TestConfigLoader():
         # getting the user-sync file from the set of config files
         root_config_file = config_files['root_config']
         # setting the config loader
-        args = cli_args({
-            'config_filename': root_config_file})
+        args = cli_args({'config_filename': root_config_file})
         config_loader = ConfigLoader(args)
         assert config_loader.get_directory_extension_options() == {}
+
         # case 2: When there is an extension file link in the user-sync-config file
         root_config_file = modify_root_config(['directory_users', 'extension'], 'extension-config.yml')
         # get the config loader object
-        args = cli_args({
-            'config_filename': root_config_file})
+        args = cli_args({'config_filename': root_config_file})
         config_loader = ConfigLoader(args)
+
         # raise assertionerror if after mapping hook has nothing
         modify_config('extension', ['after_mapping_hook'], None)
-        with pytest.raises(AssertionError):
-            config_loader.get_directory_extension_options()
+        pytest.raises(AssertionError, config_loader.get_directory_extension_options)
+
         # check for the string under after mapping hook
         modify_config('extension', ['after_mapping_hook'], 'print hello ')
         options = {
             'after_mapping_hook': 'print hello ',
             'extended_adobe_groups': ['Company 1 Users', 'Company 2 Users'],
-            'extended_attributes': ['bc', 'subco']}
+            'extended_attributes': ['bc', 'subco']
+        }
         assert config_loader.get_directory_extension_options().value == options
 
     # @mock.patch('user_sync.rules.RuleProcessor.default_options')
