@@ -173,7 +173,7 @@ class OneRosterConnector(object):
         user_dict = {}
         for source in scope:
             self.connection = self.get_connection(api_options, source)
-            new_users = self.get_all_users(groups=source.product)
+            new_users = self.get_all_users(groups=source.product, user_filter=source.user_filter)
             self.update_user_dict(user_dict, new_users)
         return user_dict
 
@@ -451,11 +451,13 @@ class ScopedSource():
                  client_secret=None,
                  access_token=None,
                  product=None,
+                 user_filter='users',
                  **kwargs):
         self.client_id = client_id
         self.client_secret = client_secret
         self.access_token = access_token
         self.product = product
+        self.user_filter = user_filter
 
     @classmethod
     def from_data(cls, data):
