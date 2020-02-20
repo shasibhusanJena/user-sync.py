@@ -59,8 +59,8 @@ setup(name='user-sync',
           'oneroster',
       ],
       extras_require={
-          ':python_version>="3" and (sys_platform=="linux" or sys_platform=="linux2")':[
-              'jeepney==0.4'
+          ':python_version<"3"':[
+              'zipp==1.1.0',
           ],
           ':sys_platform=="linux" or sys_platform=="linux2"': [
               'secretstorage',
