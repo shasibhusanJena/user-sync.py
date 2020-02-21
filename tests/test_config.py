@@ -22,8 +22,8 @@ def reset_rule_options():
 
 
 @pytest.fixture()
-def safe_rp_get_options():
-    # Failsafe in case of failed test
+def cleanup():
+    # Failsafe in case of failed test - resets options
     yield
     reset_rule_options()
 
@@ -256,7 +256,7 @@ class TestConfigLoader():
         }
         assert config_loader.get_directory_extension_options().value == options
 
-    def test_get_rule_options_add(self, safe_rp_get_options, modify_root_config, default_args):
+    def test_get_rule_options_add(self, cleanup, modify_root_config, default_args):
 
         # Modify these values in the root_config file (user-sync-config.yml)
         reset_rule_options()  # Reset the ruleprocessor
@@ -292,7 +292,7 @@ class TestConfigLoader():
         assert result['exclude_users'] == ['UserA', 'UserB']
         assert result['max_adobe_only_users'] == 300
 
-    def test_get_rule_options_exceptions(self, safe_rp_get_options, modify_root_config, default_args):
+    def test_get_rule_options_exceptions(self, cleanup, modify_root_config, default_args):
 
         # Set an exclude_identity_types to a list with an invalid id type to throw an error
         reset_rule_options()  # Reset the ruleprocessor
@@ -333,7 +333,7 @@ class TestConfigLoader():
             ConfigLoader(default_args).get_rule_options()
         assert "'directory_users' must be specified" in str(error.value)
 
-    def test_get_rule_options_regex(self, safe_rp_get_options, modify_root_config, default_args):
+    def test_get_rule_options_regex(self, cleanup, modify_root_config, default_args):
 
         # Set exclude_users to a regex to verify it compiles correctly
         reset_rule_options()  # Reset the ruleprocessor
@@ -342,7 +342,7 @@ class TestConfigLoader():
         assert result['exclude_users'][0].pattern == '\\A.*@special.com\\Z'
         assert result['exclude_users'][1].pattern == '\\Afreelancer-[0-9]+.*\\Z'
 
-    def test_get_rule_options_percent(self, safe_rp_get_options, modify_root_config, default_args):
+    def test_get_rule_options_percent(self, cleanup, modify_root_config, default_args):
 
         # Set to a valid percentage value and verify it saves as a percentage value
         reset_rule_options()  # Reset the ruleprocessor
@@ -365,7 +365,7 @@ class TestConfigLoader():
         assert 'Unable to parse max_adobe_only_users value. Value must be a percentage or an integer.' in str(
             error.value)
 
-    def test_get_rule_options_extension(self, safe_rp_get_options, modify_root_config, default_args, modify_config):
+    def test_get_rule_options_extension(self, cleanup, modify_root_config, default_args, modify_config):
 
         # Set the extension-config file to be called in user-sync-config. Assert after_mapping_hook is processed correctly
         modify_root_config(['directory_users', 'extension'], 'extension-config.yml')
@@ -498,14 +498,13 @@ class TestConfigFileLoader():
                 'logging' in config and 'limits' in config and
                 'invocation_defaults' in config)
 
-    def test_max_adobe_percentage(self, safe_rp_get_options, cli_args, modify_root_config):
+    def test_max_adobe_percentage(self, cleanup, cli_args, modify_root_config):
         root_config_file = modify_root_config(['limits', 'max_adobe_only_users'], "50%")
         config = ConfigFileLoader.load_root_config(root_config_file)
         assert ('limits' in config and 'max_adobe_only_users' in config['limits'] and
                 config['limits']['max_adobe_only_users'] == "50%")
 
-        args = cli_args({
-            'config_filename': root_config_file})
+        args = cli_args({'config_filename': root_config_file})
         reset_rule_options()  # Reset the ruleprocessor
         options = ConfigLoader(args).get_rule_options()
         assert 'max_adobe_only_users' in options and options['max_adobe_only_users'] == '50%'
@@ -515,7 +514,7 @@ class TestConfigFileLoader():
         with pytest.raises(AssertionException):
             ConfigLoader(args).get_rule_options()
 
-    def test_additional_groups_config(self, safe_rp_get_options, cli_args, modify_root_config):
+    def test_additional_groups_config(self, cleanup, cli_args, modify_root_config):
         addl_groups = [
             {
                 "source": r"ACL-(.+)",
