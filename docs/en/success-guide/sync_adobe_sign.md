@@ -74,7 +74,7 @@ post_sync:
   modules:
     - sign_sync
   connectors:
-    sign_sync: connector-sign-sync.yml
+    sign_sync: connector-sign.yml
 ```
 
 This assumes your Sign Sync connector config file is named `connector-sign-sync.yml`. Change the filename if needed.
