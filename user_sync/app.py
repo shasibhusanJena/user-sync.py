@@ -199,7 +199,7 @@ def sync(**kwargs):
               type=list,
               metavar='exclude|preserve|delete')
 @click.option('--adobe-users',
-              help="specify the adobe users to pull from UMAPI-sign. Legal values are 'all' (the default), "
+              help="specify the adobe users to pull from UMAPI. Legal values are 'all' (the default), "
                    "'group names' (one or more specified groups), 'mapped' (all groups listed in "
                    "the configuration file)",
               cls=user_sync.cli.OptionMulti,
