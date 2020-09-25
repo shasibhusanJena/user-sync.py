@@ -198,6 +198,13 @@ def sync(**kwargs):
               cls=user_sync.cli.OptionMulti,
               type=list,
               metavar='exclude|preserve|delete')
+@click.option('--adobe-users',
+              help="specify the adobe users to pull from UMAPI-sign. Legal values are 'all' (the default), "
+                   "'group names' (one or more specified groups), 'mapped' (all groups listed in "
+                   "the configuration file)",
+              cls=user_sync.cli.OptionMulti,
+              type=list,
+              metavar='all|mapped|group [group list]')
 def sign_sync(**kwargs):
     """Run Sign Sync """
     # load the config files (sign-sync-config.yml) and start the file logger
