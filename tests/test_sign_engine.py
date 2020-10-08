@@ -1,6 +1,7 @@
 import pytest
 import six
 
+from user_sync.config.sign_sync import SignConfigLoader
 from user_sync.connector.directory import DirectoryConnector
 from user_sync.engine.sign import SignSyncEngine
 from user_sync.connector.connector_sign import SignConnector
@@ -8,14 +9,11 @@ import logging
 
 
 @pytest.fixture
-def example_engine(modify_root_config, sign_config_file):
-    modify_root_config(['post_sync', 'modules'], 'sign_sync')
-    modify_root_config(['post_sync', 'connectors'], sign_config_file)
+def example_engine(sign_config_file):
     args = {'config_filename': sign_config_file}
-    args['entitlement_groups'] = 'signgroup'
-    args['sign_orgs'] = []
-    args['create_new_users'] = True
-    return SignSyncEngine(args)
+    config = SignConfigLoader(args)
+    rule_config = config.get_engine_options()
+    return SignSyncEngine(rule_config)
 
 
 def test_load_users_and_groups(example_engine, example_user):
@@ -41,24 +39,43 @@ def test_get_directory_user_key(example_engine, example_user):
     assert example_engine.get_directory_user_key({'': {'username': 'user@example.com'}}) is None
 
 
-def test_insert_new_users(example_user):
+# def test_insert_new_users(example_user):
+#     sign_engine = SignSyncEngine
+#     sign_connector = SignConnector
+#     umapi_user = example_user
+#     user_roles = ['NORMAL_USER']
+#     group_id = 'somemumbojumbohexadecimalstring'
+#     assignment_group = 'default group'
+#     insert_data = {
+#             "email": umapi_user['email'],
+#             "firstName": umapi_user['firstname'],
+#             "groupId": group_id,
+#             "lastName": umapi_user['lastname'],
+#             "roles": user_roles,
+#         }
+#     def insert_user(insert_data):
+#         pass
+#     sign_connector.insert_user = insert_user
+#     sign_engine.logger = logging.getLogger()
+#     sign_engine.insert_new_users(sign_engine, sign_connector, umapi_user, user_roles, group_id, assignment_group)
+#     assert True
+#     assert insert_data['email'] == 'user@example.com'
+
+def test_deactivate_sign_users(example_user):
     sign_engine = SignSyncEngine
     sign_connector = SignConnector
-    umapi_user = example_user
-    user_roles = ['NORMAL_USER']
-    group_id = 'somemumbojumbohexadecimalstring'
-    assignment_group = 'default group'
-    insert_data = {
-            "email": umapi_user['email'],
-            "firstName": umapi_user['firstname'],
-            "groupId": group_id,
-            "lastName": umapi_user['lastname'],
-            "roles": user_roles,
-        }
-    def insert_user(insert_data):
+    directory_users = {}
+    directory_users['federatedID, example.user@signtest.com'] = {'email': 'example.user@signtest.com'}
+    sign_users = {}
+    sign_users['example.user@signtest.com'] = {'email':'example.user@signtest.com','userId':'somerandomhexstring'}
+    def get_users():
+        return sign_users
+    def deactivate_user(insert_data):
         pass
-    sign_connector.insert_user = insert_user
+    sign_connector.deactivate_user = deactivate_user
+    sign_connector.get_users = get_users
     sign_engine.logger = logging.getLogger()
-    sign_engine.insert_new_users(sign_engine, sign_connector, umapi_user, user_roles, group_id, assignment_group)
+    sign_engine.deactivate_sign_users(sign_engine, directory_users, sign_connector)
     assert True
-    assert insert_data['email'] == 'user@example.com'
+    assert sign_users['example.user@signtest.com']['email'] == 'example.user@signtest.com'
+    
