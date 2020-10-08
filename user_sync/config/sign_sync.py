@@ -150,7 +150,6 @@ class SignConfigLoader(ConfigLoader):
     def get_engine_options(self) -> dict:
         options = deepcopy(SignSyncEngine.default_options)
         options.update(self.invocation_options)
-
         user_sync = self.main_config.get_dict_config('user_sync')
         options['create_users'] = user_sync.get_bool('create_users')
         options['sign_only_limit'] = user_sync.get_value('sign_only_limit', (int, str))
