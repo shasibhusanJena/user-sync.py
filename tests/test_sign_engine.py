@@ -34,6 +34,14 @@ def test_load_users_and_groups(example_engine, example_user):
     example_engine.read_desired_user_groups(mapping, dc)
     assert example_engine.directory_user_by_user_key == user
 
+def test_is_directory_user_in_groups(example_engine,example_user):
+
+   assert example_engine.is_directory_user_in_groups(
+       example_user,["Sign Group 1", "Sign Group 2", "sec::Sign Group 3"]) is False
+
+   example_user['groups'] = {"Sign Group 1", "Sign Group 2", "sec::Sign Group 3"}
+   assert example_engine.is_directory_user_in_groups(
+        example_user, ["Sign Group 1", "Sign Group 2", "sec::Sign Group 3"]) is True
 
 def test_get_directory_user_key(example_engine, example_user):
     # user = {'user@example.com': example_user}
